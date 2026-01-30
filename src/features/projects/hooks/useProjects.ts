@@ -6,24 +6,33 @@ export interface Project {
     name: string;
     description: string | null;
     company_id: string;
-    status: 'active' | 'completed' | 'on_hold';
+    lead_id: string | null;
+    status: 'planning' | 'active' | 'completed' | 'on_hold' | 'cancelled';
     contract_value: number;
     actual_cost: number;
     expected_handover: string;
+    start_date: string | null;
     created_by: string;
     created_at: string;
     updated_at: string;
     company?: {
         name: string;
     };
+    lead?: {
+        name: string;
+        email: string;
+    };
+    tasks?: { stage: string }[];
 }
 
 export interface CreateProjectInput {
     name: string;
     description?: string;
     company_id: string;
+    lead_id?: string;
     contract_value: number;
     expected_handover: string;
+    start_date?: string;
     status?: Project['status'];
 }
 
@@ -36,7 +45,9 @@ export function useProjects(companyId?: string) {
                 .from('projects')
                 .select(`
           *,
-          company:companies(name)
+          company:companies(name),
+          lead:users!projects_lead_id_fkey(name),
+          tasks(stage)
         `)
                 .order('created_at', { ascending: false });
 
@@ -60,7 +71,9 @@ export function useProject(id: string) {
                 .from('projects')
                 .select(`
           *,
-          company:companies(name)
+          company:companies(name),
+          lead:users!projects_lead_id_fkey(name, email),
+          tasks(stage)
         `)
                 .eq('id', id)
                 .single();

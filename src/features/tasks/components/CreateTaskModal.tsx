@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input';
 import { useCreateTask, CreateTaskInput } from '../hooks/useTasks';
 import { useProjects } from '@/features/projects/hooks/useProjects';
 
+import { useAuth } from '@/features/auth/hooks/useAuth';
+
 const taskSchema = z.object({
     title: z.string().min(1, 'Title is required'),
     description: z.string().optional(),
@@ -28,8 +30,12 @@ export default function CreateTaskModal({
     open,
     onClose,
 }: CreateTaskModalProps) {
+    const { user } = useAuth();
     const createTask = useCreateTask();
-    const { data: projects } = useProjects();
+    const isAdmin = user?.role === 'admin';
+
+    // If Lead, only fetch projects for their company
+    const { data: projects } = useProjects(isAdmin ? undefined : user?.company_id);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const {

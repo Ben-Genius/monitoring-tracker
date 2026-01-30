@@ -10,13 +10,11 @@ import {
     Settings,
     ChevronLeft,
     ChevronRight,
-    Search,
     UserCircle,
     LogOut
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { Button } from '@/components/ui/button';
 
 const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -25,6 +23,8 @@ const navigation = [
     { name: 'Pipeline', href: '/pipeline', icon: TrendingUp },
     { name: 'Reports', href: '/reports', icon: FileSpreadsheet },
     { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+    { name: 'Approvals', href: '/approvals', icon: CheckSquare },
+    { name: 'Users', href: '/users', icon: UserCircle },
 ];
 
 export default function Sidebar() {

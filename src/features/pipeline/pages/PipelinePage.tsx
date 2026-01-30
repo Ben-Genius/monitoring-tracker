@@ -135,7 +135,7 @@ export default function PipelinePage() {
                 </CardHeader>
                 <CardContent>
                     <div className="flex items-center space-x-2">
-                        {stages.map((stage, index) => (
+                        {stages.map((stage) => (
                             <div key={stage.name} className="flex-1">
                                 <div className={`${stage.color} h-8 rounded-t-md`} />
                                 <div className="text-center mt-2">

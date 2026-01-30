@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Save, Bell, Shield, Database } from 'lucide-react';
 
+
 export default function SettingsPage() {
     return (
         <div className="space-y-6">
@@ -157,6 +158,8 @@ export default function SettingsPage() {
                         </Button>
                     </CardContent>
                 </Card>
+
+
             </div>
         </div>
     );
