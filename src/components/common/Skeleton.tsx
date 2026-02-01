@@ -25,7 +25,7 @@ export function Skeleton({
             variantStyles = 'h-4 w-3/4 rounded';
             break;
         case 'card':
-            variantStyles = 'h-[200px] w-full rounded-lg';
+            variantStyles = 'h-[200px] w-full rounded-md';
             break;
         default:
             variantStyles = '';

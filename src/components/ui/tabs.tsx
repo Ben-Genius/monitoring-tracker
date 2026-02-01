@@ -16,11 +16,12 @@ const useTabs = () => {
     return context
 }
 
-const Tabs = ({ children, defaultValue, className, onValueChange }: {
+const Tabs = ({ children, defaultValue, className, onValueChange, style }: {
     children: React.ReactNode,
     defaultValue: string,
     className?: string,
-    onValueChange?: (value: string) => void
+    onValueChange?: (value: string) => void,
+    style?: React.CSSProperties
 }) => {
     const [value, setValue] = React.useState(defaultValue)
 
@@ -31,28 +32,30 @@ const Tabs = ({ children, defaultValue, className, onValueChange }: {
 
     return (
         <TabsContext.Provider value={{ value, onValueChange: handleValueChange }}>
-            <div className={cn("w-full", className)}>
+            <div className={cn("w-full", className)} style={style}>
                 {children}
             </div>
         </TabsContext.Provider>
     )
 }
 
-const TabsList = ({ children, className }: {
+const TabsList = ({ children, className, style }: {
     children: React.ReactNode,
-    className?: string
+    className?: string,
+    style?: React.CSSProperties
 }) => {
     return (
-        <div className={cn("inline-flex items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground", className)}>
+        <div className={cn("inline-flex items-center justify-center rounded-md bg-muted p-1 text-muted-foreground", className)} style={style}>
             {children}
         </div>
     )
 }
 
-const TabsTrigger = ({ children, value, className }: {
+const TabsTrigger = ({ children, value, className, style }: {
     children: React.ReactNode,
     value: string,
-    className?: string
+    className?: string,
+    style?: React.CSSProperties
 }) => {
     const context = useTabs()
     const isActive = context.value === value
@@ -65,20 +68,22 @@ const TabsTrigger = ({ children, value, className }: {
                 isActive ? "bg-white text-foreground shadow-sm" : "hover:bg-white/50",
                 className
             )}
+            style={style}
         >
             {children}
         </button>
     )
 }
 
-const TabsContent = ({ children, value, className }: {
+const TabsContent = ({ children, value, className, style }: {
     children: React.ReactNode,
     value: string,
-    className?: string
+    className?: string,
+    style?: React.CSSProperties
 }) => {
     const context = useTabs()
     if (value !== context.value) return null
-    return <div className={cn("mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2", className)}>{children}</div>
+    return <div className={cn("mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2", className)} style={style}>{children}</div>
 }
 
 export { Tabs, TabsList, TabsTrigger, TabsContent }

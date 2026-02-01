@@ -20,12 +20,16 @@ export interface TimelineEvent {
 interface ProjectTimelineProps {
     currentStage: string;
     className?: string;
+    theme?: { primary: string; accent: string };
 }
 
-export default function ProjectTimeline({ currentStage, className }: ProjectTimelineProps) {
+export default function ProjectTimeline({ currentStage, className, theme: customTheme }: ProjectTimelineProps) {
+    const defaultTheme = { primary: '#6366f1', accent: '#8b5cf6' }; // Default indigo/violet
+    const theme = customTheme || defaultTheme;
+
     const stages = [
         { id: 'planning', label: 'Planning', icon: Clock, color: 'text-blue-500', bg: 'bg-blue-50' },
-        { id: 'active', label: 'Active Execution', icon: Play, color: 'text-primary', bg: 'bg-primary/10' },
+        { id: 'active', label: 'Active Execution', icon: Play, color: theme.primary, bg: `${theme.primary}10` },
         { id: 'completed', label: 'Handover & Completion', icon: CheckCircle2, color: 'text-success', bg: 'bg-success/10' }
     ];
 
@@ -41,48 +45,43 @@ export default function ProjectTimeline({ currentStage, className }: ProjectTime
     };
 
     return (
-        <div className={cn("relative p-6 bg-white rounded-2xl border border-slate-200/60 shadow-sm", className)}>
+        <div className={cn("relative p-6 bg-white rounded-2xl border border-slate-200", className)}>
             <div className="flex items-center justify-between mb-8">
-                <h3 className="text-lg font-bold text-slate-900">Project Lifecycle Timeline</h3>
-                <Badge variant="outline" className="font-bold">End-to-End Tracking</Badge>
+                <h3 className="text-lg font-bold text-slate-900 tracking-tight">Project Lifecycle Timeline</h3>
+                <Badge variant="outline" className="font-bold border-slate-200 text-slate-400">End-to-End Tracking</Badge>
             </div>
 
-            <div className="relative flex justify-between items-start max-w-4xl mx-auto">
+            <div className="relative flex justify-between items-start max-w-4xl mx-auto px-4">
                 {/* Connector Line */}
-                <div className="absolute top-6 left-0 right-0 h-0.5 bg-slate-100 -z-0" />
+                <div className="absolute top-5 left-0 right-0 h-0.5 bg-slate-100 -z-0" />
 
                 {stages.map((stage) => {
                     const status = getStageStatus(stage.id);
                     const Icon = stage.icon;
 
                     return (
-                        <div key={stage.id} className="relative z-10 flex flex-col items-center group w-1/3 text-center">
+                        <div key={stage.id} className="relative z-10 flex flex-col items-center w-1/3 text-center">
                             <div className={cn(
-                                "h-12 w-12 rounded-full flex items-center justify-center transition-all duration-500 border-4",
-                                status === 'completed' ? "bg-success border-success text-white shadow-lg shadow-success/20" :
-                                    status === 'current' ? "bg-white border-primary text-primary shadow-lg shadow-primary/20 scale-110" :
+                                "h-10 w-10 rounded-full flex items-center justify-center border-2 transition-colors",
+                                status === 'completed' ? "bg-emerald-500 border-emerald-500 text-white" :
+                                    status === 'current' ? "bg-white text-slate-900 shadow-none" :
                                         "bg-white border-slate-100 text-slate-300"
-                            )}>
-                                {status === 'completed' ? <Check className="h-6 w-6" /> : <Icon className="h-6 w-6" />}
+                            )}
+                                style={status === 'current' ? { borderColor: theme.primary, color: theme.primary } : {}}
+                            >
+                                {status === 'completed' ? <Check className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
                             </div>
 
                             <div className="mt-4">
                                 <span className={cn(
-                                    "text-sm font-bold block transition-colors",
+                                    "text-xs font-bold block",
                                     status === 'upcoming' ? "text-slate-400" : "text-slate-900"
                                 )}>
                                     {stage.label}
                                 </span>
-                                <span className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mt-1 block">
+                                <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mt-0.5 block">
                                     {status === 'completed' ? 'Finished' : status === 'current' ? 'In Progress' : 'Planned'}
                                 </span>
-                            </div>
-
-                            {/* Tooltip-like Description (visible on hover) */}
-                            <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 w-48 p-2 bg-slate-900 text-white rounded-lg text-xs opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl z-20">
-                                {status === 'completed' ? `Successfully transitioned from ${stage.label}.` :
-                                    status === 'current' ? `Currently focused on ${stage.label} objectives.` :
-                                        `Future stage: ${stage.label}. Requires approval to activate.`}
                             </div>
                         </div>
                     );
@@ -90,24 +89,28 @@ export default function ProjectTimeline({ currentStage, className }: ProjectTime
             </div>
 
             {/* Lifecycle Status Message */}
-            <div className="mt-20 p-4 bg-slate-50/80 rounded-xl border border-slate-100 flex items-center gap-4">
-                <div className="h-10 w-10 rounded-lg bg-white shadow-sm flex items-center justify-center">
-                    {currentStage === 'planning' ? <Clock className="text-blue-500" /> :
-                        currentStage === 'active' ? <Play className="text-primary" /> :
-                            <CheckCircle2 className="text-success" />}
+            <div className="mt-12 p-4 bg-slate-50 rounded-xl border border-slate-100 flex flex-col md:flex-row items-start md:items-center gap-4">
+                <div className="h-9 w-9 rounded-lg bg-white border border-slate-100 flex items-center justify-center shrink-0">
+                    {currentStage === 'planning' ? <Clock className="h-4 w-4 text-blue-500" /> :
+                        currentStage === 'active' ? <Play className="h-4 w-4" style={{ color: theme.primary }} /> :
+                            <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
                 </div>
                 <div className="flex-1">
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-0.5">Current Phase Insights</p>
-                    <p className="text-sm text-slate-700 font-medium">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Current Phase Insights</p>
+                    <p className="text-sm text-slate-600 font-medium leading-relaxed">
                         {currentStage === 'planning' ? "Focusing on project definition, resource allocation and lead assignment." :
                             currentStage === 'active' ? "Executing tasks and monitoring daily performance vs budget." :
                                 "Project completed. Final review and handover documents are being finalized."}
                     </p>
                 </div>
                 {currentStage !== 'completed' && (
-                    <Button size="sm" variant="outline" className="font-bold h-9">
+                    <Button
+                        size="sm"
+                        variant="secondary"
+                        className="font-bold h-9 px-5 rounded-lg text-xs"
+                    >
                         Request Transition
-                        <ArrowRight className="h-4 w-4 ml-2" />
+                        <ArrowRight className="h-3 w-3 ml-2" />
                     </Button>
                 )}
             </div>

@@ -112,7 +112,7 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                                             <button
                                                 key={stage}
                                                 className={cn(
-                                                    "w-full text-left px-3 py-2 text-xs font-bold rounded-lg transition-colors",
+                                                    "w-full text-left px-3 py-2 text-xs font-bold rounded-md transition-colors",
                                                     task.stage === stage ? "bg-primary/10 text-primary" : "text-slate-600 hover:bg-slate-50"
                                                 )}
                                                 onClick={async () => {
@@ -128,7 +128,7 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                             </div>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-lg transition-colors ml-4">
+                    <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-md transition-colors ml-4">
                         <X className="h-5 w-5 text-slate-500" />
                     </button>
                 </div>
@@ -228,7 +228,7 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                                         </span>
                                         <button
                                             onClick={() => deleteSubtask.mutate(subtask.id)}
-                                            className="opacity-0 group-hover:opacity-100 p-1.5 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                            className="opacity-0 group-hover:opacity-100 p-1.5 hover:text-red-500 hover:bg-red-50 rounded-md transition-all"
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </button>
@@ -267,7 +267,7 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                                                 <button
                                                     key={u.id}
                                                     className={cn(
-                                                        "w-full text-left px-3 py-2 text-xs font-bold rounded-lg transition-colors flex items-center gap-3",
+                                                        "w-full text-left px-3 py-2 text-xs font-bold rounded-md transition-colors flex items-center gap-3",
                                                         task.assignee_id === u.id ? "bg-primary/10 text-primary" : "text-slate-600 hover:bg-slate-50"
                                                     )}
                                                     onClick={async () => {
@@ -314,7 +314,7 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                                                 <button
                                                     key={p}
                                                     className={cn(
-                                                        "w-full text-left px-3 py-2 text-xs font-bold rounded-lg transition-colors flex items-center gap-2",
+                                                        "w-full text-left px-3 py-2 text-xs font-bold rounded-md transition-colors flex items-center gap-2",
                                                         task.priority === p ? "bg-primary/10 text-primary" : "text-slate-600 hover:bg-slate-50"
                                                     )}
                                                     onClick={async () => {
@@ -395,7 +395,7 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                                     />
                                     <button
                                         type="submit"
-                                        className="absolute right-3 bottom-3 p-1.5 text-primary hover:bg-slate-50 rounded-lg transition-colors"
+                                        className="absolute right-3 bottom-3 p-1.5 text-primary hover:bg-slate-50 rounded-md transition-colors"
                                         disabled={!newComment.trim()}
                                     >
                                         <Send className="h-4 w-4" />

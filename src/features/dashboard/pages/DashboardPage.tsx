@@ -232,7 +232,7 @@ export default function DashboardPage() {
                                 <div key={project.id} className="flex items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors bg-white">
                                     <div className="flex items-center gap-4">
                                         <div className={cn(
-                                            "w-10 h-10 rounded-lg flex items-center justify-center",
+                                            "w-10 h-10 rounded-md flex items-center justify-center",
                                             project.status === 'healthy' ? 'bg-green-50 text-green-600' :
                                                 project.status === 'at_risk' ? 'bg-orange-50 text-orange-600' :
                                                     'bg-red-50 text-red-600'
@@ -301,7 +301,7 @@ export default function DashboardPage() {
                     <CardContent className="p-6">
                         <div className="flex items-center justify-between mb-6">
                             <div className="flex items-center gap-2">
-                                <div className="p-2 bg-blue-100 rounded-lg">
+                                <div className="p-2 bg-blue-100 rounded-md">
                                     <Clock className="w-5 h-5 text-blue-600" />
                                 </div>
                                 <h3 className="text-lg font-bold text-gray-900">Recent Tasks</h3>
@@ -344,7 +344,7 @@ export default function DashboardPage() {
                     <CardContent className="p-6">
                         <div className="flex items-center justify-between mb-6">
                             <div className="flex items-center gap-2">
-                                <div className="p-2 bg-purple-100 rounded-lg">
+                                <div className="p-2 bg-purple-100 rounded-md">
                                     <ShieldCheck className="w-5 h-5 text-purple-600" />
                                 </div>
                                 <h3 className="text-lg font-bold text-gray-900">Pending Approvals</h3>
@@ -357,7 +357,7 @@ export default function DashboardPage() {
                             {recentApprovals?.map((approval) => (
                                 <div key={approval.id} className="flex items-center justify-between p-3 border border-gray-100 rounded-xl hover:border-purple-200 transition-all bg-white group">
                                     <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-slate-50 rounded-lg group-hover:bg-purple-50 transition-colors">
+                                        <div className="p-2 bg-slate-50 rounded-md group-hover:bg-purple-50 transition-colors">
                                             <ClipboardCheck className="w-4 h-4 text-slate-500 group-hover:text-purple-600" />
                                         </div>
                                         <div>

@@ -3,33 +3,52 @@ import { useProject } from '../hooks/useProjects';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useCreateApproval } from '@/features/approvals/hooks/useApprovals';
 import ProjectTimeline from '../components/ProjectTimeline';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     ArrowLeft,
     Share2,
-    MoreVertical,
     Download,
     BarChart2,
-    DollarSign,
     Shield,
     Clock,
     CheckCircle2,
     FileText,
-    History,
     Plus,
-    Paperclip
+    Paperclip,
+    MessageSquare,
+    Users,
+    Calendar,
+    ChevronRight,
+    Send
 } from 'lucide-react';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
-import { formatCurrency, calculateProfitability, cn } from '@/lib/utils';
+import { formatCurrency, calculateProfitability, cn, getCompanyTheme } from '@/lib/utils';
+import { useMemo, useState } from 'react';
+import { useTasks } from '@/features/tasks/hooks/useTasks';
+import { useProjectComments, useCreateProjectComment, useProjectAttachments } from '../hooks/useProjectDetails';
 
 export default function ProjectDetailPage() {
     const { id } = useParams();
     const navigate = useNavigate();
     const { user } = useAuth();
     const { data: project, isLoading } = useProject(id || '');
+    const { data: tasks = [] } = useTasks({ project_id: id });
+    const { data: comments = [] } = useProjectComments(id || '');
+    const { data: attachments = [] } = useProjectAttachments(id || '');
+
     const createApproval = useCreateApproval();
+    const createComment = useCreateProjectComment();
+
+    const [commentText, setCommentText] = useState('');
+    const [activeTab, setActiveTab] = useState('overview');
+
+    const theme = useMemo(() => {
+        if (!project?.company?.name) return getCompanyTheme('Global View');
+        return getCompanyTheme(project.company.name);
+    }, [project?.company?.name]);
 
     if (isLoading) {
         return (
@@ -52,303 +71,473 @@ export default function ProjectDetailPage() {
 
     const handleRequestTransition = async () => {
         if (!user || !project) return;
-
-        const nextStageMap: Record<string, string> = {
-            'planning': 'active',
-            'active': 'completed',
-        };
-
+        const nextStageMap: Record<string, string> = { 'planning': 'active', 'active': 'completed' };
         const nextStage = nextStageMap[project.status];
         if (!nextStage) return;
 
         try {
             await createApproval.mutateAsync({
+                project_id: project.id,
                 entity_type: 'project_completion',
                 entity_id: project.id,
-                requested_by: user.id,
+                requester_id: user.id,
                 comments: `Requesting transition to ${nextStage} stage based on current execution milestones.`
             });
             alert('Transition request submitted for Admin review.');
-        } catch (error) {
-            console.error('Failed to submit request:', error);
-        }
+        } catch (error) { console.error(error); }
     };
 
-    const handleRequestBudget = async () => {
-        if (!user || !project) return;
-
+    const handleAddComment = async () => {
+        if (!commentText.trim()) return;
         try {
-            await createApproval.mutateAsync({
-                entity_type: 'budget_increase',
-                entity_id: project.id,
-                requested_by: user.id,
-                comments: `Project Lead requesting budget review and adjustment due to unforeseen technical complexities or scope expansion.`
-            });
-            alert('Budget adjustment request submitted for Admin review.');
-        } catch (error) {
-            console.error('Failed to submit request:', error);
-        }
+            await createComment.mutateAsync({ project_id: project.id, comment: commentText });
+            setCommentText('');
+        } catch (error) { console.error(error); }
     };
+
+    const taskCategories = [
+        "Report Blockers",
+        "Follow Up",
+        "Status Updates",
+        "Procurement Accountability",
+        "Requests & Reports",
+        "Making approval request",
+        "User Management"
+    ];
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Action Bar */}
+            {/* Header / Action Bar */}
             <div className="flex items-center justify-between">
-                <Button variant="ghost" onClick={() => navigate('/projects')} className="group">
+                <Button variant="ghost" onClick={() => navigate('/projects')} className="group font-bold text-slate-500 hover:text-slate-900">
                     <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
-                    Back to Projects
+                    Back to Portfolio
                 </Button>
                 <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm">
-                        <Share2 className="h-4 w-4 mr-2" />
-                        Share
+                    <Button variant="outline" size="sm" className="rounded-xl border-slate-200">
+                        <Share2 className="h-4 w-4 mr-2" /> Share
                     </Button>
-                    <Button variant="outline" size="sm">
-                        <Download className="h-4 w-4 mr-2" />
-                        Export PDF
-                    </Button>
-                    <Button size="icon" variant="outline" className="h-9 w-9">
-                        <MoreVertical className="h-4 w-4" />
+                    <Button variant="outline" size="sm" className="rounded-xl border-slate-200">
+                        <Download className="h-4 w-4 mr-2" /> Export
                     </Button>
                 </div>
             </div>
 
-            {/* Project Cover / Header */}
-            <div className="relative h-64 w-full rounded-3xl overflow-hidden shadow-2xl">
-                <div className={cn(
-                    "absolute inset-0 bg-gradient-to-br transition-all duration-700",
-                    project.company?.name.toLowerCase().includes('macwest') ? "from-indigo-600 via-indigo-500 to-indigo-800" :
-                        project.company?.name.toLowerCase().includes('cypress') ? "from-purple-600 via-purple-500 to-purple-800" :
-                            "from-pink-600 via-pink-500 to-pink-800"
-                )} />
-                <div className="absolute inset-0 bg-grid-white/10 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.5))]" />
-
-                <div className="absolute bottom-0 left-0 right-0 p-8 flex flex-col md:flex-row md:items-end justify-between gap-6 bg-gradient-to-t from-black/20 to-transparent">
-                    <div className="space-y-3">
-                        <Badge className="bg-white/20 hover:bg-white/30 text-white backdrop-blur-md border-0 px-3 py-1 font-bold text-[10px] tracking-widest uppercase">
-                            {project.company?.name || 'Venture'}
-                        </Badge>
-                        <h1 className="text-4xl font-extrabold text-white tracking-tight">
-                            {project.name}
-                        </h1>
-                        <div className="flex items-center gap-6 text-white/80">
-                            <div className="flex items-center gap-2">
-                                <div className="h-8 w-8 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
-                                    <Shield className="h-4 w-4" />
-                                </div>
-                                <span className="text-sm font-bold">Monitor: {project.lead?.name || 'Lead Unassigned'}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <div className="h-8 w-8 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
-                                    <BarChart2 className="h-4 w-4" />
-                                </div>
-                                <span className="text-sm font-bold capitalize">{project.status.replace('_', ' ')} Stage</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-4">
-                        <div className="text-right hidden md:block">
-                            <p className="text-white/60 text-xs font-bold uppercase tracking-wider">Project Value</p>
-                            <p className="text-3xl font-black text-white">{formatCurrency(project.contract_value || 0)}</p>
-                        </div>
-                        {user?.role === 'lead' && (
-                            <div className="flex gap-3">
-                                <Button
-                                    variant="outline"
-                                    onClick={() => handleRequestBudget()}
-                                    className="bg-white/10 hover:bg-white/20 text-white border-white/20 font-bold px-6 h-12 rounded-xl backdrop-blur-md"
-                                >
-                                    <DollarSign className="h-4 w-4 mr-2" />
-                                    Budget Adjustment
-                                </Button>
-                                <Button
-                                    onClick={handleRequestTransition}
-                                    className="bg-white text-primary hover:bg-slate-100 font-bold px-6 h-12 rounded-xl shadow-xl shadow-black/20"
-                                >
-                                    Request Stage Change
-                                </Button>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            {/* Timeline View */}
-            <ProjectTimeline currentStage={project.status} />
-
-            {/* Grid for details */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Statistics */}
-                <Card className="lg:col-span-2 border-slate-200/60 shadow-sm overflow-hidden">
-                    <CardHeader className="border-b border-slate-50 bg-slate-50/30">
-                        <CardTitle className="text-lg font-bold flex items-center gap-2">
-                            <BarChart2 className="h-5 w-5 text-primary" />
-                            Performance Indicators
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-8">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                            <div className="space-y-4">
-                                <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Financial Margin</p>
-                                <div className="space-y-1">
-                                    <h4 className={cn(
-                                        "text-4xl font-black",
-                                        profitability.status === 'healthy' ? "text-success" :
-                                            profitability.status === 'at_risk' ? "text-warning" : "text-destructive"
-                                    )}>
-                                        {profitability.percentage.toFixed(1)}%
-                                    </h4>
-                                    <p className="text-xs text-slate-500 font-medium tracking-tight">Net profitability analyzed vs actual cost.</p>
-                                </div>
-                            </div>
-                            <div className="space-y-4 border-l border-slate-100 pl-8">
-                                <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Execution Efficiency</p>
-                                <div className="space-y-1">
-                                    <h4 className="text-4xl font-black text-slate-900">
-                                        {(() => {
-                                            const total = project.tasks?.length || 0;
-                                            const completed = project.tasks?.filter(t => t.stage === 'completed').length || 0;
-                                            return total > 0 ? Math.round((completed / total) * 100) : 0;
-                                        })()}%
-                                    </h4>
-                                    <p className="text-xs text-slate-500 font-medium tracking-tight">Task completion rate across all stages.</p>
-                                </div>
-                            </div>
-                            <div className="space-y-4 border-l border-slate-100 pl-8">
-                                <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Budget Remaining</p>
-                                <div className="space-y-1">
-                                    <h4 className="text-4xl font-black text-slate-900">
-                                        {formatCurrency(Math.max(0, (project.contract_value || 0) - (project.actual_cost || 0)))}
-                                    </h4>
-                                    <p className="text-xs text-slate-500 font-medium tracking-tight">Estimated liquidity available for completion.</p>
-                                </div>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {/* Info Sidebar */}
-                <Card className="border-slate-200/60 shadow-sm">
-                    <CardHeader>
-                        <CardTitle className="text-lg font-bold">Metadata</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6 pt-6">
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between text-sm py-2 border-b border-slate-50">
-                                <span className="text-slate-500 font-bold flex items-center gap-2">
-                                    <DollarSign className="h-4 w-4" /> Contract
-                                </span>
-                                <span className="font-bold text-slate-900">{formatCurrency(project.contract_value || 0)}</span>
-                            </div>
-                            <div className="flex items-center justify-between text-sm py-2 border-b border-slate-50">
-                                <span className="text-slate-500 font-bold flex items-center gap-2">
-                                    <Clock className="h-4 w-4" /> Start Date
-                                </span>
-                                <span className="font-bold text-slate-900">{project.start_date ? new Date(project.start_date).toLocaleDateString() : 'N/A'}</span>
-                            </div>
-                            <div className="flex items-center justify-between text-sm py-2 border-b border-slate-50">
-                                <span className="text-slate-500 font-bold flex items-center gap-2">
-                                    <CheckCircle2 className="h-4 w-4" /> Handover
-                                </span>
-                                <span className="font-bold text-slate-900">{project.expected_handover ? new Date(project.expected_handover).toLocaleDateString() : 'N/A'}</span>
-                            </div>
-                        </div>
-
-                        {/* Recent Activity Mini-Feed */}
-                        <div className="space-y-4">
-                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                <History className="h-3.5 w-3.5" /> Project Pulse
-                            </h4>
-                            <div className="space-y-5">
-                                {project.tasks?.slice(0, 4).map((task, i) => (
-                                    <div key={task.id} className="flex gap-4 relative group/activity">
-                                        {i < (project.tasks?.slice(0, 4).length || 0) - 1 && (
-                                            <div className="absolute left-[13px] top-[26px] bottom-[-20px] w-0.5 bg-slate-100 group-hover/activity:bg-primary/20 transition-colors" />
-                                        )}
-                                        <div className={cn(
-                                            "h-7 w-7 rounded-full flex items-center justify-center shrink-0 z-10 border-2 border-white shadow-sm transition-all duration-300",
-                                            task.stage === 'completed' ? "bg-success text-white" :
-                                                task.stage === 'in_progress' ? "bg-primary text-white" : "bg-slate-100 text-slate-400"
-                                        )}>
-                                            {task.stage === 'completed' ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Clock className="h-3.5 w-3.5" />}
-                                        </div>
-                                        <div className="space-y-0.5 min-w-0">
-                                            <div className="flex items-center gap-2">
-                                                <p className="text-xs font-black text-slate-900 truncate">
-                                                    {task.stage === 'completed' ? 'Task Finalized' : 'Task Update'}
-                                                </p>
-                                                <span className="text-[10px] text-slate-400 font-bold">• Just now</span>
-                                            </div>
-                                            <p className="text-[11px] text-slate-500 truncate leading-relaxed">
-                                                Moved <span className="font-bold text-slate-700">{task.title}</span> to <span className="capitalize">{task.stage.replace('_', ' ')}</span>
-                                            </p>
-                                        </div>
-                                    </div>
-                                ))}
-                                {(!project.tasks || project.tasks.length === 0) && (
-                                    <div className="py-6 text-center bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
-                                        <p className="text-[11px] text-slate-400 italic">Initiating heartbeat...</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="p-4 bg-indigo-50/50 rounded-xl border border-indigo-100">
-                            <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest mb-2">Governance Note</p>
-                            <p className="text-xs text-indigo-700 leading-relaxed font-medium">
-                                All lifecycle events are logged for audit compliance. Transition approvals usually take 12-24h for review.
+            {/* Minimal Hero Section */}
+            <div className="relative rounded-3xl overflow-hidden border border-slate-100" style={{ backgroundColor: theme.primary }}>
+                <div className="relative p-10 md:p-12 text-white">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8">
+                        <div className="space-y-4 max-w-2xl">
+                            <Badge className="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-4 py-1.5 font-bold text-[10px] tracking-wider uppercase rounded-full">
+                                {project.company?.name || 'Monitoring Node'}
+                            </Badge>
+                            <h1 className="text-4xl md:text-5xl font-bold tracking-tight leading-tight">
+                                {project.name}
+                            </h1>
+                            <p className="text-white/80 text-lg font-medium max-w-xl">
+                                {project.description || 'Strategic infrastructure initiative designed to optimize regional operational throughput.'}
                             </p>
                         </div>
-                    </CardContent>
-                </Card>
+
+                        <div className="flex flex-col items-end gap-4">
+                            <div className="text-right">
+                                <p className="text-white/60 text-[10px] font-bold uppercase tracking-wider">Project Valuation</p>
+                                <p className="text-3xl font-bold">{formatCurrency(project.contract_value || 0)}</p>
+                            </div>
+                            {user?.role === 'lead' && (
+                                <div className="flex gap-2">
+                                    <Button onClick={handleRequestTransition} className="bg-white hover:bg-slate-50 font-bold px-6 h-11 rounded-xl" style={{ color: theme.primary }}>
+                                        Change Stage
+                                    </Button>
+                                    <Button variant="outline" className="bg-white/10 hover:bg-white/20 text-white border-white/20 font-bold px-4 h-11 rounded-xl">
+                                        <Plus className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            {/* Documents & Files Section */}
-            <div className="pt-4 px-2">
-                <Card className="border-slate-200/60 shadow-md">
-                    <CardHeader className="flex flex-row items-center justify-between border-b border-slate-50 bg-slate-50/20 py-4">
-                        <CardTitle className="text-lg font-bold flex items-center gap-2">
-                            <FileText className="h-5 w-5 text-primary" />
-                            Project Vault & Documentation
-                        </CardTitle>
-                        <Button size="sm" variant="outline" className="h-8 font-bold border-dashed border-slate-300 hover:border-primary transition-all">
-                            <Plus className="h-3.5 w-3.5 mr-1" />
-                            Attach File
-                        </Button>
-                    </CardHeader>
-                    <CardContent className="p-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-                            {[
-                                { name: 'Technical_Spec.pdf', type: 'Technical', size: '2.4 MB', date: '2 days ago', color: 'bg-blue-50 text-blue-600' },
-                                { name: 'Contract_Agreement.docx', type: 'Legal', size: '1.1 MB', date: '5 days ago', color: 'bg-indigo-50 text-indigo-600' },
-                                { name: 'Site_Inspection_Report.png', type: 'Inspection', size: '4.5 MB', date: 'Yesterday', color: 'bg-emerald-50 text-emerald-600' },
-                                { name: 'Budget_Forecast.xlsx', type: 'Finance', size: '0.8 MB', date: 'Just now', color: 'bg-amber-50 text-amber-600' }
-                            ].map((doc) => (
-                                <div key={doc.name} className="group p-5 bg-white border border-slate-100 rounded-2xl hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 transition-all cursor-pointer">
-                                    <div className="flex items-start justify-between mb-4">
-                                        <div className={cn("h-12 w-12 rounded-xl flex items-center justify-center transition-colors shadow-sm", doc.color)}>
-                                            <FileText className="h-6 w-6" />
-                                        </div>
-                                        <Badge variant="outline" className="text-[10px] h-5 border-slate-100 font-black tracking-widest px-2 bg-slate-50/50">
-                                            {doc.type.toUpperCase()}
-                                        </Badge>
+            {/* Minimal Navigation & Content Tabs */}
+            <Tabs defaultValue="overview" className="w-full space-y-8" onValueChange={setActiveTab}>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-2 rounded-2xl border border-slate-200">
+                    <TabsList className="bg-transparent h-auto p-0 flex gap-1">
+                        {[
+                            { id: 'overview', label: 'Overview', icon: BarChart2 },
+                            { id: 'tasks', label: 'Tasks', icon: CheckCircle2 },
+                            { id: 'comments', label: 'Discussion', icon: MessageSquare },
+                            { id: 'attachments', label: 'Vault', icon: FileText }
+                        ].map(tab => (
+                            <TabsTrigger
+                                key={tab.id}
+                                value={tab.id}
+                                className={cn(
+                                    "px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all duration-200 gap-2 border border-transparent",
+                                    activeTab === tab.id ? "bg-slate-900 text-white shadow-none" : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+                                )}
+                                style={activeTab === tab.id ? { backgroundColor: theme.primary } : {}}
+                            >
+                                <tab.icon className="h-4 w-4" />
+                                {tab.label}
+                            </TabsTrigger>
+                        ))}
+                    </TabsList>
+
+                    <div className="flex items-center gap-4 px-4">
+                        <div className="flex -space-x-2">
+                            {[1, 2, 3].map(_ => (
+                                <div key={_} className="h-8 w-8 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center font-bold text-[10px] text-slate-500">
+                                    {String.fromCharCode(64 + _)}
+                                </div>
+                            ))}
+                            <div className="h-8 w-8 rounded-full border-2 border-white bg-slate-900 flex items-center justify-center font-bold text-[10px] text-white">+5</div>
+                        </div>
+                        <Button variant="ghost" size="sm" className="font-bold text-slate-400 text-xs hover:text-slate-900">Manage Team</Button>
+                    </div>
+                </div>
+
+                {/* --- OVERVIEW TAB --- */}
+                <TabsContent value="overview" className="space-y-6 mt-0 outline-none">
+                    <ProjectTimeline currentStage={project.status} theme={theme} />
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <Card className="lg:col-span-2 rounded-2xl border-slate-200 shadow-none overflow-hidden">
+                            <CardHeader className="p-6 bg-slate-50/30 border-b border-slate-100 flex flex-row items-center justify-between">
+                                <div>
+                                    <h3 className="text-lg font-bold text-slate-900 tracking-tight">Executive Summary</h3>
+                                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">Key Performance Metrics</p>
+                                </div>
+                                <ActivityBadge status={profitability.status} />
+                            </CardHeader>
+                            <CardContent className="p-8">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                    <MetricItem label="Financial Margin" value={`${profitability.percentage.toFixed(1)}%`} sub="Revenue Efficiency" color={profitability.status === 'healthy' ? "text-emerald-600" : "text-rose-600"} />
+                                    <MetricItem label="Completion Rate" value={`${project.tasks && project.tasks.length > 0 ? Math.round((project.tasks.filter(t => t.stage === 'completed').length / project.tasks.length) * 100) : 0}%`} sub="Task Execution" color="text-slate-900" />
+                                    <MetricItem label="Liquidity" value={formatCurrency(Math.max(0, (project.contract_value || 0) - (project.actual_cost || 0)))} sub="Available Budget" color="text-slate-900" />
+                                </div>
+
+                                <div className="mt-10 pt-8 border-t border-slate-100">
+                                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6">Strategic Milestones</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <InfoStrip icon={Calendar} label="Kickoff Date" value={project.start_date ? new Date(project.start_date).toLocaleDateString() : 'Pending'} />
+                                        <InfoStrip icon={Clock} label="Expected Handover" value={project.expected_handover ? new Date(project.expected_handover).toLocaleDateString() : 'Pending'} />
+                                        <InfoStrip icon={Shield} label="Lead Monitor" value={project.lead?.name || 'Unassigned'} />
+                                        <InfoStrip icon={Users} label="Team Composition" value="8 Verified Operators" />
                                     </div>
-                                    <div className="space-y-2">
-                                        <p className="text-sm font-black text-slate-900 truncate group-hover:text-primary transition-colors leading-tight">{doc.name}</p>
-                                        <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold">
-                                            <span className="flex items-center gap-1.5">
-                                                <Paperclip className="h-3 w-3" /> {doc.size}
-                                            </span>
-                                            <span className="bg-slate-50 px-1.5 py-0.5 rounded uppercase tracking-tighter">{doc.date}</span>
-                                        </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <div className="space-y-6">
+                            <Card className="rounded-2xl border-slate-200 shadow-none bg-white">
+                                <CardHeader className="p-6 pb-2">
+                                    <h3 className="text-lg font-bold text-slate-900 tracking-tight">Project Pulse</h3>
+                                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">Live Activity Feed</p>
+                                </CardHeader>
+                                <CardContent className="px-6 pb-6 pt-2">
+                                    <div className="space-y-5">
+                                        {tasks.slice(0, 5).map((task, i) => (
+                                            <PulseItem key={task.id} task={task} isLast={i === 4} theme={theme} />
+                                        ))}
+                                    </div>
+                                    <Button variant="ghost" className="w-full mt-6 font-bold text-[10px] uppercase tracking-wider text-slate-400 hover:text-slate-900 rounded-lg hover:bg-slate-50 transition-colors" onClick={() => setActiveTab('tasks')}>
+                                        View All Tasks <ChevronRight className="h-3 w-3 ml-1" />
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
+                </TabsContent>
+
+                {/* --- TASKS TAB --- */}
+                <TabsContent value="tasks" className="mt-0 outline-none animate-in fade-in duration-300">
+                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                        <div className="lg:col-span-1 space-y-6">
+                            <Card className="rounded-2xl border-slate-200 shadow-none p-5 space-y-6">
+                                <div>
+                                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Quick Filters</h4>
+                                    <div className="space-y-1">
+                                        {['All Tasks', 'My Tasks', 'In Progress', 'High Priority'].map(f => (
+                                            <button key={f} className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors group">
+                                                <span className="text-xs font-semibold text-slate-500 group-hover:text-slate-900">{f}</span>
+                                                <ChevronRight className="h-3 w-3 text-slate-300" />
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="pt-6 border-t border-slate-100">
+                                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Directives</h4>
+                                    <Button className="w-full justify-start rounded-xl font-bold text-[10px] uppercase tracking-wider px-4 h-10 shadow-none" style={{ backgroundColor: theme.primary }}>
+                                        <Plus className="h-4 w-4 mr-2" /> New Task
+                                    </Button>
+                                </div>
+                            </Card>
+                        </div>
+
+                        <div className="lg:col-span-3 space-y-6">
+                            {taskCategories.map(cat => (
+                                <div key={cat} className="space-y-3">
+                                    <div className="flex items-center gap-4">
+                                        <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">{cat}</h3>
+                                        <div className="h-px bg-slate-100 flex-1" />
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-3">
+                                        {tasks.filter(t => t.category === cat).length > 0 ? (
+                                            tasks.filter(t => t.category === cat).map(task => (
+                                                <ProjectTaskRow key={task.id} task={task} theme={theme} />
+                                            ))
+                                        ) : (
+                                            <div className="p-4 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                                                <p className="text-[10px] font-bold text-slate-300 uppercase tracking-wider">No active tasks in this segment</p>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             ))}
                         </div>
-                    </CardContent>
-                </Card>
+                    </div>
+                </TabsContent>
+
+                {/* --- COMMENTS TAB --- */}
+                <TabsContent value="comments" className="mt-0 outline-none animate-in fade-in duration-300">
+                    <Card className="rounded-2xl border-slate-200 shadow-none overflow-hidden bg-white">
+                        <div className="grid grid-cols-1 lg:grid-cols-3">
+                            <div className="lg:col-span-2 p-8 space-y-8 border-r border-slate-100">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h3 className="text-lg font-bold text-slate-900 tracking-tight">Collaboration Feed</h3>
+                                    <Badge variant="secondary" className="bg-slate-50 text-slate-400 rounded-full py-1 px-3 font-bold text-[10px] uppercase tracking-wider">{comments.length} Signals</Badge>
+                                </div>
+
+                                <div className="space-y-8 min-h-[400px]">
+                                    {comments.map((comment) => (
+                                        <CommentItem key={comment.id} comment={comment} />
+                                    ))}
+
+                                    {comments.length === 0 && (
+                                        <div className="h-full flex flex-col items-center justify-center py-20 text-center">
+                                            <div className="h-12 w-12 rounded-full bg-slate-50 flex items-center justify-center mb-4">
+                                                <MessageSquare className="h-6 w-6 text-slate-200" />
+                                            </div>
+                                            <p className="text-sm font-bold text-slate-300 uppercase tracking-wider">Awaiting first contribution</p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="pt-8 border-t border-slate-100">
+                                    <div className="relative">
+                                        <textarea
+                                            placeholder="Secure message to team leads..."
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-5 text-sm font-medium focus:ring-1 focus:ring-primary/20 min-h-[100px] transition-all resize-none"
+                                            value={commentText}
+                                            onChange={(e) => setCommentText(e.target.value)}
+                                        />
+                                        <Button
+                                            onClick={handleAddComment}
+                                            className="absolute bottom-3 right-3 h-10 w-10 rounded-xl shadow-none"
+                                            style={{ backgroundColor: theme.primary }}
+                                        >
+                                            <Send className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="p-8 space-y-8 bg-slate-50/10">
+                                <section className="space-y-6">
+                                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Core Objectives</h4>
+                                    <div className="space-y-3">
+                                        {['Strategic alignment with Cypress Energy goals', 'Real-time logistics monitoring', 'Automated anomaly detection'].map((obj, _) => (
+                                            <div key={_} className="flex gap-3">
+                                                <div className="h-5 w-5 rounded-md bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500 shrink-0">
+                                                    {_ + 1}
+                                                </div>
+                                                <p className="text-xs font-medium text-slate-600 leading-relaxed">{obj}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+
+                                <section className="space-y-6">
+                                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Strategic Access</h4>
+                                    <div className="space-y-4">
+                                        {[
+                                            { name: 'Emmanuel S.', role: 'Senior Monitor', active: true },
+                                            { name: 'Sarah J.', role: 'Regional Lead', active: true },
+                                            { name: 'Kofi A.', role: 'Specialist', active: false }
+                                        ].map(u => (
+                                            <div key={u.name} className="flex items-center gap-3">
+                                                <div className="h-9 w-9 rounded-full bg-white border border-slate-100 flex items-center justify-center font-bold text-[10px] text-slate-700">{u.name[0]}</div>
+                                                <div>
+                                                    <p className="text-xs font-bold text-slate-900">{u.name}</p>
+                                                    <p className="text-[9px] font-semibold text-slate-400">{u.role}</p>
+                                                </div>
+                                                {u.active && <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 ml-auto" />}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+                            </div>
+                        </div>
+                    </Card>
+                </TabsContent>
+
+                {/* --- ATTACHMENTS TAB --- */}
+                <TabsContent value="attachments" className="mt-0 outline-none animate-in fade-in duration-300">
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-xl font-bold text-slate-900 tracking-tight">Project Vault</h3>
+                                <p className="text-slate-500 text-xs font-medium mt-1">Centralized documentation for audit and technical reference</p>
+                            </div>
+                            <Button className="h-10 px-6 rounded-xl font-bold uppercase text-[10px] tracking-wider shadow-none" style={{ backgroundColor: theme.primary }}>
+                                <Plus className="h-4 w-4 mr-2" /> Upload Asset
+                            </Button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {(attachments.length > 0 ? attachments : [
+                                { id: '1', name: 'Technical_Spec.pdf', type: 'Design', size: '2.4 MB', created_at: '2026-01-30' },
+                                { id: '2', name: 'Contract_Agreement.docx', type: 'Legal', size: '1.1 MB', created_at: '2026-01-25' },
+                                { id: '3', name: 'Site_Report.img', type: 'Field', size: '4.5 MB', created_at: '2026-01-31' },
+                                { id: '4', name: 'Budget_Q1.xlsx', type: 'Finance', size: '0.8 MB', created_at: '2026-02-01' }
+                            ]).map((asset) => (
+                                <AttachmentCard key={asset.id} asset={asset} theme={theme} />
+                            ))}
+                        </div>
+                    </div>
+                </TabsContent>
+            </Tabs>
+        </div>
+    );
+}
+
+// --- Sub-components ---
+
+function MetricItem({ label, value, sub, color }: { label: string, value: string, sub: string, color: string }) {
+    return (
+        <div className="space-y-1">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</p>
+            <h4 className={cn("text-3xl font-bold tracking-tight", color)}>{value}</h4>
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{sub}</p>
+        </div>
+    );
+}
+
+function InfoStrip({ icon: Icon, label, value }: { icon: any, label: string, value: string }) {
+    return (
+        <div className="flex items-center gap-4 p-4 rounded-xl border border-slate-100 bg-white hover:bg-slate-50 transition-colors cursor-default">
+            <div className="h-9 w-9 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 shrink-0"><Icon className="h-4 w-4" /></div>
+            <div className="min-w-0">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</p>
+                <p className="text-sm font-bold text-slate-900 truncate">{value}</p>
             </div>
         </div>
+    );
+}
+
+function PulseItem({ task, isLast, theme }: { task: any, isLast: boolean, theme: any }) {
+    return (
+        <div className="flex gap-4 relative">
+            {!isLast && <div className="absolute left-[13px] top-[26px] bottom-[-20px] w-px bg-slate-100" />}
+            <div className={cn(
+                "h-7 w-7 rounded-full flex items-center justify-center shrink-0 z-10 border border-white",
+                task.stage === 'completed' ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-400"
+            )}
+                style={task.stage === 'in_progress' ? { backgroundColor: theme.primary, color: '#fff' } : {}}
+            >
+                {task.stage === 'completed' ? <CheckCircle2 className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+            </div>
+            <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-900 truncate leading-tight">{task.title}</p>
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">{task.stage.replace('_', ' ')}</p>
+            </div>
+        </div>
+    );
+}
+
+function ProjectTaskRow({ task, theme }: { task: any, theme: any }) {
+    return (
+        <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200 hover:border-slate-300 transition-colors">
+            <div className="flex items-center gap-4">
+                <div className="h-8 w-8 rounded-lg bg-slate-50 flex items-center justify-center">
+                    <input type="checkbox" className="h-4 w-4 rounded-md border-slate-300 text-primary focus:ring-offset-0 focus:ring-0 cursor-pointer" style={{ color: theme.primary } as any} />
+                </div>
+                <div>
+                    <p className="text-sm font-bold text-slate-800 leading-tight">{task.title}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline" className="text-[9px] font-bold uppercase tracking-wider h-4 px-1.5 bg-slate-50 border-slate-200 text-slate-500">{task.priority}</Badge>
+                        <span className="text-[9px] font-semibold text-slate-300 uppercase">Assigned to Lead Monitor</span>
+                    </div>
+                </div>
+            </div>
+            <div className="flex items-center gap-6">
+                <div className="text-right hidden md:block">
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Due Date</p>
+                    <p className="text-xs font-semibold text-slate-600">{task.due_date ? new Date(task.due_date).toLocaleDateString() : 'N/A'}</p>
+                </div>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 hover:text-slate-900 rounded-lg"><ChevronRight className="h-4 w-4" /></Button>
+            </div>
+        </div>
+    );
+}
+
+function CommentItem({ comment }: { comment: any }) {
+    return (
+        <div className="flex gap-4">
+            <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center font-bold text-slate-700 text-xs shrink-0">
+                {comment.user?.name[0]}
+            </div>
+            <div className="flex-1 space-y-2">
+                <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold text-slate-900">{comment.user?.name} <span className="text-[9px] font-semibold text-slate-400 ml-1 uppercase">Monitor</span></p>
+                    <p className="text-[10px] font-semibold text-slate-400">{new Date(comment.created_at).toLocaleDateString()}</p>
+                </div>
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p className="text-sm font-medium text-slate-600 leading-relaxed italic">"{comment.comment}"</p>
+                </div>
+                <div className="flex items-center gap-4 px-1">
+                    <button className="text-[9px] font-bold text-slate-400 uppercase tracking-wider hover:text-slate-900 transition-colors">Acknowledge</button>
+                    <button className="text-[9px] font-bold text-slate-400 uppercase tracking-wider hover:text-slate-900 transition-colors">Reply</button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function AttachmentCard({ asset, theme }: { asset: any, theme: any }) {
+    return (
+        <div className="p-5 bg-white border border-slate-200 rounded-2xl hover:border-slate-300 transition-colors cursor-pointer group">
+            <div className="flex items-start justify-between mb-4">
+                <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${theme.primary}10`, color: theme.primary }}>
+                    <FileText className="h-5 w-5" />
+                </div>
+                <Badge variant="outline" className="text-[9px] h-5 px-1.5 border-slate-200 font-bold bg-slate-50 text-slate-500 uppercase">{asset.type || 'Doc'}</Badge>
+            </div>
+            <div className="space-y-3">
+                <p className="text-sm font-bold text-slate-800 truncate leading-tight group-hover:text-slate-900 transition-colors">{asset.name}</p>
+                <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1 text-[10px] font-semibold text-slate-400">
+                        <Paperclip className="h-3 w-3" /> {asset.size}
+                    </span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase">{asset.created_at ? new Date(asset.created_at).toLocaleDateString() : 'N/A'}</span>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function ActivityBadge({ status }: { status: 'healthy' | 'at_risk' | 'critical' }) {
+    const configs = {
+        healthy: { border: 'border-emerald-100', text: 'text-emerald-700', label: 'Nominal' },
+        at_risk: { border: 'border-amber-100', text: 'text-amber-700', label: 'At Risk' },
+        critical: { border: 'border-rose-100', text: 'text-rose-700', label: 'Critical' }
+    };
+    const config = configs[status];
+    return (
+        <Badge variant="outline" className={cn("gap-1.5 px-3 py-1 rounded-full font-bold text-[9px] uppercase tracking-wider bg-white", config.border, config.text)}>
+            <div className={cn("h-1 w-1 rounded-full", config.text.replace('text', 'bg'))} />
+            {config.label}
+        </Badge>
     );
 }

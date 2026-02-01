@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard,
@@ -13,8 +13,10 @@ import {
     UserCircle,
     LogOut
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, getCompanyTheme } from '@/lib/utils';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { useCompanyStore } from '@/hooks/useCompanyStore';
+import { useCompanies } from '@/features/projects/hooks/useProjects';
 
 const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -31,6 +33,15 @@ export default function Sidebar() {
     const [collapsed, setCollapsed] = useState(false);
     const location = useLocation();
     const { user, signOut } = useAuth();
+    const { selectedCompanyId } = useCompanyStore();
+    const { data: companies = [] } = useCompanies();
+
+    const currentCompanyName = useMemo(() => {
+        if (selectedCompanyId === 'all') return 'Global View';
+        return companies.find(c => c.id === selectedCompanyId)?.name || '';
+    }, [selectedCompanyId, companies]);
+
+    const theme = getCompanyTheme(currentCompanyName);
 
     return (
         <div
@@ -41,8 +52,11 @@ export default function Sidebar() {
         >
             {/* Header / Brand */}
             <div className="h-16 flex items-center px-6 border-b border-gray-100">
-                <div className="bg-primary/10 p-2 rounded-lg mr-3">
-                    <BarChart3 className="h-6 w-6 text-primary" />
+                <div
+                    className="p-2 rounded-md mr-3 transition-colors duration-300"
+                    style={{ backgroundColor: `${theme.primary}15` }}
+                >
+                    <BarChart3 className="h-6 w-6" style={{ color: theme.primary }} />
                 </div>
                 {!collapsed && (
                     <div className="flex flex-col">
@@ -68,18 +82,23 @@ export default function Sidebar() {
                                 key={item.name}
                                 to={item.href}
                                 className={cn(
-                                    'flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group',
-                                    isActive
-                                        ? 'bg-primary/5 text-primary'
-                                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                    'flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-200 group'
                                 )}
+                                style={{
+                                    backgroundColor: isActive ? `${theme.primary}10` : 'transparent',
+                                    color: isActive ? theme.primary : undefined
+                                }}
                                 title={collapsed ? item.name : undefined}
                             >
-                                <item.icon className={cn(
-                                    'h-5 w-5 transition-colors',
-                                    isActive ? 'text-primary' : 'text-gray-400 group-hover:text-gray-600',
-                                    !collapsed && 'mr-3'
-                                )} />
+                                <item.icon
+                                    className={cn(
+                                        'h-5 w-5 transition-colors',
+                                        !collapsed && 'mr-3'
+                                    )}
+                                    style={{
+                                        color: isActive ? theme.primary : undefined
+                                    }}
+                                />
                                 {!collapsed && <span>{item.name}</span>}
                             </Link>
                         );
@@ -96,11 +115,19 @@ export default function Sidebar() {
                     <Link
                         to="/settings"
                         className={cn(
-                            'flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                            'flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+                            location.pathname === '/settings' && 'text-primary bg-primary/5'
                         )}
+                        style={location.pathname === '/settings' ? {
+                            backgroundColor: `${theme.primary}10`,
+                            color: theme.primary
+                        } : {}}
                         title={collapsed ? "Settings" : undefined}
                     >
-                        <Settings className={cn('h-5 w-5 text-gray-400 mr-3')} />
+                        <Settings
+                            className={cn('h-5 w-5 text-gray-400 mr-3')}
+                            style={location.pathname === '/settings' ? { color: theme.primary } : {}}
+                        />
                         {!collapsed && <span>Settings</span>}
                     </Link>
                 </div>
@@ -110,7 +137,12 @@ export default function Sidebar() {
             <div className="p-4 border-t border-gray-100 bg-gray-50/50">
                 <div className={cn("flex items-center", collapsed ? "justify-center" : "justify-between")}>
                     <div className="flex items-center">
-                        <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-primary to-indigo-400 flex items-center justify-center text-white font-semibold shadow-sm">
+                        <div
+                            className="h-10 w-10 rounded-full flex items-center justify-center text-white font-semibold shadow-sm transition-all duration-500"
+                            style={{
+                                background: `linear-gradient(to top right, ${theme.primary}, ${theme.accent})`
+                            }}
+                        >
                             {user?.name?.charAt(0) || 'U'}
                         </div>
                         {!collapsed && (
@@ -134,7 +166,8 @@ export default function Sidebar() {
                 </div>
                 <button
                     onClick={() => setCollapsed(!collapsed)}
-                    className="absolute -right-3 top-20 bg-white border border-gray-200 shadow-sm rounded-full p-1 text-gray-400 hover:text-primary transition-colors"
+                    className="absolute -right-3 top-20 bg-white border border-gray-200 shadow-sm rounded-full p-1 text-gray-400 hover:text-primary transition-colors hover:shadow-md"
+                    style={{ color: collapsed ? theme.primary : undefined }}
                 >
                     {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
                 </button>

@@ -111,7 +111,7 @@ export function UserManagement() {
                 {/* Custom Modal Overlay */}
                 {isDialogOpen && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                        <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="bg-white rounded-md shadow-xl w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-200">
                             <div className="flex justify-between items-center mb-6">
                                 <h2 className="text-xl font-semibold">Invite New User</h2>
                                 <button onClick={() => setIsDialogOpen(false)} className="text-gray-400 hover:text-gray-600">
@@ -179,7 +179,7 @@ export function UserManagement() {
                                 </div>
                             ) : (
                                 <div className="space-y-4">
-                                    <div className="p-4 bg-green-50 rounded-lg border border-green-100 text-center">
+                                    <div className="p-4 bg-green-50 rounded-md border border-green-100 text-center">
                                         <div className="mx-auto w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mb-3">
                                             <Check className="h-5 w-5 text-green-600" />
                                         </div>

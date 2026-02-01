@@ -26,10 +26,11 @@ export interface Approval {
 
 export interface CreateApprovalInput {
     project_id: string;
-    lead_id: string;
-    type: string;
-    content: string;
-    status?: string;
+    requester_id: string;
+    entity_type: string;
+    entity_id: string;
+    comments: string;
+    status?: 'pending' | 'approved' | 'rejected';
 }
 
 export function useApprovals(companyId?: string) {

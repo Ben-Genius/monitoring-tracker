@@ -1,9 +1,10 @@
 import { useDraggable } from '@dnd-kit/core';
 import { GripVertical, Calendar, CheckSquare, MessageSquare } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, getCompanyTheme } from '@/lib/utils';
 import { Task } from '../hooks/useTasks';
 import { formatDate } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { useMemo } from 'react';
 
 interface TaskCardProps {
     task: Task;
@@ -15,6 +16,11 @@ export default function TaskCard({ task, isDragging = false, onClick }: TaskCard
     const { attributes, listeners, setNodeRef, transform } = useDraggable({
         id: task.id,
     });
+
+    const theme = useMemo(() => {
+        const companyName = task.project?.company?.name || 'Global View';
+        return getCompanyTheme(companyName);
+    }, [task.project?.company?.name]);
 
     const style = transform
         ? {
@@ -44,15 +50,6 @@ export default function TaskCard({ task, isDragging = false, onClick }: TaskCard
         task.due_date &&
         new Date(task.due_date).toDateString() === new Date().toDateString() &&
         task.stage !== 'completed';
-
-    // Get company-specific colors based on EPIC-01
-    const getProjectColorClass = (projectName: string, companyName?: string) => {
-        const name = (companyName || projectName).toLowerCase();
-        if (name.includes('macwest')) return 'bg-indigo-50 text-indigo-700 border-indigo-100';
-        if (name.includes('cypress')) return 'bg-purple-50 text-purple-700 border-purple-100';
-        if (name.includes('northbrook')) return 'bg-pink-50 text-pink-700 border-pink-100';
-        return 'bg-slate-50 text-slate-700 border-slate-100';
-    };
 
     return (
         <div
@@ -86,10 +83,12 @@ export default function TaskCard({ task, isDragging = false, onClick }: TaskCard
                 {task.project && (
                     <Badge
                         variant="outline"
-                        className={cn(
-                            'text-[10px] font-medium px-1.5 py-0 h-5 border rounded-md capitalize',
-                            getProjectColorClass(task.project.name, task.project.company?.name)
-                        )}
+                        className="text-[10px] font-bold px-1.5 py-0 h-5 border rounded-md capitalize"
+                        style={{
+                            color: theme.primary,
+                            borderColor: `${theme.primary}20`,
+                            backgroundColor: `${theme.primary}05`
+                        }}
                     >
                         {task.project.name}
                     </Badge>
@@ -116,11 +115,11 @@ export default function TaskCard({ task, isDragging = false, onClick }: TaskCard
                 </div>
                 <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
                     <div
-                        className={cn(
-                            "h-full rounded-full transition-all duration-500",
-                            task.stage === 'completed' ? 'bg-green-500 w-full' : 'bg-primary'
-                        )}
-                        style={{ width: `${progress}%` }}
+                        className={cn("h-full rounded-full transition-all duration-500", task.stage === 'completed' ? 'bg-success' : '')}
+                        style={{
+                            width: `${progress}%`,
+                            backgroundColor: task.stage !== 'completed' ? theme.primary : undefined
+                        }}
                     />
                 </div>
             </div>
@@ -160,7 +159,8 @@ export default function TaskCard({ task, isDragging = false, onClick }: TaskCard
                 {task.assignee && (
                     <div
                         title={task.assignee.name}
-                        className="h-7 w-7 rounded-full bg-slate-100 border-2 border-white ring-1 ring-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-700 overflow-hidden shadow-sm hover:ring-primary/50 transition-all cursor-help"
+                        className="h-7 w-7 rounded-full bg-slate-100 border-2 border-white ring-1 ring-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-700 overflow-hidden shadow-sm hover:ring-opacity-50 transition-all cursor-help"
+                        style={{ '--tw-ring-color': theme.primary } as any}
                     >
                         {task.assignee.name
                             .split(' ')

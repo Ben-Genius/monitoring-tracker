@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './features/auth/hooks/useAuth';
 
 // Pages
@@ -15,7 +16,6 @@ import PipelinePage from './features/pipeline/pages/PipelinePage';
 import ReportsPage from './features/reports/pages/ReportsPage';
 import SettingsPage from './features/settings/pages/SettingsPage';
 import UserManagementPage from './features/users/pages/UserManagementPage';
-
 import ApprovalsPage from './features/approvals/pages/ApprovalsPage';
 
 // Layout
@@ -71,7 +71,8 @@ function App() {
                     <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
             </Router>
-        </QueryClientProvider>
+            <Toaster position="top-right" />
+        </QueryClientProvider >
     );
 }
 

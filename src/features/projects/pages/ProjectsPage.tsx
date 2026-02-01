@@ -15,10 +15,10 @@ import {
     Play
 } from 'lucide-react';
 import { formatCurrency, calculateProfitability, cn, getCompanyTheme } from '@/lib/utils';
-import { useProjects } from '@/features/projects/hooks/useProjects';
+import { useProjects, useCompanies } from '@/features/projects/hooks/useProjects';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CreateProjectModal from '@/features/projects/components/CreateProjectModal';
 
@@ -29,12 +29,20 @@ export default function ProjectsPage() {
     const navigate = useNavigate();
     const { selectedCompanyId } = useCompanyStore();
     const { data: projects, isLoading } = useProjects(selectedCompanyId === 'all' ? undefined : selectedCompanyId);
+    const { data: companies = [] } = useCompanies();
     const [activeTab, setActiveTab] = useState('all');
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     const isAdmin = user?.role === 'admin';
     const isLead = user?.role === 'lead';
     const canCreateProject = isAdmin || isLead;
+
+    const currentCompanyName = useMemo(() => {
+        if (selectedCompanyId === 'all') return 'Global View';
+        return companies.find(c => c.id === selectedCompanyId)?.name || '';
+    }, [selectedCompanyId, companies]);
+
+    const theme = getCompanyTheme(currentCompanyName);
 
     if (isLoading) {
         return (
@@ -78,7 +86,11 @@ export default function ProjectsPage() {
                 {canCreateProject && (
                     <Button
                         onClick={() => setIsCreateModalOpen(true)}
-                        className="shadow-lg shadow-primary/20"
+                        className="shadow-lg transition-transform hover:scale-105"
+                        style={{
+                            backgroundColor: theme.primary,
+                            boxShadow: `0 10px 15px -3px ${theme.primary}30`
+                        }}
                     >
                         <Plus className="h-4 w-4 mr-2" />
                         New Project
@@ -90,23 +102,58 @@ export default function ProjectsPage() {
             <Tabs defaultValue="all" className="w-full" onValueChange={setActiveTab}>
                 <div className="flex items-center justify-between mb-6">
                     <TabsList className="bg-slate-100/50 p-1 border border-slate-200/50">
-                        <TabsTrigger value="all" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                            <LayoutGrid className="h-4 w-4 mr-2" />
-                            All ({stats.total})
+                        <TabsTrigger
+                            value="all"
+                            className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                        >
+                            <span
+                                className="flex items-center"
+                                style={activeTab === 'all' ? { color: theme.primary } : {}}
+                            >
+                                <LayoutGrid className="h-4 w-4 mr-2" />
+                                All ({stats.total})
+                            </span>
                         </TabsTrigger>
-                        <TabsTrigger value="upcoming" className="data-[state=active]:bg-white data-[state=active]:shadow-sm text-blue-600">
-                            <Clock className="h-4 w-4 mr-2" />
-                            Upcoming ({stats.upcoming})
+                        <TabsTrigger
+                            value="upcoming"
+                            className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                        >
+                            <span
+                                className="flex items-center"
+                                style={activeTab === 'upcoming' ? { color: theme.primary } : {}}
+                            >
+                                <Clock className="h-4 w-4 mr-2" />
+                                Upcoming ({stats.upcoming})
+                            </span>
                         </TabsTrigger>
-                        <TabsTrigger value="active" className="data-[state=active]:bg-white data-[state=active]:shadow-sm text-primary">
-                            <Play className="h-4 w-4 mr-2" />
-                            Active ({stats.active})
+                        <TabsTrigger
+                            value="active"
+                            className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                        >
+                            <span
+                                className="flex items-center"
+                                style={activeTab === 'active' ? { color: theme.primary } : {}}
+                            >
+                                <Play className="h-4 w-4 mr-2" />
+                                Active ({stats.active})
+                            </span>
                         </TabsTrigger>
-                        <TabsTrigger value="completed" className="data-[state=active]:bg-white data-[state=active]:shadow-sm text-success">
-                            <CheckCircle2 className="h-4 w-4 mr-2" />
-                            Completed ({stats.completed})
+                        <TabsTrigger
+                            value="completed"
+                            className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                        >
+                            <span
+                                className="flex items-center"
+                                style={activeTab === 'completed' ? { color: theme.primary } : {}}
+                            >
+                                <CheckCircle2 className="h-4 w-4 mr-2" />
+                                Completed ({stats.completed})
+                            </span>
                         </TabsTrigger>
-                        <TabsTrigger value="backlogs" className="data-[state=active]:bg-white data-[state=active]:shadow-sm text-warning">
+                        <TabsTrigger
+                            value="backlogs"
+                            className="data-[state=active]:bg-white data-[state=active]:shadow-sm text-warning"
+                        >
                             <AlertCircle className="h-4 w-4 mr-2" />
                             Backlogs ({stats.backlogs})
                         </TabsTrigger>
@@ -118,10 +165,7 @@ export default function ProjectsPage() {
                         const contractValue = project.contract_value || 0;
                         const actualCost = project.actual_cost || 0;
                         const profitability = calculateProfitability(contractValue, actualCost);
-
-                        // Mock progress for now - in real app, fetch task counts
-                        // const completionRate = project.status === 'completed' ? 100 :
-                        //     project.status === 'planning' ? 0 : 45;
+                        const projectTheme = getCompanyTheme(project.company?.name || '');
 
                         return (
                             <Card key={project.id} className="group hover:shadow-xl transition-all duration-300 border-slate-200/60 overflow-hidden bg-white">
@@ -135,32 +179,31 @@ export default function ProjectsPage() {
                                                             'warning'
                                             }
                                             className="capitalize shadow-sm"
+                                            style={project.status === 'active' ? { backgroundColor: projectTheme.primary } : {}}
                                         >
                                             {project.status.replace('_', ' ')}
                                         </Badge>
                                     </div>
                                     <div className="space-y-1">
-                                        {(() => {
-                                            const theme = getCompanyTheme(project.company?.name || '');
-                                            return (
-                                                <>
-                                                    <Badge
-                                                        variant="outline"
-                                                        className="mb-2 font-bold px-2 py-0.5"
-                                                        style={{
-                                                            color: theme.primary,
-                                                            backgroundColor: `${theme.primary}10`,
-                                                            borderColor: `${theme.primary}20`
-                                                        }}
-                                                    >
-                                                        {project.company?.name || 'Venture'}
-                                                    </Badge>
-                                                    <CardTitle className="text-xl font-bold text-slate-900 group-hover:text-primary transition-colors">
-                                                        {project.name}
-                                                    </CardTitle>
-                                                </>
-                                            );
-                                        })()}
+                                        <Badge
+                                            variant="outline"
+                                            className="mb-2 font-bold px-2 py-0.5"
+                                            style={{
+                                                color: projectTheme.primary,
+                                                backgroundColor: `${projectTheme.primary}10`,
+                                                borderColor: `${projectTheme.primary}20`
+                                            }}
+                                        >
+                                            {project.company?.name || 'Venture'}
+                                        </Badge>
+                                        <CardTitle className="text-xl font-bold text-slate-900 group-hover:text-primary transition-colors">
+                                            <span
+                                                className="group-hover:transition-colors"
+                                                style={{ color: 'rgba(15, 23, 42, 1)' }}
+                                            >
+                                                {project.name}
+                                            </span>
+                                        </CardTitle>
                                     </div>
                                 </CardHeader>
                                 <CardContent className="space-y-6">
@@ -206,7 +249,7 @@ export default function ProjectsPage() {
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between">
                                             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Execution Progress</span>
-                                            <span className="text-xs font-black text-primary">
+                                            <span className="text-xs font-black" style={{ color: projectTheme.primary }}>
                                                 {(() => {
                                                     const total = project.tasks?.length || 0;
                                                     const completed = project.tasks?.filter(t => t.stage === 'completed').length || 0;
@@ -216,8 +259,9 @@ export default function ProjectsPage() {
                                         </div>
                                         <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-50">
                                             <div
-                                                className="h-full bg-primary transition-all duration-1000 ease-out"
+                                                className="h-full transition-all duration-1000 ease-out"
                                                 style={{
+                                                    backgroundColor: projectTheme.primary,
                                                     width: `${(() => {
                                                         const total = project.tasks?.length || 0;
                                                         const completed = project.tasks?.filter(t => t.stage === 'completed').length || 0;
@@ -234,8 +278,11 @@ export default function ProjectsPage() {
 
                                     <Button
                                         variant="outline"
-                                        className="w-full h-11 border-slate-200 hover:bg-slate-50 hover:text-primary font-bold transition-all shadow-sm"
+                                        className="w-full h-11 border-slate-200 font-bold transition-all shadow-sm hover:bg-slate-50"
+                                        style={{ '--hover-color': projectTheme.primary } as any}
                                         onClick={() => navigate(`/projects/${project.id}`)}
+                                        onMouseEnter={(e) => (e.currentTarget.style.color = projectTheme.primary)}
+                                        onMouseLeave={(e) => (e.currentTarget.style.color = '')}
                                     >
                                         View Project Timeline
                                     </Button>
@@ -255,6 +302,7 @@ export default function ProjectsPage() {
                                 onClick={() => setIsCreateModalOpen(true)}
                                 className="mt-6 font-bold"
                                 variant="outline"
+                                style={{ color: theme.primary, borderColor: `${theme.primary}40` }}
                             >
                                 <Plus className="h-4 w-4 mr-2" />
                                 Create New Project

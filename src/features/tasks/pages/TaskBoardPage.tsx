@@ -26,10 +26,12 @@ import LoadingSpinner from '@/components/common/LoadingSpinner';
 import TaskCard from '../components/TaskCard';
 import CreateTaskModal from '../components/CreateTaskModal';
 import TaskDetailModal from '../components/TaskDetailModal';
-import { cn } from '@/lib/utils';
+import { cn, getCompanyTheme } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
+import { useCompanyStore } from '@/hooks/useCompanyStore';
+import { useCompanies } from '@/features/projects/hooks/useProjects';
 
-const stages = [
+const baseStages = [
     { id: 'talking_stage', name: 'Talking Stage', color: 'bg-blue-500', icon: MessageSquare, tint: 'bg-blue-50/50' },
     { id: 'yet_to_start', name: 'Yet to Start', color: 'bg-slate-400', icon: Circle, tint: 'bg-slate-50/50' },
     { id: 'in_progress', name: 'In Progress', color: 'bg-primary', icon: PlayCircle, tint: 'bg-primary/5' },
@@ -37,14 +39,13 @@ const stages = [
     { id: 'completed', name: 'Completed', color: 'bg-success', icon: CheckCircle2, tint: 'bg-success/10' },
 ] as const;
 
-import { useCompanyStore } from '@/hooks/useCompanyStore';
-
 export default function TaskBoardPage() {
     const { user } = useAuth();
     const isAdmin = user?.role === 'admin';
     const isLead = user?.role === 'lead';
 
     const { selectedCompanyId } = useCompanyStore();
+    const { data: companies = [] } = useCompanies();
     const { data: tasks, isLoading } = useTasks({
         company_id: selectedCompanyId === 'all' ? undefined : selectedCompanyId
     });
@@ -54,6 +55,27 @@ export default function TaskBoardPage() {
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const searchQuery = searchTerm.toLowerCase();
+
+    const currentCompanyName = useMemo(() => {
+        if (selectedCompanyId === 'all') return 'Global View';
+        return companies.find(c => c.id === selectedCompanyId)?.name || '';
+    }, [selectedCompanyId, companies]);
+
+    const theme = getCompanyTheme(currentCompanyName);
+
+    const stages = useMemo(() => {
+        return baseStages.map(stage => {
+            if (stage.id === 'in_progress') {
+                return {
+                    ...stage,
+                    color: `text-[${theme.primary}]`,
+                    style: { color: theme.primary },
+                    tintStyle: { backgroundColor: `${theme.primary}05` }
+                };
+            }
+            return stage;
+        });
+    }, [theme]);
 
     const handleTaskClick = (taskId: string) => {
         setSelectedTaskId(taskId);
@@ -135,7 +157,15 @@ export default function TaskBoardPage() {
                         Filter
                     </Button>
                     {(isAdmin || isLead) && (
-                        <Button size="sm" className="h-9" onClick={() => setIsCreateModalOpen(true)}>
+                        <Button
+                            size="sm"
+                            className="h-9 transition-transform hover:scale-105"
+                            onClick={() => setIsCreateModalOpen(true)}
+                            style={{
+                                backgroundColor: theme.primary,
+                                boxShadow: `0 10px 15px -3px ${theme.primary}30`
+                            }}
+                        >
                             <Plus className="h-4 w-4 mr-2" />
                             New Task
                         </Button>
@@ -156,11 +186,12 @@ export default function TaskBoardPage() {
                             return (
                                 <TaskColumn
                                     key={stage.id}
-                                    stage={stage}
+                                    stage={stage as any}
                                     tasks={stageTasks}
                                     stageId={stage.id}
                                     onAddTask={() => setIsCreateModalOpen(true)}
                                     onTaskClick={handleTaskClick}
+                                    activeTheme={theme}
                                 />
                             );
                         })}
@@ -191,14 +222,15 @@ export default function TaskBoardPage() {
 }
 
 interface TaskColumnProps {
-    stage: typeof stages[number];
+    stage: typeof baseStages[number] & { style?: React.CSSProperties, tintStyle?: React.CSSProperties };
     tasks: Task[];
     onAddTask: () => void;
     stageId: string;
     onTaskClick: (taskId: string) => void;
+    activeTheme: { primary: string; accent: string };
 }
 
-function TaskColumn({ stage, tasks, onAddTask, stageId, onTaskClick }: TaskColumnProps) {
+function TaskColumn({ stage, tasks, onAddTask, stageId, onTaskClick, activeTheme }: TaskColumnProps) {
     const { setNodeRef } = useDroppable({
         id: stageId,
     });
@@ -210,11 +242,15 @@ function TaskColumn({ stage, tasks, onAddTask, stageId, onTaskClick }: TaskColum
                 "flex-shrink-0 w-[350px] rounded-xl flex flex-col max-h-full bg-slate-50/50 border border-slate-200/50",
                 stage.tint
             )}
+            style={stage.tintStyle}
         >
             {/* Column Header */}
             <div className="p-4 flex items-center justify-between sticky top-0 bg-transparent backdrop-blur-sm z-10">
                 <div className="flex items-center gap-2.5">
-                    <div className={cn("p-1.5 rounded-lg shadow-sm bg-white", stage.color.replace('bg-', 'text-'))}>
+                    <div
+                        className={cn("p-1.5 rounded-md shadow-sm bg-white", stage.color.startsWith('bg-') ? stage.color.replace('bg-', 'text-') : '')}
+                        style={stage.style}
+                    >
                         <stage.icon className="h-4 w-4" />
                     </div>
                     <div>
@@ -225,7 +261,7 @@ function TaskColumn({ stage, tasks, onAddTask, stageId, onTaskClick }: TaskColum
                 <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 hover:bg-white/80 rounded-lg"
+                    className="h-8 w-8 hover:bg-white/80 rounded-md"
                     onClick={onAddTask}
                 >
                     <Plus className="h-4 w-4 text-slate-500" />
@@ -254,6 +290,8 @@ function TaskColumn({ stage, tasks, onAddTask, stageId, onTaskClick }: TaskColum
                     <button
                         onClick={onAddTask}
                         className="w-full py-2.5 flex items-center justify-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-900 hover:bg-white/80 rounded-xl border border-transparent hover:border-slate-200 transition-all group"
+                        onMouseEnter={(e) => (e.currentTarget.style.color = activeTheme.primary)}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = '')}
                     >
                         <Plus className="h-3.5 w-3.5 group-hover:scale-110 transition-transform" />
                         Add Task

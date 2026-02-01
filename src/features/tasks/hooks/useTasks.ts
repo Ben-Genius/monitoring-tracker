@@ -31,6 +31,7 @@ export interface Task {
     assignee_id: string;
     stage: 'talking_stage' | 'yet_to_start' | 'in_progress' | 'blockers' | 'completed';
     priority: 'low' | 'medium' | 'high' | 'critical';
+    category: string | null;
     due_date: string | null;
     created_at: string;
     updated_at: string;
@@ -61,6 +62,7 @@ export interface CreateTaskInput {
     assignee_id: string;
     stage?: Task['stage'];
     priority?: Task['priority'];
+    category?: string;
     due_date?: string;
 }
 
@@ -69,6 +71,7 @@ export interface UpdateTaskInput {
     description?: string;
     stage?: Task['stage'];
     priority?: Task['priority'];
+    category?: string;
     due_date?: string;
     assignee_id?: string;
 }
@@ -78,6 +81,7 @@ export function useTasks(filters?: {
     project_id?: string;
     assignee_id?: string;
     stage?: string;
+    category?: string;
     company_id?: string;
 }) {
     return useQuery({
@@ -102,6 +106,9 @@ export function useTasks(filters?: {
             }
             if (filters?.stage) {
                 query = query.eq('stage', filters.stage);
+            }
+            if (filters?.category) {
+                query = query.eq('category', filters.category);
             }
             if (filters?.company_id) {
                 query = query.eq('project.company_id', filters.company_id);
