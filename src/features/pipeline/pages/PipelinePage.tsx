@@ -44,7 +44,7 @@ export default function PipelinePage() {
                     </p>
                 </div>
                 <Button
-                    className="shadow-lg shadow-primary/20 transition-transform hover:scale-105"
+                    className="shadow-lg  transition-transform hover:scale-105"
                     style={{ backgroundColor: theme.primary, boxShadow: `0 10px 15px -3px ${theme.primary}30` }}
                 >
                     <Plus className="h-4 w-4 mr-2" />

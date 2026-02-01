@@ -161,7 +161,7 @@ export default function UserManagementPage() {
                     <p className="text-slate-500 mt-1 font-medium italic">Manage team members and roles for {currentCompanyName}</p>
                 </div>
                 <Button
-                    className="font-black uppercase text-[10px] tracking-widest px-6 h-11 shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
+                    className="font-black uppercase text-[10px] tracking-widest px-6 h-11 hover:scale-105 transition-transform"
                     style={{ backgroundColor: theme.primary }}
                     onClick={() => {
                         // Pre-select company if lead
@@ -259,6 +259,14 @@ export default function UserManagementPage() {
                                         >
                                             <option value="lead">Project Lead</option>
                                             <option value="employee">Specialist</option>
+                                            <option value="employee">Finance</option>
+                                            <option value="employee">IT</option>
+                                            <option value="employee">HR</option>
+                                            <option value="employee">Legal</option>
+                                            <option value="employee">Project Manager</option>
+                                            <option value="employee">Administrator</option>
+
+
                                             {isAdmin && <option value="admin">Administrator</option>}
                                         </select>
                                     </div>

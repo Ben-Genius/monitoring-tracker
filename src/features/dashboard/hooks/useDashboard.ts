@@ -325,11 +325,11 @@ export function useRecentApprovals(limit = 5, companyId?: string) {
                 .select(`
           id,
           type,
-          title,
+          content,
           status,
           created_at,
           requester:users!approvals_requester_id_fkey(name),
-          project:projects!approvals_project_id_fkey(inner, company:companies(name))
+          project:projects!approvals_project_id_fkey(name, company:companies(name))
         `);
 
             if (companyId && companyId !== 'all') {
@@ -345,7 +345,7 @@ export function useRecentApprovals(limit = 5, companyId?: string) {
             return data?.map((approval: any) => ({
                 id: approval.id,
                 type: approval.type,
-                title: approval.title,
+                title: approval.content || approval.type, // Use content as title fallback
                 requester_name: approval.requester?.name || 'Unknown',
                 status: approval.status,
                 created_at: approval.created_at,

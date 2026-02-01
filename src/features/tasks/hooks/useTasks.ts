@@ -31,7 +31,6 @@ export interface Task {
     assignee_id: string;
     stage: 'talking_stage' | 'yet_to_start' | 'in_progress' | 'blockers' | 'completed';
     priority: 'low' | 'medium' | 'high' | 'critical';
-    category: string | null;
     due_date: string | null;
     created_at: string;
     updated_at: string;
@@ -47,6 +46,13 @@ export interface Task {
         name: string;
         email: string;
     };
+    assignees?: {
+        user: {
+            id: string;
+            name: string;
+            email: string;
+        }
+    }[];
     subtasks?: Subtask[];
     comments?: TaskComment[];
     _count?: {
@@ -58,11 +64,11 @@ export interface Task {
 export interface CreateTaskInput {
     title: string;
     description?: string;
-    project_id: string;
+    project_id?: string;
     assignee_id: string;
+    assignee_ids?: string[];
     stage?: Task['stage'];
     priority?: Task['priority'];
-    category?: string;
     due_date?: string;
 }
 
@@ -71,9 +77,10 @@ export interface UpdateTaskInput {
     description?: string;
     stage?: Task['stage'];
     priority?: Task['priority'];
-    category?: string;
     due_date?: string;
-    assignee_id?: string;
+    assignee_id?: string | null;
+    assignee_ids?: string[];
+    project_id?: string | null;
 }
 
 // Fetch all tasks
@@ -93,6 +100,7 @@ export function useTasks(filters?: {
           *,
           project:projects(name, company_id, company:companies(name)),
           assignee:users!tasks_assignee_id_users_id_fk(name, email),
+          assignees:task_assignees(user:users(id, name, email)),
           subtasks(id, is_completed),
           comments:task_comments(id)
         `)
@@ -107,9 +115,7 @@ export function useTasks(filters?: {
             if (filters?.stage) {
                 query = query.eq('stage', filters.stage);
             }
-            if (filters?.category) {
-                query = query.eq('category', filters.category);
-            }
+
             if (filters?.company_id) {
                 query = query.eq('project.company_id', filters.company_id);
             }
@@ -132,6 +138,7 @@ export function useTask(id: string) {
           *,
           project:projects(name, company_id, company:companies(name)),
           assignee:users!tasks_assignee_id_users_id_fk(name, email),
+          assignees:task_assignees(user:users(id, name, email)),
           creator:users!tasks_created_by_users_id_fk(name, email),
           subtasks(*)
         `)
@@ -154,17 +161,40 @@ export function useCreateTask() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('Not authenticated');
 
-            const { data, error } = await supabase
+            // Separate assignee_ids from the rest of the task data
+            const { assignee_ids, ...taskData } = input;
+
+            // 1. Create the task
+            const { data: task, error: taskError } = await supabase
                 .from('tasks')
                 .insert({
-                    ...input,
+                    ...taskData,
                     created_by: user.id,
                 })
                 .select()
                 .single();
 
-            if (error) throw error;
-            return data;
+            if (taskError) throw taskError;
+
+            // 2. Create task assignees if multiple provided
+            if (assignee_ids && assignee_ids.length > 0) {
+                const assigneesPayload = assignee_ids.map(userId => ({
+                    task_id: task.id,
+                    user_id: userId
+                }));
+
+                const { error: assigneesError } = await supabase
+                    .from('task_assignees')
+                    .insert(assigneesPayload);
+
+                if (assigneesError) {
+                    console.error('Failed to save task assignees:', assigneesError);
+                    // We don't throw here to avoid failing the whole task creation, 
+                    // but in a strict system we might want to transaction this.
+                }
+            }
+
+            return task;
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['tasks'] });
@@ -178,9 +208,41 @@ export function useUpdateTask(id: string) {
 
     return useMutation({
         mutationFn: async (input: UpdateTaskInput) => {
+            const { assignee_ids, ...updateData } = input;
+
+            // Handle multi-assignee update
+            if (assignee_ids) {
+                // 1. Update/Reset Primary Assignee
+                // Use the first selected user as primary, or null if empty
+                updateData.assignee_id = assignee_ids[0] || null;
+
+                // 2. Sync task_assignees table
+                // First delete existing
+                const { error: deleteError } = await supabase
+                    .from('task_assignees')
+                    .delete()
+                    .eq('task_id', id);
+
+                if (deleteError) throw deleteError;
+
+                // Then insert new ones
+                if (assignee_ids.length > 0) {
+                    const assigneesPayload = assignee_ids.map(userId => ({
+                        task_id: id,
+                        user_id: userId
+                    }));
+
+                    const { error: insertError } = await supabase
+                        .from('task_assignees')
+                        .insert(assigneesPayload);
+
+                    if (insertError) throw insertError;
+                }
+            }
+
             const { data, error } = await supabase
                 .from('tasks')
-                .update(input)
+                .update(updateData)
                 .eq('id', id)
                 .select()
                 .single();

@@ -244,7 +244,7 @@ export default function CreateProjectModal({
                         <Button
                             type="submit"
                             disabled={isSubmitting}
-                            className="h-12 px-10 rounded-xl font-bold shadow-xl shadow-primary/20"
+                            className="h-12 px-10 rounded-xl font-bold shadow-xl "
                         >
                             {isSubmitting ? 'Initializing Project...' : 'Launch Project'}
                         </Button>

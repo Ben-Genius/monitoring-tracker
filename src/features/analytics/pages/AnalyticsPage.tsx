@@ -164,7 +164,7 @@ export default function AnalyticsPage() {
                 </Card>
 
                 {/* Top Performers */}
-                <Card className="lg:col-span-2 border-slate-200/60 shadow-lg overflow-hidden">
+                <Card className="lg:col-span-2 border-slate-200/60overflow-hidden">
                     <CardHeader className="border-b border-slate-50 bg-slate-50/20">
                         <CardTitle className="text-lg font-bold">Execution Leaders</CardTitle>
                     </CardHeader>

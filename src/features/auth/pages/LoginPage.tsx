@@ -157,7 +157,7 @@ export default function LoginPage() {
                         {testimonials.map((testimonial, index) => (
                             <div
                                 key={index}
-                                className="bg-white rounded-2xl p-5 shadow-lg hover:shadow-xl transition-shadow"
+                                className="bg-white rounded-2xl p-5hover:shadow-xl transition-shadow"
                             >
                                 <div className="flex items-start space-x-4">
                                     <img

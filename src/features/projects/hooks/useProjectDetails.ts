@@ -5,7 +5,7 @@ export interface ProjectComment {
     id: string;
     project_id: string;
     user_id: string;
-    comment: string;
+    content: string;
     created_at: string;
     updated_at: string;
     user?: {
@@ -34,7 +34,7 @@ export function useProjectComments(projectId: string) {
                 .from('project_comments')
                 .select(`
                     *,
-                    user:users(name, avatar_url)
+                    user:users(name)
                 `)
                 .eq('project_id', projectId)
                 .order('created_at', { ascending: false });
@@ -50,7 +50,7 @@ export function useCreateProjectComment() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ project_id, comment }: { project_id: string; comment: string }) => {
+        mutationFn: async ({ project_id, content }: { project_id: string; content: string }) => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('Not authenticated');
 
@@ -58,7 +58,7 @@ export function useCreateProjectComment() {
                 .from('project_comments')
                 .insert({
                     project_id,
-                    comment,
+                    content,
                     user_id: user.id
                 })
                 .select()

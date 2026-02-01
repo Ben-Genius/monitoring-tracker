@@ -21,9 +21,10 @@ interface ProjectTimelineProps {
     currentStage: string;
     className?: string;
     theme?: { primary: string; accent: string };
+    onRequestTransition?: () => void;
 }
 
-export default function ProjectTimeline({ currentStage, className, theme: customTheme }: ProjectTimelineProps) {
+export default function ProjectTimeline({ currentStage, className, theme: customTheme, onRequestTransition }: ProjectTimelineProps) {
     const defaultTheme = { primary: '#6366f1', accent: '#8b5cf6' }; // Default indigo/violet
     const theme = customTheme || defaultTheme;
 
@@ -108,6 +109,7 @@ export default function ProjectTimeline({ currentStage, className, theme: custom
                         size="sm"
                         variant="secondary"
                         className="font-bold h-9 px-5 rounded-lg text-xs"
+                        onClick={onRequestTransition}
                     >
                         Request Transition
                         <ArrowRight className="h-3 w-3 ml-2" />

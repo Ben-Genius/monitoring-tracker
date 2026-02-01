@@ -95,7 +95,7 @@ export default function ReportsPage() {
                                     Export CSV
                                 </Button>
                                 <Button
-                                    className="flex-1 font-bold h-11 shadow-lg shadow-primary/20"
+                                    className="flex-1 font-bold h-11"
                                     style={{ backgroundColor: theme.primary }}
                                 >
                                     Generate Report
@@ -107,7 +107,7 @@ export default function ReportsPage() {
             </div>
 
             {/* Custom Report Builder */}
-            <Card className="border-slate-200/60 shadow-lg border-dashed relative overflow-hidden">
+            <Card className="border-slate-200/60border-dashed relative overflow-hidden">
                 <div
                     className="absolute top-0 right-0 p-8 opacity-5"
                     style={{ color: theme.primary }}

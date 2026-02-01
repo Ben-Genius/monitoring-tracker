@@ -18,17 +18,23 @@ import {
     FileText,
     Plus,
     Paperclip,
-    MessageSquare,
-    Users,
     Calendar,
+    MessageSquare,
+    Building2,
+    MoreHorizontal,
+    Users,
     ChevronRight,
-    Send
+    Send,
+    DollarSign,
+    Quote
 } from 'lucide-react';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { formatCurrency, calculateProfitability, cn, getCompanyTheme } from '@/lib/utils';
 import { useMemo, useState } from 'react';
 import { useTasks } from '@/features/tasks/hooks/useTasks';
 import { useProjectComments, useCreateProjectComment, useProjectAttachments } from '../hooks/useProjectDetails';
+import { toast } from 'react-hot-toast';
+import CreateTaskModal from '@/features/tasks/components/CreateTaskModal';
 
 export default function ProjectDetailPage() {
     const { id } = useParams();
@@ -44,6 +50,8 @@ export default function ProjectDetailPage() {
 
     const [commentText, setCommentText] = useState('');
     const [activeTab, setActiveTab] = useState('overview');
+    const [isExpanded, setIsExpanded] = useState(false);
+    const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
 
     const theme = useMemo(() => {
         if (!project?.company?.name) return getCompanyTheme('Global View');
@@ -78,19 +86,24 @@ export default function ProjectDetailPage() {
         try {
             await createApproval.mutateAsync({
                 project_id: project.id,
+                type: 'stage_transition',
+                content: `Request to transition project "${project.name}" from ${project.status} to ${nextStage} stage`,
                 entity_type: 'project_completion',
                 entity_id: project.id,
                 requester_id: user.id,
                 comments: `Requesting transition to ${nextStage} stage based on current execution milestones.`
             });
-            alert('Transition request submitted for Admin review.');
-        } catch (error) { console.error(error); }
+            toast.success('Transition request submitted for Admin review.');
+        } catch (error: any) {
+            console.error(error);
+            toast.error('Failed to submit request.');
+        }
     };
 
     const handleAddComment = async () => {
         if (!commentText.trim()) return;
         try {
-            await createComment.mutateAsync({ project_id: project.id, comment: commentText });
+            await createComment.mutateAsync({ project_id: project.id, content: commentText });
             setCommentText('');
         } catch (error) { console.error(error); }
     };
@@ -114,46 +127,153 @@ export default function ProjectDetailPage() {
                     Back to Portfolio
                 </Button>
                 <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" className="rounded-xl border-slate-200">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-xl border-slate-200"
+                        onClick={() => {
+                            navigator.clipboard.writeText(window.location.href);
+                            // Assuming toast is available or use alert fallback
+                            alert("Link copied to clipboard!");
+                        }}
+                    >
                         <Share2 className="h-4 w-4 mr-2" /> Share
                     </Button>
-                    <Button variant="outline" size="sm" className="rounded-xl border-slate-200">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-xl border-slate-200"
+                        onClick={() => alert("Export started. You will receive an email shortly.")}
+                    >
                         <Download className="h-4 w-4 mr-2" /> Export
                     </Button>
                 </div>
             </div>
 
-            {/* Minimal Hero Section */}
-            <div className="relative rounded-3xl overflow-hidden border border-slate-100" style={{ backgroundColor: theme.primary }}>
-                <div className="relative p-10 md:p-12 text-white">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8">
-                        <div className="space-y-4 max-w-2xl">
-                            <Badge className="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-4 py-1.5 font-bold text-[10px] tracking-wider uppercase rounded-full">
-                                {project.company?.name || 'Monitoring Node'}
-                            </Badge>
-                            <h1 className="text-4xl md:text-5xl font-bold tracking-tight leading-tight">
-                                {project.name}
-                            </h1>
-                            <p className="text-white/80 text-lg font-medium max-w-xl">
-                                {project.description || 'Strategic infrastructure initiative designed to optimize regional operational throughput.'}
-                            </p>
+            {/* Stacked Hero Section */}
+            <div className="w-full mb-8 flex flex-col gap-8">
+                {/* 1. Identity & Description (Full Width) */}
+                <div className="space-y-6">
+                    {/* Breadcrumbs & Badge */}
+                    <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-white border border-slate-200 shadow-sm text-slate-500">
+                            <Building2 className="h-5 w-5" />
                         </div>
+                        <div className="flex items-center gap-2 text-sm font-medium">
+                            <span className="text-slate-500">
+                                {project.company?.name || 'Monitoring Node'}
+                            </span>
+                            <ChevronRight className="h-4 w-4 text-slate-300" />
+                            <Badge variant="outline" className="px-2.5 py-0.5 bg-slate-100 border-slate-200 text-slate-600 rounded-md uppercase tracking-wider text-[10px] font-bold">
+                                {project.status?.replace('_', ' ') || 'Planning'}
+                            </Badge>
+                        </div>
+                    </div>
 
-                        <div className="flex flex-col items-end gap-4">
-                            <div className="text-right">
-                                <p className="text-white/60 text-[10px] font-bold uppercase tracking-wider">Project Valuation</p>
-                                <p className="text-3xl font-bold">{formatCurrency(project.contract_value || 0)}</p>
+                    {/* Title */}
+                    <h1 className="text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 leading-[1.1]">
+                        {project.name}
+                    </h1>
+
+                    {/* Mission Statement (Interactive) */}
+                    <div className="relative bg-slate-50 rounded-2xl p-6 border-l-4 transition-all duration-300" style={{ borderColor: theme.primary }}>
+                        <Quote className="absolute top-4 left-4 h-8 w-8 text-slate-200 -z-0" />
+                        <div className="relative z-10">
+                            <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Mission Statement</p>
+                            <div className={cn("text-sm text-slate-700 leading-relaxed font-medium transition-all", isExpanded ? "max-h-full" : "max-h-[120px] overflow-hidden relative")}>
+                                <p>
+                                    {project.description || 'Strategic infrastructure initiative designed to optimize regional operational throughput and enhance system reliability.'}
+                                </p>
+                                {!isExpanded && project.description && project.description.length > 200 && (
+                                    <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-slate-50 to-transparent" />
+                                )}
                             </div>
-                            {user?.role === 'lead' && (
-                                <div className="flex gap-2">
-                                    <Button onClick={handleRequestTransition} className="bg-white hover:bg-slate-50 font-bold px-6 h-11 rounded-xl" style={{ color: theme.primary }}>
-                                        Change Stage
-                                    </Button>
-                                    <Button variant="outline" className="bg-white/10 hover:bg-white/20 text-white border-white/20 font-bold px-4 h-11 rounded-xl">
-                                        <Plus className="h-4 w-4" />
-                                    </Button>
-                                </div>
+                            {project.description && project.description.length > 200 && (
+                                <button
+                                    onClick={() => setIsExpanded(!isExpanded)}
+                                    className="mt-2 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-primary transition-colors flex items-center gap-1"
+                                >
+                                    {isExpanded ? 'Read Less' : 'Read More'}
+                                    <ChevronRight className={cn("h-3 w-3 transition-transform", isExpanded ? "-rotate-90" : "rotate-90")} />
+                                </button>
                             )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* 2. Metrics & Actions (Full Width Grid) */}
+                <div className="space-y-4">
+                    {/* Actions Toolbar */}
+                    <div className="flex items-center justify-end gap-3 w-full">
+                        {user?.role === 'lead' && (
+                            <>
+                                <Button
+                                    onClick={handleRequestTransition}
+                                    className="h-10 px-6 font-bold shadow-md hover:translate-y-[-2px] transition-all rounded-xl text-white border-0"
+                                    style={{ backgroundColor: theme.primary }}
+                                >
+                                    Update Stage
+                                </Button>
+                                <Button variant="outline" className="h-10 w-10 p-0 rounded-xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700">
+                                    <MoreHorizontal className="h-5 w-5" />
+                                </Button>
+                            </>
+                        )}
+                    </div>
+
+                    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                            {/* Valuation */}
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2 text-slate-400 text-[10px] font-bold uppercase tracking-wider">
+                                    <DollarSign className="h-3.5 w-3.5" />
+                                    <span>Valuation</span>
+                                </div>
+                                <p className="text-2xl font-bold text-slate-900 tracking-tight">
+                                    {formatCurrency(project.contract_value || 0)}
+                                </p>
+                            </div>
+
+                            {/* Timeline */}
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2 text-slate-400 text-[10px] font-bold uppercase tracking-wider">
+                                    <Calendar className="h-3.5 w-3.5" />
+                                    <span>Timeline</span>
+                                </div>
+                                <p className="text-sm font-bold text-slate-900 h-8 flex items-center">
+                                    Q1 2024 - Q4 2025
+                                </p>
+                            </div>
+
+                            {/* Project Lead */}
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2 text-slate-400 text-[10px] font-bold uppercase tracking-wider">
+                                    <Users className="h-3.5 w-3.5" />
+                                    <span>Project Lead</span>
+                                </div>
+                                <div className="flex items-center gap-2 h-8">
+                                    <div className="h-6 w-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500 border border-slate-200">
+                                        {project.lead?.name?.[0] || 'JD'}
+                                    </div>
+                                    <span className="text-sm font-semibold text-slate-900">
+                                        {project.lead?.name || 'John Doe'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Progress */}
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2 text-slate-400 text-[10px] font-bold uppercase tracking-wider">
+                                    <BarChart2 className="h-3.5 w-3.5" />
+                                    <span>Completion</span>
+                                </div>
+                                <div className="flex items-center gap-2 h-8">
+                                    <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden max-w-[100px]">
+                                        <div className="h-full bg-slate-900 rounded-full" style={{ width: '0%', backgroundColor: theme.primary }} />
+                                    </div>
+                                    <span className="text-sm font-bold text-slate-900">0%</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -199,7 +319,11 @@ export default function ProjectDetailPage() {
 
                 {/* --- OVERVIEW TAB --- */}
                 <TabsContent value="overview" className="space-y-6 mt-0 outline-none">
-                    <ProjectTimeline currentStage={project.status} theme={theme} />
+                    <ProjectTimeline
+                        currentStage={project.status}
+                        theme={theme}
+                        onRequestTransition={handleRequestTransition}
+                    />
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <Card className="lg:col-span-2 rounded-2xl border-slate-200 shadow-none overflow-hidden">
@@ -268,7 +392,11 @@ export default function ProjectDetailPage() {
                                 </div>
                                 <div className="pt-6 border-t border-slate-100">
                                     <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Directives</h4>
-                                    <Button className="w-full justify-start rounded-xl font-bold text-[10px] uppercase tracking-wider px-4 h-10 shadow-none" style={{ backgroundColor: theme.primary }}>
+                                    <Button
+                                        onClick={() => setIsCreateTaskOpen(true)}
+                                        className="w-full justify-start rounded-xl font-bold text-[10px] uppercase tracking-wider px-4 h-10 shadow-none"
+                                        style={{ backgroundColor: theme.primary }}
+                                    >
                                         <Plus className="h-4 w-4 mr-2" /> New Task
                                     </Button>
                                 </div>
@@ -278,10 +406,6 @@ export default function ProjectDetailPage() {
                         <div className="lg:col-span-3 space-y-6">
                             {taskCategories.map(cat => (
                                 <div key={cat} className="space-y-3">
-                                    <div className="flex items-center gap-4">
-                                        <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">{cat}</h3>
-                                        <div className="h-px bg-slate-100 flex-1" />
-                                    </div>
                                     <div className="grid grid-cols-1 gap-3">
                                         {tasks.filter(t => t.category === cat).length > 0 ? (
                                             tasks.filter(t => t.category === cat).map(task => (
@@ -408,6 +532,11 @@ export default function ProjectDetailPage() {
                     </div>
                 </TabsContent>
             </Tabs>
+            <CreateTaskModal
+                open={isCreateTaskOpen}
+                onClose={() => setIsCreateTaskOpen(false)}
+                initialProjectId={project.id}
+            />
         </div>
     );
 }
@@ -494,7 +623,7 @@ function CommentItem({ comment }: { comment: any }) {
                     <p className="text-[10px] font-semibold text-slate-400">{new Date(comment.created_at).toLocaleDateString()}</p>
                 </div>
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                    <p className="text-sm font-medium text-slate-600 leading-relaxed italic">"{comment.comment}"</p>
+                    <p className="text-sm font-medium text-slate-600 leading-relaxed italic">"{comment.content}"</p>
                 </div>
                 <div className="flex items-center gap-4 px-1">
                     <button className="text-[9px] font-bold text-slate-400 uppercase tracking-wider hover:text-slate-900 transition-colors">Acknowledge</button>

@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { cn } from '@/lib/utils';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { X, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { MultiSelect } from '@/components/ui/multi-select';
 import { useCreateTask, CreateTaskInput } from '../hooks/useTasks';
 import { useProjects } from '@/features/projects/hooks/useProjects';
 import { useUsers } from '@/features/users/hooks/useUsers';
@@ -15,8 +15,8 @@ import { toast } from 'react-hot-toast';
 const taskSchema = z.object({
     title: z.string().min(1, 'Title is required'),
     description: z.string().optional(),
-    project_id: z.string().min(1, 'Project is required'),
-    assignee_id: z.string().min(1, 'Assignee is required'),
+    project_id: z.string().optional(),
+    assignee_ids: z.array(z.string()).min(1, 'Select at least one assignee'),
     priority: z.enum(['low', 'medium', 'high', 'critical']),
     due_date: z.string().optional(),
 });
@@ -26,11 +26,13 @@ type TaskFormData = z.infer<typeof taskSchema>;
 interface CreateTaskModalProps {
     open: boolean;
     onClose: () => void;
+    initialProjectId?: string;
 }
 
 export default function CreateTaskModal({
     open,
     onClose,
+    initialProjectId,
 }: CreateTaskModalProps) {
     const { user } = useAuth();
     const createTask = useCreateTask();
@@ -43,6 +45,7 @@ export default function CreateTaskModal({
     const {
         register,
         handleSubmit,
+        control,
         formState: { errors },
         reset,
         watch,
@@ -50,6 +53,7 @@ export default function CreateTaskModal({
         resolver: zodResolver(taskSchema),
         defaultValues: {
             priority: 'medium',
+            project_id: initialProjectId,
         },
     });
 
@@ -62,7 +66,18 @@ export default function CreateTaskModal({
         setIsSubmitting(true);
         const toastId = toast.loading('Creating task...');
         try {
-            await createTask.mutateAsync(data as CreateTaskInput);
+            // Transform form data to match API input
+            const payload: CreateTaskInput = {
+                title: data.title,
+                description: data.description,
+                project_id: data.project_id || undefined,
+                priority: data.priority,
+                due_date: data.due_date,
+                assignee_ids: data.assignee_ids,
+                assignee_id: data.assignee_ids[0], // Primary assignee is the first selected
+            };
+
+            await createTask.mutateAsync(payload);
             toast.success('Task created successfully!', { id: toastId });
             reset();
             onClose();
@@ -123,31 +138,26 @@ export default function CreateTaskModal({
                     {/* Project */}
                     <div>
                         <label className="block text-sm font-medium mb-2">
-                            Project <span className="text-error">*</span>
+                            Project <span className="text-slate-400 text-xs font-normal ml-1">(Optional)</span>
                         </label>
                         <select
                             {...register('project_id')}
                             className="w-full h-10 px-3 rounded-md border border-input bg-background"
                         >
-                            <option value="">Select a project</option>
+                            <option value="">No Project (General Task)</option>
                             {projects?.map((project) => (
                                 <option key={project.id} value={project.id}>
                                     {project.name} ({project.company?.name})
                                 </option>
                             ))}
                         </select>
-                        {errors.project_id && (
-                            <p className="text-error text-sm mt-1">
-                                {errors.project_id.message}
-                            </p>
-                        )}
                     </div>
 
                     {/* Assignee */}
                     <div>
                         <div className="flex items-center justify-between mb-2">
                             <label className="text-sm font-medium">
-                                Assignee <span className="text-error">*</span>
+                                Assignees <span className="text-error">*</span>
                             </label>
                             <Button
                                 type="button"
@@ -160,31 +170,31 @@ export default function CreateTaskModal({
                                 Add Assignee
                             </Button>
                         </div>
-                        <select
-                            {...register('assignee_id')}
-                            className={cn(
-                                "w-full h-10 px-3 rounded-md border border-input bg-background",
-                                errors.assignee_id ? 'border-error' : ''
+
+                        <Controller
+                            control={control}
+                            name="assignee_ids"
+                            defaultValue={[]} // Ensure default value is array
+                            render={({ field }) => (
+                                <MultiSelect
+                                    options={companyUsers?.map(u => ({ value: u.id, label: u.name })) || []}
+                                    selected={field.value}
+                                    onChange={field.onChange}
+                                    placeholder="Select assignees..."
+                                    className={errors.assignee_ids ? 'border-error' : ''}
+                                />
                             )}
-                        >
-                            <option value="">Select an assignee</option>
-                            {companyUsers?.map((u) => (
-                                <option key={u.id} value={u.id}>
-                                    {u.name} ({u.role})
-                                </option>
-                            ))}
-                        </select>
-                        {errors.assignee_id && (
+                        />
+
+                        {errors.assignee_ids && (
                             <p className="text-error text-sm mt-1">
-                                {errors.assignee_id.message}
+                                {errors.assignee_ids.message}
                             </p>
                         )}
-                        {!targetCompanyId && projects && (
-                            <p className="text-slate-400 text-[10px] mt-1 italic">
-                                Please select a project first to see available assignees.
-                            </p>
-                        )}
+                        {/* Helper text removed as filtering logic handles fallback */}
                     </div>
+
+
 
                     {/* Priority */}
                     <div>

@@ -13,8 +13,10 @@ import {
     useTaskComments,
     useCreateComment
 } from '../hooks/useTasks';
+import { useProjects } from '@/features/projects/hooks/useProjects';
 import { useUsers } from '@/features/users/hooks/useUsers';
 import { cn, formatDate } from '@/lib/utils';
+import { MultiSelect } from '@/components/ui/multi-select';
 
 interface TaskDetailModalProps {
     taskId: string | null;
@@ -40,12 +42,17 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
     const [isEditingAssignee, setIsEditingAssignee] = useState(false);
     const [isEditingPriority, setIsEditingPriority] = useState(false);
     const [isEditingStage, setIsEditingStage] = useState(false);
+    const [isEditingProject, setIsEditingProject] = useState(false);
+    const [isEditingDueDate, setIsEditingDueDate] = useState(false);
+    const [localAssignees, setLocalAssignees] = useState<string[]>([]);
 
     const { data: users } = useUsers(task?.project?.company_id);
+    const { data: projects } = useProjects();
 
     useEffect(() => {
         if (task) {
             setDescription(task.description || '');
+            setLocalAssignees(task.assignees?.map(a => a.user.id) || (task.assignee_id ? [task.assignee_id] : []));
         }
     }, [task]);
 
@@ -79,11 +86,58 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b bg-slate-50/50">
                     <div className="flex flex-col gap-1 flex-1 min-w-0">
-                        <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                            <Layout className="h-3 w-3" />
-                            <span>{task.project?.company?.name}</span>
-                            <ChevronRight className="h-2.5 w-2.5" />
-                            <span className="text-slate-500">{task.project?.name}</span>
+                        <div className="relative">
+                            <div
+                                className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest cursor-pointer hover:text-primary transition-colors group w-fit"
+                                onClick={() => setIsEditingProject(!isEditingProject)}
+                            >
+                                <Layout className="h-3 w-3" />
+                                <span>{task.project?.company?.name || 'General'}</span>
+                                <ChevronRight className="h-2.5 w-2.5" />
+                                <span className={cn("text-slate-500 group-hover:text-primary", !task.project && "italic")}>
+                                    {task.project?.name || 'General Task'}
+                                </span>
+                                <Badge variant="outline" className="opacity-0 group-hover:opacity-100 transition-opacity text-[9px] h-4 px-1 ml-2">Edit</Badge>
+                            </div>
+
+                            {isEditingProject && (
+                                <div className="absolute top-full mt-2 left-0 bg-white border rounded-xl shadow-2xl z-50 min-w-[300px] p-2 animate-in fade-in zoom-in duration-200 max-h-[300px] overflow-y-auto">
+                                    <div className="text-xs font-bold text-slate-400 px-2 py-1 mb-1">Select Project</div>
+                                    <button
+                                        className={cn(
+                                            "w-full text-left px-3 py-2 text-xs font-bold rounded-md transition-colors flex items-center gap-2",
+                                            !task.project_id ? "bg-primary/10 text-primary" : "text-slate-600 hover:bg-slate-50"
+                                        )}
+                                        onClick={async () => {
+                                            await updateTask.mutateAsync({ project_id: null as any }); // Cast to any to allow null if type is strict
+                                            setIsEditingProject(false);
+                                        }}
+                                    >
+                                        <div className="h-2 w-2 rounded-full bg-slate-400" />
+                                        General Task (No Project)
+                                    </button>
+
+                                    {projects?.map(project => (
+                                        <button
+                                            key={project.id}
+                                            className={cn(
+                                                "w-full text-left px-3 py-2 text-xs font-bold rounded-md transition-colors flex items-center gap-2",
+                                                task.project_id === project.id ? "bg-primary/10 text-primary" : "text-slate-600 hover:bg-slate-50"
+                                            )}
+                                            onClick={async () => {
+                                                await updateTask.mutateAsync({ project_id: project.id });
+                                                setIsEditingProject(false);
+                                            }}
+                                        >
+                                            <div className="h-2 w-2 rounded-full bg-blue-500" />
+                                            <div>
+                                                <div className="text-slate-900">{project.name}</div>
+                                                <div className="text-[9px] text-slate-400 font-normal">{project.company?.name || 'Global'}</div>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                         <div className="flex items-center gap-4">
                             <div className={cn(
@@ -258,37 +312,126 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                                             onClick={() => setIsEditingAssignee(!isEditingAssignee)}
                                             className="font-bold text-slate-900 flex items-center gap-2 hover:bg-slate-100 px-2 py-1 rounded-md transition-colors -ml-2"
                                         >
-                                            {task.assignee?.name || 'Unassigned'}
+                                            {task.assignees && task.assignees.length > 0
+                                                ? `${task.assignees.length} Assignee${task.assignees.length > 1 ? 's' : ''}`
+                                                : (task.assignee?.name || 'Unassigned')}
                                         </button>
                                     </div>
-                                    {isEditingAssignee && (
-                                        <div className="absolute top-full mt-2 left-0 right-0 bg-white border rounded-xl shadow-2xl z-20 max-h-[200px] overflow-y-auto p-2 animate-in fade-in zoom-in duration-200">
-                                            {users?.map((u) => (
-                                                <button
-                                                    key={u.id}
-                                                    className={cn(
-                                                        "w-full text-left px-3 py-2 text-xs font-bold rounded-md transition-colors flex items-center gap-3",
-                                                        task.assignee_id === u.id ? "bg-primary/10 text-primary" : "text-slate-600 hover:bg-slate-50"
-                                                    )}
-                                                    onClick={async () => {
-                                                        await updateTask.mutateAsync({ assignee_id: u.id });
+                                    {isEditingAssignee ? (
+                                        <div className="absolute top-full mt-2 left-0 right-0 bg-white border rounded-xl shadow-2xl z-20 p-2 animate-in fade-in zoom-in duration-200 min-w-[250px]">
+                                            <MultiSelect
+                                                options={users?.map(u => ({ label: u.name, value: u.id })) || []}
+                                                selected={localAssignees}
+                                                onChange={setLocalAssignees}
+                                                placeholder="Select assignees..."
+                                            />
+                                            <div className="mt-2 flex justify-end gap-2">
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={() => {
+                                                        // Reset to original on cancel
+                                                        setLocalAssignees(task.assignees?.map(a => a.user.id) || []);
                                                         setIsEditingAssignee(false);
                                                     }}
                                                 >
-                                                    <div className="h-6 w-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px]">
-                                                        {u.name.charAt(0)}
-                                                    </div>
-                                                    {u.name}
-                                                </button>
-                                            ))}
+                                                    Cancel
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    onClick={async () => {
+                                                        await updateTask.mutateAsync({ assignee_ids: localAssignees });
+                                                        setIsEditingAssignee(false);
+                                                    }}
+                                                >
+                                                    Done
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div
+                                            className="flex -space-x-2 overflow-hidden py-1 pl-1 cursor-pointer hover:opacity-80"
+                                            onClick={() => setIsEditingAssignee(true)}
+                                        >
+                                            {task.assignees && task.assignees.length > 0 ? (
+                                                <>
+                                                    {task.assignees.slice(0, 3).map(({ user }) => (
+                                                        <div
+                                                            key={user.id}
+                                                            title={user.name}
+                                                            className="h-6 w-6 rounded-full bg-slate-100 border-2 border-white ring-1 ring-slate-200 flex items-center justify-center text-[9px] font-bold text-slate-700 overflow-hidden shadow-sm"
+                                                        >
+                                                            {user.name.charAt(0)}
+                                                        </div>
+                                                    ))}
+                                                    {task.assignees.length > 3 && (
+                                                        <div className="h-6 w-6 rounded-full bg-slate-50 border-2 border-white ring-1 ring-slate-200 flex items-center justify-center text-[9px] font-bold text-slate-500 shadow-sm relative z-0">
+                                                            +{task.assignees.length - 3}
+                                                        </div>
+                                                    )}
+                                                </>
+                                            ) : task.assignee ? (
+                                                <div className="h-6 w-6 rounded-full bg-slate-100 border-2 border-white ring-1 ring-slate-200 flex items-center justify-center text-[9px] font-bold text-slate-700">
+                                                    {task.assignee.name.charAt(0)}
+                                                </div>
+                                            ) : (
+                                                <span className="text-slate-400 italic">Unassigned</span>
+                                            )}
                                         </div>
                                     )}
                                 </div>
 
-                                <div className="flex items-center gap-3 text-sm">
-                                    <Calendar className="h-4 w-4 text-slate-400" />
-                                    <span className="text-slate-500 w-20">Due Date</span>
-                                    <span className="font-bold text-slate-900">{task.due_date ? formatDate(task.due_date) : 'No date set'}</span>
+                                <div className="space-y-1.5 relative">
+                                    <div className="flex items-center gap-3 text-sm">
+                                        <Calendar className="h-4 w-4 text-slate-400" />
+                                        <span className="text-slate-500 w-20">Due Date</span>
+                                        <button
+                                            onClick={() => setIsEditingDueDate(!isEditingDueDate)}
+                                            className="font-bold text-slate-900 hover:bg-slate-100 px-2 py-1 rounded-md transition-colors -ml-2"
+                                        >
+                                            {task.due_date ? formatDate(task.due_date) : 'Set due date'}
+                                        </button>
+                                    </div>
+                                    {isEditingDueDate && (
+                                        <div className="absolute top-full mt-2 left-0 z-20 bg-white border rounded-xl shadow-xl p-3 animate-in fade-in zoom-in duration-200">
+                                            <div className="flex flex-col gap-2">
+                                                <input
+                                                    type="date"
+                                                    className="p-2 border rounded-md text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                                                    value={task.due_date ? new Date(task.due_date).toISOString().split('T')[0] : ''}
+                                                    onChange={async (e) => {
+                                                        const date = e.target.value ? new Date(e.target.value).toISOString() : null;
+                                                        // If we want to save immediately:
+                                                        if (date) {
+                                                            await updateTask.mutateAsync({ due_date: date });
+                                                            setIsEditingDueDate(false);
+                                                        }
+                                                    }}
+                                                />
+                                                <div className="flex justify-between items-center gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="text-red-500 h-7 text-xs hover:text-red-600 hover:bg-red-50"
+                                                        onClick={async () => {
+                                                            await updateTask.mutateAsync({ due_date: null as any }); // Allow clearing date
+                                                            setIsEditingDueDate(false);
+                                                        }}
+                                                    >
+                                                        Clear
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="secondary"
+                                                        className="h-7 text-xs"
+                                                        onClick={() => setIsEditingDueDate(false)}
+                                                    >
+                                                        Close
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Priority Selector */}

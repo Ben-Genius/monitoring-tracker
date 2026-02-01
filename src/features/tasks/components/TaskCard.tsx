@@ -155,20 +155,50 @@ export default function TaskCard({ task, isDragging = false, onClick }: TaskCard
                     </div>
                 </div>
 
-                {/* Assignee Avatar */}
-                {task.assignee && (
-                    <div
-                        title={task.assignee.name}
-                        className="h-7 w-7 rounded-full bg-slate-100 border-2 border-white ring-1 ring-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-700 overflow-hidden shadow-sm hover:ring-opacity-50 transition-all cursor-help"
-                        style={{ '--tw-ring-color': theme.primary } as any}
-                    >
-                        {task.assignee.name
-                            .split(' ')
-                            .map((n) => n[0])
-                            .join('')
-                            .toUpperCase()}
-                    </div>
-                )}
+                {/* Assignee Avatars */}
+                <div className="flex -space-x-2 overflow-hidden pl-1 py-1">
+                    {task.assignees && task.assignees.length > 0 ? (
+                        <>
+                            {task.assignees.slice(0, 3).map(({ user }) => (
+                                <div
+                                    key={user.id}
+                                    title={user.name}
+                                    className="h-7 w-7 rounded-full bg-slate-100 border-2 border-white ring-1 ring-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-700 overflow-hidden shadow-sm hover:z-10 hover:ring-opacity-50 transition-all cursor-help relative"
+                                    style={{ '--tw-ring-color': theme.primary } as any}
+                                >
+                                    {user.name
+                                        .split(' ')
+                                        .map((n) => n[0])
+                                        .join('')
+                                        .toUpperCase()}
+                                </div>
+                            ))}
+                            {task.assignees.length > 3 && (
+                                <div
+                                    className="h-7 w-7 rounded-full bg-slate-50 border-2 border-white ring-1 ring-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500 shadow-sm relative z-0"
+                                >
+                                    +{task.assignees.length - 3}
+                                </div>
+                            )}
+                        </>
+                    ) : task.assignee ? (
+                        <div
+                            title={task.assignee.name}
+                            className="h-7 w-7 rounded-full bg-slate-100 border-2 border-white ring-1 ring-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-700 overflow-hidden shadow-sm hover:ring-opacity-50 transition-all cursor-help relative z-0"
+                            style={{ '--tw-ring-color': theme.primary } as any}
+                        >
+                            {task.assignee.name
+                                .split(' ')
+                                .map((n) => n[0])
+                                .join('')
+                                .toUpperCase()}
+                        </div>
+                    ) : (
+                        <div className="h-7 w-7 rounded-full bg-slate-50 border-2 border-white border-dashed flex items-center justify-center">
+                            <span className="text-slate-300 text-[10px]">?</span>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );
