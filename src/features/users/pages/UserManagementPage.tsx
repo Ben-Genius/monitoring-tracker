@@ -237,10 +237,9 @@ export default function UserManagementPage() {
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Company</label>
                                     <select
-                                        className="w-full h-10 px-3 py-2 rounded-md border border-input bg-background text-sm cursor-not-allowed bg-gray-50"
+                                        className="w-full h-10 px-3 py-2 rounded-md border border-input bg-background text-sm bg-gray-50"
                                         value={formData.company_id}
                                         onChange={(e) => setFormData({ ...formData, company_id: e.target.value })}
-                                        disabled={true}
                                     >
                                         <option value="">Select Company</option>
                                         {companies.map(c => (
