@@ -18,14 +18,17 @@ import {
     AlertCircle,
     CheckCircle2,
     Search,
-    Filter
+    Filter,
+    List,
+    LayoutGrid
 } from 'lucide-react';
 import { useTasks, useUpdateTaskStage, Task } from '../hooks/useTasks';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import TaskCard from '../components/TaskCard';
+import TaskListView from '../components/TaskListView';
+import TaskDrawer from '../components/TaskDrawer';
 import CreateTaskModal from '../components/CreateTaskModal';
-import TaskDetailModal from '../components/TaskDetailModal';
 import { cn, getCompanyTheme } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { useCompanyStore } from '@/hooks/useCompanyStore';
@@ -54,6 +57,7 @@ export default function TaskBoardPage() {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [view, setView] = useState<'list' | 'board'>('list');
     const searchQuery = searchTerm.toLowerCase();
 
     const currentCompanyName = useMemo(() => {
@@ -124,6 +128,11 @@ export default function TaskBoardPage() {
         updateTaskStage.mutate({ id: taskId, stage: newStage });
     };
 
+    const handleTaskComplete = (taskId: string, completed: boolean) => {
+        const newStage = completed ? 'completed' : 'yet_to_start';
+        updateTaskStage.mutate({ id: taskId, stage: newStage });
+    };
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-96">
@@ -137,12 +146,40 @@ export default function TaskBoardPage() {
             {/* Page Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-slate-900">Task Board</h1>
+                    <h1 className="text-2xl font-bold tracking-tight text-slate-900">Tasks</h1>
                     <p className="text-sm text-slate-500">
-                        Visual pipeline for CONSTRUCTION MONITORING & TRACKING.
+                        Manage and track all your tasks
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
+                    {/* View Switcher */}
+                    <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
+                        <button
+                            onClick={() => setView('list')}
+                            className={cn(
+                                "px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                                view === 'list'
+                                    ? "bg-white text-slate-900 shadow-sm"
+                                    : "text-slate-600 hover:text-slate-900"
+                            )}
+                        >
+                            <List className="h-4 w-4 inline mr-1.5" />
+                            List
+                        </button>
+                        <button
+                            onClick={() => setView('board')}
+                            className={cn(
+                                "px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                                view === 'board'
+                                    ? "bg-white text-slate-900 shadow-sm"
+                                    : "text-slate-600 hover:text-slate-900"
+                            )}
+                        >
+                            <LayoutGrid className="h-4 w-4 inline mr-1.5" />
+                            Board
+                        </button>
+                    </div>
+
                     <div className="relative w-64">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
                         <Input
@@ -173,38 +210,48 @@ export default function TaskBoardPage() {
                 </div>
             </div>
 
-            {/* Kanban Board Container */}
-            <div className="flex-1 min-h-0 -mx-4 px-4 overflow-x-auto">
-                <DndContext
-                    sensors={sensors}
-                    onDragStart={handleDragStart}
-                    onDragEnd={handleDragEnd}
-                >
-                    <div className="flex gap-6 h-full pb-4 items-start">
-                        {stages.map((stage) => {
-                            const stageTasks = getTasksByStage(stage.id);
-                            return (
-                                <TaskColumn
-                                    key={stage.id}
-                                    stage={stage as any}
-                                    tasks={stageTasks}
-                                    stageId={stage.id}
-                                    onAddTask={() => setIsCreateModalOpen(true)}
-                                    onTaskClick={handleTaskClick}
-                                    activeTheme={theme}
-                                />
-                            );
-                        })}
-                    </div>
-
-                    <DragOverlay dropAnimation={null}>
-                        {activeTask ? (
-                            <div className="rotate-3 scale-105 pointer-events-none origin-center">
-                                <TaskCard task={activeTask} isDragging />
+            {/* Content Area */}
+            <div className="flex-1 min-h-0 overflow-auto">
+                {view === 'list' ? (
+                    <TaskListView
+                        tasks={filteredTasks}
+                        onTaskClick={handleTaskClick}
+                        onTaskComplete={handleTaskComplete}
+                    />
+                ) : (
+                    <div className="h-full -mx-4 px-4 overflow-x-auto">
+                        <DndContext
+                            sensors={sensors}
+                            onDragStart={handleDragStart}
+                            onDragEnd={handleDragEnd}
+                        >
+                            <div className="flex gap-6 h-full pb-4 items-start">
+                                {stages.map((stage) => {
+                                    const stageTasks = getTasksByStage(stage.id);
+                                    return (
+                                        <TaskColumn
+                                            key={stage.id}
+                                            stage={stage as any}
+                                            tasks={stageTasks}
+                                            stageId={stage.id}
+                                            onAddTask={() => setIsCreateModalOpen(true)}
+                                            onTaskClick={handleTaskClick}
+                                            activeTheme={theme}
+                                        />
+                                    );
+                                })}
                             </div>
-                        ) : null}
-                    </DragOverlay>
-                </DndContext>
+
+                            <DragOverlay dropAnimation={null}>
+                                {activeTask ? (
+                                    <div className="rotate-3 scale-105 pointer-events-none origin-center">
+                                        <TaskCard task={activeTask} isDragging />
+                                    </div>
+                                ) : null}
+                            </DragOverlay>
+                        </DndContext>
+                    </div>
+                )}
             </div>
 
             <CreateTaskModal
@@ -212,7 +259,7 @@ export default function TaskBoardPage() {
                 onClose={() => setIsCreateModalOpen(false)}
             />
 
-            <TaskDetailModal
+            <TaskDrawer
                 taskId={selectedTaskId}
                 open={!!selectedTaskId}
                 onClose={() => setSelectedTaskId(null)}

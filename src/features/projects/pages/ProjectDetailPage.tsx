@@ -1,5 +1,5 @@
+import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useProject } from '../hooks/useProjects';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useCreateApproval } from '@/features/approvals/hooks/useApprovals';
 import ProjectTimeline from '../components/ProjectTimeline';
@@ -9,16 +9,11 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     ArrowLeft,
-    Share2,
-    Download,
-    BarChart2,
-    Shield,
+    Calendar,
     Clock,
-    CheckCircle2,
     FileText,
     Plus,
     Paperclip,
-    Calendar,
     MessageSquare,
     Building2,
     MoreHorizontal,
@@ -26,15 +21,27 @@ import {
     ChevronRight,
     Send,
     DollarSign,
-    Quote
+    Quote,
+    User,
+    Circle,
+    PlayCircle,
+    XCircle,
+    ListTodo,
+    CheckCircle2,
+    Share2,
+    Download,
+    BarChart2,
+    Shield
 } from 'lucide-react';
+import { useProject } from '../hooks/useProjects';
+import { useTasks } from '@/features/tasks/hooks/useTasks';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { formatCurrency, calculateProfitability, cn, getCompanyTheme } from '@/lib/utils';
-import { useMemo, useState } from 'react';
-import { useTasks } from '@/features/tasks/hooks/useTasks';
 import { useProjectComments, useCreateProjectComment, useProjectAttachments } from '../hooks/useProjectDetails';
 import { toast } from 'react-hot-toast';
 import CreateTaskModal from '@/features/tasks/components/CreateTaskModal';
+import TaskDrawer from '@/features/tasks/components/TaskDrawer';
+import { Task } from '@/features/tasks/hooks/useTasks';
 
 export default function ProjectDetailPage() {
     const { id } = useParams();
@@ -52,6 +59,7 @@ export default function ProjectDetailPage() {
     const [activeTab, setActiveTab] = useState('overview');
     const [isExpanded, setIsExpanded] = useState(false);
     const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+    const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
     const theme = useMemo(() => {
         if (!project?.company?.name) return getCompanyTheme('Global View');
@@ -108,15 +116,7 @@ export default function ProjectDetailPage() {
         } catch (error) { console.error(error); }
     };
 
-    const taskCategories = [
-        "Report Blockers",
-        "Follow Up",
-        "Status Updates",
-        "Procurement Accountability",
-        "Requests & Reports",
-        "Making approval request",
-        "User Management"
-    ];
+
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -376,50 +376,135 @@ export default function ProjectDetailPage() {
 
                 {/* --- TASKS TAB --- */}
                 <TabsContent value="tasks" className="mt-0 outline-none animate-in fade-in duration-300">
-                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                        <div className="lg:col-span-1 space-y-6">
-                            <Card className="rounded-2xl border-slate-200 shadow-none p-5 space-y-6">
-                                <div>
-                                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Quick Filters</h4>
-                                    <div className="space-y-1">
-                                        {['All Tasks', 'My Tasks', 'In Progress', 'High Priority'].map(f => (
-                                            <button key={f} className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors group">
-                                                <span className="text-xs font-semibold text-slate-500 group-hover:text-slate-900">{f}</span>
-                                                <ChevronRight className="h-3 w-3 text-slate-300" />
-                                            </button>
-                                        ))}
-                                    </div>
+                    <div className="space-y-6">
+                        {/* Header with Stats */}
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2">
+                                    <ListTodo className="h-5 w-5 text-slate-400" />
+                                    <h3 className="text-lg font-bold text-slate-900">Project Tasks</h3>
                                 </div>
-                                <div className="pt-6 border-t border-slate-100">
-                                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Directives</h4>
+                                <Badge variant="secondary" className="bg-slate-100 text-slate-600 font-semibold">
+                                    {tasks.length} total
+                                </Badge>
+                            </div>
+                            <Button
+                                onClick={() => setIsCreateTaskOpen(true)}
+                                size="sm"
+                                className="h-9"
+                                style={{ backgroundColor: theme.primary }}
+                            >
+                                <Plus className="h-4 w-4 mr-2" /> New Task
+                            </Button>
+                        </div>
+
+                        {/* Progress Overview */}
+                        {tasks.length > 0 && (
+                            <Card className="rounded-xl border-slate-200 shadow-none p-4 bg-gradient-to-br from-slate-50 to-white">
+                                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                                    {[
+                                        { label: 'Talking Stage', stage: 'talking_stage', icon: MessageSquare, color: 'text-blue-600 bg-blue-50' },
+                                        { label: 'Yet to Start', stage: 'yet_to_start', icon: Circle, color: 'text-slate-500 bg-slate-100' },
+                                        { label: 'In Progress', stage: 'in_progress', icon: PlayCircle, color: 'text-primary bg-primary/10' },
+                                        { label: 'Blockers', stage: 'blockers', icon: XCircle, color: 'text-orange-600 bg-orange-50' },
+                                        { label: 'Completed', stage: 'completed', icon: CheckCircle2, color: 'text-green-600 bg-green-50' },
+                                    ].map(({ label, stage, icon: Icon, color }) => {
+                                        const count = tasks.filter((t: Task) => t.stage === stage).length;
+                                        return (
+                                            <div key={stage} className="flex items-center gap-2">
+                                                <div className={`p-2 rounded-lg ${color}`}>
+                                                    <Icon className="h-4 w-4" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-slate-500">{label}</p>
+                                                    <p className="text-lg font-bold text-slate-900">{count}</p>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </Card>
+                        )}
+
+                        {/* Task List */}
+                        {tasks && tasks.length > 0 ? (
+                            <div className="space-y-2">
+                                {tasks.map((task: Task) => (
+                                    <div
+                                        key={task.id}
+                                        onClick={() => setSelectedTaskId(task.id)}
+                                        className="group bg-white border border-slate-200 rounded-xl p-4 hover:border-slate-300 hover:shadow-sm transition-all cursor-pointer"
+                                    >
+                                        <div className="flex items-start justify-between gap-4">
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-3 mb-2">
+                                                    <h4 className="text-sm font-semibold text-slate-900 group-hover:text-primary transition-colors">
+                                                        {task.title}
+                                                    </h4>
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={`text-xs font-medium ${task.priority === 'critical' ? 'border-red-200 bg-red-50 text-red-700' :
+                                                            task.priority === 'high' ? 'border-orange-200 bg-orange-50 text-orange-700' :
+                                                                task.priority === 'medium' ? 'border-blue-200 bg-blue-50 text-blue-700' :
+                                                                    'border-slate-200 bg-slate-50 text-slate-600'
+                                                            }`}
+                                                    >
+                                                        {task.priority}
+                                                    </Badge>
+                                                </div>
+                                                {task.description && (
+                                                    <p className="text-xs text-slate-500 line-clamp-1 mb-3">{task.description}</p>
+                                                )}
+                                                <div className="flex items-center gap-4 text-xs text-slate-500">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <Clock className="h-3.5 w-3.5" />
+                                                        <span>{task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date'}</span>
+                                                    </div>
+                                                    {task.assignee && (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <User className="h-3.5 w-3.5" />
+                                                            <span>{task.assignee.name}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Badge
+                                                    className={`text-xs font-medium ${task.stage === 'completed' ? 'bg-green-100 text-green-700' :
+                                                        task.stage === 'in_progress' ? 'bg-blue-100 text-blue-700' :
+                                                            task.stage === 'blockers' ? 'bg-orange-100 text-orange-700' :
+                                                                'bg-slate-100 text-slate-600'
+                                                        }`}
+                                                >
+                                                    {task.stage.replace('_', ' ')}
+                                                </Badge>
+                                                <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <Card className="rounded-xl border-dashed border-2 border-slate-200 p-12 text-center bg-slate-50/50">
+                                <div className="flex flex-col items-center gap-3">
+                                    <div className="p-4 rounded-full bg-slate-100">
+                                        <ListTodo className="h-8 w-8 text-slate-400" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-semibold text-slate-900 mb-1">No tasks yet</p>
+                                        <p className="text-xs text-slate-500">Create your first task to start tracking project work</p>
+                                    </div>
                                     <Button
                                         onClick={() => setIsCreateTaskOpen(true)}
-                                        className="w-full justify-start rounded-xl font-bold text-[10px] uppercase tracking-wider px-4 h-10 shadow-none"
+                                        size="sm"
+                                        className="mt-2"
                                         style={{ backgroundColor: theme.primary }}
                                     >
-                                        <Plus className="h-4 w-4 mr-2" /> New Task
+                                        <Plus className="h-4 w-4 mr-2" /> Create Task
                                     </Button>
                                 </div>
                             </Card>
-                        </div>
-
-                        <div className="lg:col-span-3 space-y-6">
-                            {taskCategories.map(cat => (
-                                <div key={cat} className="space-y-3">
-                                    <div className="grid grid-cols-1 gap-3">
-                                        {tasks.filter(t => t.category === cat).length > 0 ? (
-                                            tasks.filter(t => t.category === cat).map(task => (
-                                                <ProjectTaskRow key={task.id} task={task} theme={theme} />
-                                            ))
-                                        ) : (
-                                            <div className="p-4 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                                                <p className="text-[10px] font-bold text-slate-300 uppercase tracking-wider">No active tasks in this segment</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                        )}
                     </div>
                 </TabsContent>
 
@@ -535,7 +620,13 @@ export default function ProjectDetailPage() {
             <CreateTaskModal
                 open={isCreateTaskOpen}
                 onClose={() => setIsCreateTaskOpen(false)}
-                initialProjectId={project.id}
+                initialProjectId={id}
+            />
+
+            <TaskDrawer
+                taskId={selectedTaskId}
+                open={!!selectedTaskId}
+                onClose={() => setSelectedTaskId(null)}
             />
         </div>
     );
@@ -580,32 +671,6 @@ function PulseItem({ task, isLast, theme }: { task: any, isLast: boolean, theme:
             <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-900 truncate leading-tight">{task.title}</p>
                 <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">{task.stage.replace('_', ' ')}</p>
-            </div>
-        </div>
-    );
-}
-
-function ProjectTaskRow({ task, theme }: { task: any, theme: any }) {
-    return (
-        <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200 hover:border-slate-300 transition-colors">
-            <div className="flex items-center gap-4">
-                <div className="h-8 w-8 rounded-lg bg-slate-50 flex items-center justify-center">
-                    <input type="checkbox" className="h-4 w-4 rounded-md border-slate-300 text-primary focus:ring-offset-0 focus:ring-0 cursor-pointer" style={{ color: theme.primary } as any} />
-                </div>
-                <div>
-                    <p className="text-sm font-bold text-slate-800 leading-tight">{task.title}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="outline" className="text-[9px] font-bold uppercase tracking-wider h-4 px-1.5 bg-slate-50 border-slate-200 text-slate-500">{task.priority}</Badge>
-                        <span className="text-[9px] font-semibold text-slate-300 uppercase">Assigned to Lead Monitor</span>
-                    </div>
-                </div>
-            </div>
-            <div className="flex items-center gap-6">
-                <div className="text-right hidden md:block">
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Due Date</p>
-                    <p className="text-xs font-semibold text-slate-600">{task.due_date ? new Date(task.due_date).toLocaleDateString() : 'N/A'}</p>
-                </div>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 hover:text-slate-900 rounded-lg"><ChevronRight className="h-4 w-4" /></Button>
             </div>
         </div>
     );
