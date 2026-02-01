@@ -22,7 +22,7 @@ export interface Project {
         name: string;
         email: string;
     };
-    tasks?: { stage: string }[];
+    tasks?: { id: string; title: string; stage: string }[];
 }
 
 export interface CreateProjectInput {
@@ -47,7 +47,7 @@ export function useProjects(companyId?: string) {
           *,
           company:companies(name),
           lead:users!projects_lead_id_fkey(name),
-          tasks(stage)
+          tasks!tasks_project_id_projects_id_fk(id, title, stage)
         `)
                 .order('created_at', { ascending: false });
 
@@ -73,7 +73,7 @@ export function useProject(id: string) {
           *,
           company:companies(name),
           lead:users!projects_lead_id_fkey(name, email),
-          tasks(stage)
+          tasks!tasks_project_id_projects_id_fk(id, title, stage)
         `)
                 .eq('id', id)
                 .single();
@@ -131,6 +131,43 @@ export function useUpdateProject(id: string) {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['projects'] });
             queryClient.invalidateQueries({ queryKey: ['project', id] });
+        },
+    });
+}
+
+// Fetch all companies
+export function useCompanies() {
+    return useQuery({
+        queryKey: ['companies'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('companies')
+                .select('*')
+                .order('name');
+            if (error) throw error;
+            return data;
+        },
+    });
+}
+
+// Fetch all leads
+export function useLeads(companyId?: string) {
+    return useQuery({
+        queryKey: ['leads', companyId],
+        queryFn: async () => {
+            let query = supabase
+                .from('users')
+                .select('*')
+                .eq('role', 'lead')
+                .order('name');
+
+            if (companyId) {
+                query = query.eq('company_id', companyId);
+            }
+
+            const { data, error } = await query;
+            if (error) throw error;
+            return data;
         },
     });
 }

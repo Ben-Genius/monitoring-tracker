@@ -15,9 +15,12 @@ import { formatDate, cn } from '@/lib/utils';
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 
+import { useCompanyStore } from '@/hooks/useCompanyStore';
+
 export default function ApprovalsPage() {
     const { user } = useAuth();
-    const { data: approvals, isLoading } = useApprovals();
+    const { selectedCompanyId } = useCompanyStore();
+    const { data: approvals, isLoading } = useApprovals(selectedCompanyId);
     const processApproval = useProcessApproval();
     const [searchQuery, setSearchQuery] = useState('');
 

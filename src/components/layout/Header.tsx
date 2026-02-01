@@ -1,16 +1,30 @@
-import { useState } from 'react';
 import { Bell, Search, Building2 } from 'lucide-react';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
-
-const companies = [
-    { id: '1', name: 'Macwest', color: 'macwest' },
-    { id: '2', name: 'Cypress', color: 'cypress' },
-    { id: '3', name: 'Northbrook', color: 'northbrook' },
-];
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import { useCompanies } from '@/features/projects/hooks/useProjects';
+import { useCompanyStore } from '@/hooks/useCompanyStore';
+import { useEffect } from 'react';
+import { getCompanyTheme } from '@/lib/utils';
 
 export default function Header() {
-    const [selectedCompany, setSelectedCompany] = useState(companies[0]);
+    const { user } = useAuth();
+    const { data: companies = [], isLoading } = useCompanies();
+    const { selectedCompanyId, setSelectedCompanyId } = useCompanyStore();
+
+    // Ensure non-admins are restricted to their company
+    useEffect(() => {
+        if (user && user.role !== 'admin' && selectedCompanyId !== user.company_id) {
+            setSelectedCompanyId(user.company_id);
+        }
+    }, [user, selectedCompanyId, setSelectedCompanyId]);
+
+    const isAdmin = user?.role === 'admin';
+    const currentCompany = selectedCompanyId === 'all'
+        ? { name: 'Global View', id: 'all' }
+        : companies.find(c => c.id === selectedCompanyId) || { name: 'Loading...', id: selectedCompanyId };
+
+    const theme = getCompanyTheme(currentCompany?.name || '');
 
     return (
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
@@ -18,24 +32,38 @@ export default function Header() {
             <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2">
                     <Building2 className="h-5 w-5 text-gray-500" />
-                    <select
-                        value={selectedCompany.id}
-                        onChange={(e) => {
-                            const company = companies.find((c) => c.id === e.target.value);
-                            if (company) setSelectedCompany(company);
-                        }}
-                        className="border-none bg-transparent text-lg font-semibold focus:outline-none focus:ring-0"
-                    >
-                        {companies.map((company) => (
-                            <option key={company.id} value={company.id}>
-                                {company.name}
-                            </option>
-                        ))}
-                    </select>
+                    {isAdmin ? (
+                        <select
+                            value={selectedCompanyId}
+                            onChange={(e) => setSelectedCompanyId(e.target.value)}
+                            className="border-none bg-transparent text-lg font-semibold focus:outline-none focus:ring-0 cursor-pointer"
+                        >
+                            <option value="all">Global View</option>
+                            {companies.map((company) => (
+                                <option key={company.id} value={company.id}>
+                                    {company.name}
+                                </option>
+                            ))}
+                        </select>
+                    ) : (
+                        <span className="text-lg font-semibold text-gray-900">
+                            {currentCompany?.name || 'Loading...'}
+                        </span>
+                    )}
                 </div>
-                <Badge variant={selectedCompany.color as any}>
-                    {selectedCompany.name}
-                </Badge>
+                {!isLoading && (
+                    <Badge
+                        variant="outline"
+                        style={selectedCompanyId !== 'all' ? {
+                            color: theme.primary,
+                            backgroundColor: `${theme.primary}10`,
+                            borderColor: `${theme.primary}20`,
+                            fontWeight: 'bold'
+                        } : {}}
+                    >
+                        {currentCompany?.name}
+                    </Badge>
+                )}
             </div>
 
             {/* Search and Actions */}

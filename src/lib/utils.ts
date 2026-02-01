@@ -34,22 +34,23 @@ export function formatRelativeTime(date: string | Date): string {
 
 export function getCompanyColor(companyName: string): string {
     const colors: Record<string, string> = {
-        Macwest: '#6366f1',
-        Cypress: '#8b5cf6',
-        Northbrook: '#ec4899',
+        'MacWest': '#8B0000',
+        'CypressEnergy': '#006837',
+        'Northbrook LRD': '#1E3A8A',
     };
-    return colors[companyName] || '#64748b';
+    // Case-insensitive fallback
+    const key = Object.keys(colors).find(k => companyName.toLowerCase().includes(k.toLowerCase().split(' ')[0]));
+    return (key ? colors[key] : null) || colors[companyName] || '#64748b';
 }
 
-export function getStageColor(stage: string): string {
-    const colors: Record<string, string> = {
-        talking_stage: '#94a3b8',
-        yet_to_start: '#fbbf24',
-        in_progress: '#3b82f6',
-        blockers: '#ef4444',
-        completed: '#10b981',
+export function getCompanyTheme(companyName: string) {
+    const themes: Record<string, { primary: string; secondary: string; accent: string }> = {
+        'MacWest': { primary: '#8B0000', secondary: '#000000', accent: '#FCA311' },
+        'CypressEnergy': { primary: '#006837', secondary: '#F58220', accent: '#4ADE80' },
+        'Northbrook LRD': { primary: '#1E3A8A', secondary: '#334155', accent: '#38BDF8' },
     };
-    return colors[stage] || '#64748b';
+    const key = Object.keys(themes).find(k => companyName.toLowerCase().includes(k.toLowerCase().split(' ')[0]));
+    return (key ? themes[key] : null) || themes[companyName] || { primary: '#6366f1', secondary: '#475569', accent: '#818cf8' };
 }
 
 export function getPriorityColor(priority: string): string {

@@ -16,38 +16,30 @@ import {
     Line,
 } from 'recharts';
 
-const taskStageData = [
-    { name: 'Talking Stage', value: 12, color: '#94a3b8' },
-    { name: 'Yet to Start', value: 18, color: '#fbbf24' },
-    { name: 'In Progress', value: 45, color: '#3b82f6' },
-    { name: 'Blockers', value: 8, color: '#ef4444' },
-    { name: 'Completed', value: 73, color: '#10b981' },
-];
-
-const companyPerformance = [
-    { company: 'Macwest', projects: 8, revenue: 2400000, profit: 720000 },
-    { company: 'Cypress', projects: 6, revenue: 1800000, profit: 360000 },
-    { company: 'Northbrook', projects: 10, revenue: 3200000, profit: 640000 },
-];
-
-const monthlyTrend = [
-    { month: 'Jan', tasks: 45, revenue: 450000 },
-    { month: 'Feb', tasks: 52, revenue: 520000 },
-    { month: 'Mar', tasks: 48, revenue: 480000 },
-    { month: 'Apr', tasks: 61, revenue: 610000 },
-    { month: 'May', tasks: 58, revenue: 580000 },
-    { month: 'Jun', tasks: 67, revenue: 670000 },
-];
-
-const topPerformers = [
-    { name: 'Sarah K.', tasksCompleted: 45, onTimeRate: 92 },
-    { name: 'Mike R.', tasksCompleted: 38, onTimeRate: 88 },
-    { name: 'John D.', tasksCompleted: 42, onTimeRate: 85 },
-    { name: 'Lisa M.', tasksCompleted: 35, onTimeRate: 90 },
-    { name: 'Tom B.', tasksCompleted: 31, onTimeRate: 87 },
-];
+import { useTaskDistribution } from '@/features/dashboard/hooks/useDashboard';
+import {
+    useCompanyPerformance,
+    useMonthlyTrend,
+    useTopPerformers
+} from '../hooks/useAnalytics';
+import LoadingSpinner from '@/components/common/LoadingSpinner';
 
 export default function AnalyticsPage() {
+    const { data: taskStageData = [], isLoading: taskLoading } = useTaskDistribution();
+    const { data: companyPerformance = [], isLoading: companyLoading } = useCompanyPerformance();
+    const { data: monthlyTrend = [], isLoading: trendLoading } = useMonthlyTrend();
+    const { data: topPerformers = [], isLoading: performersLoading } = useTopPerformers();
+
+    const isLoading = taskLoading || companyLoading || trendLoading || performersLoading;
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center h-screen">
+                <LoadingSpinner size="lg" />
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6">
             {/* Page Header */}
@@ -150,35 +142,39 @@ export default function AnalyticsPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
-                            {topPerformers.map((performer, index) => (
-                                <div
-                                    key={performer.name}
-                                    className="flex items-center justify-between p-4 border border-gray-200 rounded-lg"
-                                >
-                                    <div className="flex items-center space-x-4">
-                                        <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center font-bold">
-                                            #{index + 1}
+                            {topPerformers.length === 0 ? (
+                                <p className="text-center text-gray-500 py-8">No completion data yet.</p>
+                            ) : (
+                                topPerformers.map((performer, index) => (
+                                    <div
+                                        key={performer.name}
+                                        className="flex items-center justify-between p-4 border border-gray-200 rounded-lg"
+                                    >
+                                        <div className="flex items-center space-x-4">
+                                            <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center font-bold">
+                                                #{index + 1}
+                                            </div>
+                                            <div>
+                                                <p className="font-semibold text-gray-900">
+                                                    {performer.name}
+                                                </p>
+                                                <p className="text-sm text-gray-500">
+                                                    {performer.tasksCompleted} tasks completed
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="font-semibold text-gray-900">
-                                                {performer.name}
-                                            </p>
-                                            <p className="text-sm text-gray-500">
-                                                {performer.tasksCompleted} tasks completed
-                                            </p>
+                                        <div className="flex items-center space-x-4">
+                                            <div className="text-right">
+                                                <p className="text-sm text-gray-600">On-Time Rate</p>
+                                                <p className="text-lg font-bold text-green-600">
+                                                    {performer.onTimeRate}%
+                                                </p>
+                                            </div>
+                                            <Badge className="bg-green-100 text-green-700">Top Performer</Badge>
                                         </div>
                                     </div>
-                                    <div className="flex items-center space-x-4">
-                                        <div className="text-right">
-                                            <p className="text-sm text-gray-600">On-Time Rate</p>
-                                            <p className="text-lg font-bold text-success">
-                                                {performer.onTimeRate}%
-                                            </p>
-                                        </div>
-                                        <Badge variant="success">Top Performer</Badge>
-                                    </div>
-                                </div>
-                            ))}
+                                ))
+                            )}
                         </div>
                     </CardContent>
                 </Card>

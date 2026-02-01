@@ -17,13 +17,11 @@ import {
     PlayCircle,
     AlertCircle,
     CheckCircle2,
-    MoreHorizontal,
     Search,
     Filter
 } from 'lucide-react';
 import { useTasks, useUpdateTaskStage, Task } from '../hooks/useTasks';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { useProjects } from '@/features/projects/hooks/useProjects';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import TaskCard from '../components/TaskCard';
 import CreateTaskModal from '../components/CreateTaskModal';
@@ -39,12 +37,17 @@ const stages = [
     { id: 'completed', name: 'Completed', color: 'bg-success', icon: CheckCircle2, tint: 'bg-success/10' },
 ] as const;
 
+import { useCompanyStore } from '@/hooks/useCompanyStore';
+
 export default function TaskBoardPage() {
     const { user } = useAuth();
     const isAdmin = user?.role === 'admin';
     const isLead = user?.role === 'lead';
 
-    const { data: tasks, isLoading } = useTasks(isAdmin ? undefined : { company_id: user?.company_id });
+    const { selectedCompanyId } = useCompanyStore();
+    const { data: tasks, isLoading } = useTasks({
+        company_id: selectedCompanyId === 'all' ? undefined : selectedCompanyId
+    });
     const updateTaskStage = useUpdateTaskStage();
     const [activeTask, setActiveTask] = useState<Task | null>(null);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);

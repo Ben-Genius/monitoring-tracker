@@ -88,7 +88,7 @@ export function useTasks(filters?: {
                 .select(`
           *,
           project:projects(name, company_id, company:companies(name)),
-          assignee:users!tasks_assignee_id_fkey(name, email),
+          assignee:users!tasks_assignee_id_users_id_fk(name, email),
           subtasks(id, is_completed),
           comments:task_comments(id)
         `)
@@ -104,7 +104,7 @@ export function useTasks(filters?: {
                 query = query.eq('stage', filters.stage);
             }
             if (filters?.company_id) {
-                query = query.eq('projects.company_id', filters.company_id);
+                query = query.eq('project.company_id', filters.company_id);
             }
 
             const { data, error } = await query;
@@ -124,8 +124,8 @@ export function useTask(id: string) {
                 .select(`
           *,
           project:projects(name, company_id, company:companies(name)),
-          assignee:users!tasks_assignee_id_fkey(name, email),
-          creator:users!tasks_created_by_fkey(name, email),
+          assignee:users!tasks_assignee_id_users_id_fk(name, email),
+          creator:users!tasks_created_by_users_id_fk(name, email),
           subtasks(*)
         `)
                 .eq('id', id)

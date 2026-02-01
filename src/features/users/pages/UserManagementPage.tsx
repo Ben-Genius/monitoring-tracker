@@ -69,9 +69,18 @@ export default function UserManagementPage() {
 
     async function fetchData() {
         setLoading(true);
-        const { data: usersData } = await supabase.from('users').select('*, company:companies(id, name)').order('created_at', { ascending: false });
+        let usersQuery = supabase.from('users').select('*, company:companies(id, name)').order('created_at', { ascending: false });
+        let invitesQuery = supabase.from('pending_invites').select('*, company:companies(name)').eq('used', false);
+
+        // Filter by company if lead
+        if (!isAdmin && currentUser?.company_id) {
+            usersQuery = usersQuery.eq('company_id', currentUser.company_id);
+            invitesQuery = invitesQuery.eq('company_id', currentUser.company_id);
+        }
+
+        const { data: usersData } = await usersQuery;
         const { data: companiesData } = await supabase.from('companies').select('*');
-        const { data: invitesData } = await supabase.from('pending_invites').select('*, company:companies(name)').eq('used', false);
+        const { data: invitesData } = await invitesQuery;
 
         if (usersData) setUsers(usersData);
         if (companiesData) setCompanies(companiesData);
@@ -228,10 +237,10 @@ export default function UserManagementPage() {
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Company</label>
                                     <select
-                                        className="w-full h-10 px-3 py-2 rounded-md border border-input bg-background text-sm"
+                                        className="w-full h-10 px-3 py-2 rounded-md border border-input bg-background text-sm cursor-not-allowed bg-gray-50"
                                         value={formData.company_id}
                                         onChange={(e) => setFormData({ ...formData, company_id: e.target.value })}
-                                        disabled={!isAdmin} // Leads can't change company
+                                        disabled={true}
                                     >
                                         <option value="">Select Company</option>
                                         {companies.map(c => (
@@ -310,7 +319,7 @@ export default function UserManagementPage() {
                                     <tr className="text-left">
                                         <th className="p-4 font-medium text-gray-500">Name / Email</th>
                                         <th className="p-4 font-medium text-gray-500">Role</th>
-                                        <th className="p-4 font-medium text-gray-500">Company</th>
+                                        {isAdmin && <th className="p-4 font-medium text-gray-500">Company</th>}
                                         <th className="p-4 font-medium text-gray-500">Status</th>
                                         <th className="p-4 font-medium text-gray-500 text-right">Actions</th>
                                     </tr>
@@ -332,12 +341,14 @@ export default function UserManagementPage() {
                                                             "bg-gray-50 text-gray-700"
                                                 )}>{user.role}</Badge>
                                             </td>
-                                            <td className="p-4 text-gray-600">
-                                                <div className="flex items-center gap-2">
-                                                    <Briefcase className="h-3 w-3" />
-                                                    {user.company?.name || '-'}
-                                                </div>
-                                            </td>
+                                            {isAdmin && (
+                                                <td className="p-4 text-gray-600">
+                                                    <div className="flex items-center gap-2">
+                                                        <Briefcase className="h-3 w-3" />
+                                                        {user.company?.name || '-'}
+                                                    </div>
+                                                </td>
+                                            )}
                                             <td className="p-4">
                                                 <Badge variant="secondary" className={cn(
                                                     "font-normal",
@@ -387,7 +398,7 @@ export default function UserManagementPage() {
                                     <tr className="text-left">
                                         <th className="p-4 font-medium text-gray-500">Email</th>
                                         <th className="p-4 font-medium text-gray-500">Role</th>
-                                        <th className="p-4 font-medium text-gray-500">Company</th>
+                                        {isAdmin && <th className="p-4 font-medium text-gray-500">Company</th>}
                                         <th className="p-4 font-medium text-gray-500 text-right">Link</th>
                                     </tr>
                                 </thead>
@@ -396,7 +407,7 @@ export default function UserManagementPage() {
                                         <tr key={invite.id} className="hover:bg-gray-50/50">
                                             <td className="p-4 text-gray-900">{invite.email}</td>
                                             <td className="p-4"><Badge variant="secondary" className="bg-gray-100 text-gray-600">{invite.role}</Badge></td>
-                                            <td className="p-4 text-gray-500">{invite.company?.name}</td>
+                                            {isAdmin && <td className="p-4 text-gray-500">{invite.company?.name}</td>}
                                             <td className="p-4 text-right">
                                                 <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => {
                                                     const link = `${window.location.origin}/signup?token=${invite.token}`;

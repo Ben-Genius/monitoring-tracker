@@ -14,18 +14,23 @@ import {
     LayoutGrid,
     Play
 } from 'lucide-react';
-import { formatCurrency, calculateProfitability, cn } from '@/lib/utils';
+import { formatCurrency, calculateProfitability, cn, getCompanyTheme } from '@/lib/utils';
 import { useProjects } from '@/features/projects/hooks/useProjects';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import CreateProjectModal from '@/features/projects/components/CreateProjectModal';
+
+import { useCompanyStore } from '@/hooks/useCompanyStore';
 
 export default function ProjectsPage() {
     const { user } = useAuth();
     const navigate = useNavigate();
-    const { data: projects, isLoading } = useProjects();
+    const { selectedCompanyId } = useCompanyStore();
+    const { data: projects, isLoading } = useProjects(selectedCompanyId === 'all' ? undefined : selectedCompanyId);
     const [activeTab, setActiveTab] = useState('all');
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     const isAdmin = user?.role === 'admin';
     const isLead = user?.role === 'lead';
@@ -71,7 +76,10 @@ export default function ProjectsPage() {
                     </p>
                 </div>
                 {canCreateProject && (
-                    <Button className="shadow-lg shadow-primary/20">
+                    <Button
+                        onClick={() => setIsCreateModalOpen(true)}
+                        className="shadow-lg shadow-primary/20"
+                    >
                         <Plus className="h-4 w-4 mr-2" />
                         New Project
                     </Button>
@@ -112,8 +120,8 @@ export default function ProjectsPage() {
                         const profitability = calculateProfitability(contractValue, actualCost);
 
                         // Mock progress for now - in real app, fetch task counts
-                        const completionRate = project.status === 'completed' ? 100 :
-                            project.status === 'planning' ? 0 : 45;
+                        // const completionRate = project.status === 'completed' ? 100 :
+                        //     project.status === 'planning' ? 0 : 45;
 
                         return (
                             <Card key={project.id} className="group hover:shadow-xl transition-all duration-300 border-slate-200/60 overflow-hidden bg-white">
@@ -132,20 +140,27 @@ export default function ProjectsPage() {
                                         </Badge>
                                     </div>
                                     <div className="space-y-1">
-                                        <Badge
-                                            variant="outline"
-                                            className={cn(
-                                                "mb-2 font-bold px-2 py-0.5 border-slate-200",
-                                                project.company?.name.toLowerCase().includes('macwest') ? "text-indigo-600 bg-indigo-50 border-indigo-100" :
-                                                    project.company?.name.toLowerCase().includes('cypress') ? "text-purple-600 bg-purple-50 border-purple-100" :
-                                                        "text-pink-600 bg-pink-50 border-pink-100"
-                                            )}
-                                        >
-                                            {project.company?.name || 'Venture'}
-                                        </Badge>
-                                        <CardTitle className="text-xl font-bold text-slate-900 group-hover:text-primary transition-colors">
-                                            {project.name}
-                                        </CardTitle>
+                                        {(() => {
+                                            const theme = getCompanyTheme(project.company?.name || '');
+                                            return (
+                                                <>
+                                                    <Badge
+                                                        variant="outline"
+                                                        className="mb-2 font-bold px-2 py-0.5"
+                                                        style={{
+                                                            color: theme.primary,
+                                                            backgroundColor: `${theme.primary}10`,
+                                                            borderColor: `${theme.primary}20`
+                                                        }}
+                                                    >
+                                                        {project.company?.name || 'Venture'}
+                                                    </Badge>
+                                                    <CardTitle className="text-xl font-bold text-slate-900 group-hover:text-primary transition-colors">
+                                                        {project.name}
+                                                    </CardTitle>
+                                                </>
+                                            );
+                                        })()}
                                     </div>
                                 </CardHeader>
                                 <CardContent className="space-y-6">
@@ -236,7 +251,11 @@ export default function ProjectsPage() {
                         <h3 className="text-lg font-bold text-slate-900">No {activeTab} projects found</h3>
                         <p className="text-slate-500 text-sm mt-1">Try adjusting your filters or create a new project.</p>
                         {canCreateProject && (
-                            <Button className="mt-6 font-bold" variant="outline">
+                            <Button
+                                onClick={() => setIsCreateModalOpen(true)}
+                                className="mt-6 font-bold"
+                                variant="outline"
+                            >
                                 <Plus className="h-4 w-4 mr-2" />
                                 Create New Project
                             </Button>
@@ -244,6 +263,11 @@ export default function ProjectsPage() {
                     </div>
                 )}
             </Tabs>
+
+            <CreateProjectModal
+                open={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+            />
         </div>
     );
 }

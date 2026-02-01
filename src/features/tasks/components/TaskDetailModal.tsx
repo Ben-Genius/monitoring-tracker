@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
-import { X, Calendar, Flag, User, MessageSquare, CheckSquare, Plus, Trash2, Send } from 'lucide-react';
+import { X, Calendar, Flag, User, CheckSquare, Plus, Trash2, Send, Layout, ChevronRight, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
 import {
     useTask,
     useUpdateTask,
@@ -12,11 +11,10 @@ import {
     useToggleSubtask,
     useDeleteSubtask,
     useTaskComments,
-    useCreateComment,
-    Task
+    useCreateComment
 } from '../hooks/useTasks';
+import { useUsers } from '@/features/users/hooks/useUsers';
 import { cn, formatDate } from '@/lib/utils';
-import { useAuth } from '@/features/auth/hooks/useAuth';
 
 interface TaskDetailModalProps {
     taskId: string | null;
@@ -25,7 +23,6 @@ interface TaskDetailModalProps {
 }
 
 export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailModalProps) {
-    const { user: currentUser } = useAuth();
     const { data: task, isLoading } = useTask(taskId || '');
     const { data: subtasks } = useSubtasks(taskId || '');
     const { data: comments } = useTaskComments(taskId || '');
@@ -40,6 +37,11 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
     const [newComment, setNewComment] = useState('');
     const [isEditingDescription, setIsEditingDescription] = useState(false);
     const [description, setDescription] = useState('');
+    const [isEditingAssignee, setIsEditingAssignee] = useState(false);
+    const [isEditingPriority, setIsEditingPriority] = useState(false);
+    const [isEditingStage, setIsEditingStage] = useState(false);
+
+    const { data: users } = useUsers(task?.project?.company_id);
 
     useEffect(() => {
         if (task) {
@@ -76,21 +78,57 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b bg-slate-50/50">
-                    <div className="flex items-center gap-4 flex-1">
-                        <div className={cn(
-                            "h-3 w-3 rounded-full",
-                            task.priority === 'critical' ? 'bg-red-500' :
-                                task.priority === 'high' ? 'bg-orange-500' :
-                                    task.priority === 'medium' ? 'bg-blue-500' : 'bg-slate-400'
-                        )} />
-                        <h2 className="text-xl font-bold text-slate-900 truncate">
-                            {task.title}
-                        </h2>
-                        <Badge variant="outline" className="capitalize">
-                            {task.stage.replace('_', ' ')}
-                        </Badge>
+                    <div className="flex flex-col gap-1 flex-1 min-w-0">
+                        <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                            <Layout className="h-3 w-3" />
+                            <span>{task.project?.company?.name}</span>
+                            <ChevronRight className="h-2.5 w-2.5" />
+                            <span className="text-slate-500">{task.project?.name}</span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <div className={cn(
+                                "h-3 w-3 rounded-full shrink-0",
+                                task.priority === 'critical' ? 'bg-red-500' :
+                                    task.priority === 'high' ? 'bg-orange-500' :
+                                        task.priority === 'medium' ? 'bg-blue-500' : 'bg-slate-400'
+                            )} />
+                            <h2 className="text-xl font-bold text-slate-900 truncate">
+                                {task.title}
+                            </h2>
+                            <div className="relative group">
+                                <Badge
+                                    variant="outline"
+                                    className={cn(
+                                        "capitalize bg-white border-slate-200 text-slate-600 font-bold px-2 py-0.5 whitespace-nowrap cursor-pointer hover:bg-slate-50 transition-colors",
+                                        isEditingStage && "ring-2 ring-primary/20 border-primary"
+                                    )}
+                                    onClick={() => setIsEditingStage(!isEditingStage)}
+                                >
+                                    {task.stage.replace('_', ' ')}
+                                </Badge>
+                                {isEditingStage && (
+                                    <div className="absolute top-full mt-2 right-0 bg-white border rounded-xl shadow-2xl z-20 min-w-[160px] p-2 animate-in fade-in zoom-in duration-200">
+                                        {['talking_stage', 'yet_to_start', 'in_progress', 'blockers', 'completed'].map((stage) => (
+                                            <button
+                                                key={stage}
+                                                className={cn(
+                                                    "w-full text-left px-3 py-2 text-xs font-bold rounded-lg transition-colors",
+                                                    task.stage === stage ? "bg-primary/10 text-primary" : "text-slate-600 hover:bg-slate-50"
+                                                )}
+                                                onClick={async () => {
+                                                    await updateTask.mutateAsync({ stage: stage as any });
+                                                    setIsEditingStage(false);
+                                                }}
+                                            >
+                                                {stage.replace('_', ' ')}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-lg transition-colors">
+                    <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-lg transition-colors ml-4">
                         <X className="h-5 w-5 text-slate-500" />
                     </button>
                 </div>
@@ -102,14 +140,9 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                         <section className="space-y-4">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">Description</h3>
-                                {!isEditingDescription && (
-                                    <Button variant="ghost" size="sm" onClick={() => setIsEditingDescription(true)}>
-                                        Edit
-                                    </Button>
-                                )}
                             </div>
                             {isEditingDescription ? (
-                                <div className="space-y-3">
+                                <div className="space-y-3 animate-in fade-in duration-300">
                                     <textarea
                                         className="w-full min-h-[150px] p-4 text-slate-700 bg-slate-50 border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
                                         value={description}
@@ -119,16 +152,22 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                                     />
                                     <div className="flex gap-2 justify-end">
                                         <Button variant="outline" size="sm" onClick={() => setIsEditingDescription(false)}>Cancel</Button>
-                                        <Button size="sm" onClick={handleUpdateDescription}>Save Changes</Button>
+                                        <Button size="sm" onClick={handleUpdateDescription} className="font-bold">Save Changes</Button>
                                     </div>
                                 </div>
                             ) : (
-                                <p className={cn(
-                                    "text-slate-600 leading-relaxed whitespace-pre-wrap p-4 bg-slate-50/50 rounded-xl",
-                                    !task.description && "italic text-slate-400"
-                                )}>
-                                    {task.description || "No description provided."}
-                                </p>
+                                <div
+                                    onClick={() => setIsEditingDescription(true)}
+                                    className={cn(
+                                        "group relative text-slate-600 leading-relaxed whitespace-pre-wrap p-4 bg-slate-50/50 rounded-xl cursor-pointer hover:bg-slate-100/50 transition-all border border-transparent hover:border-slate-200",
+                                        !task.description && "italic text-slate-400"
+                                    )}
+                                >
+                                    {task.description || "No description provided. Click to add..."}
+                                    <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Badge variant="outline" className="text-[10px] bg-white border-slate-200 text-slate-500">Click to edit</Badge>
+                                    </div>
+                                </div>
                             )}
                         </section>
 
@@ -139,9 +178,17 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                                     <CheckSquare className="h-4 w-4" />
                                     Subtasks
                                     {subtasks && subtasks.length > 0 && (
-                                        <span className="text-xs font-medium px-2 py-0.5 bg-slate-100 rounded-full">
-                                            {subtasks.filter(s => s.is_completed).length}/{subtasks.length}
-                                        </span>
+                                        <div className="flex items-center gap-3 flex-1 ml-4 justify-end">
+                                            <div className="h-1.5 w-24 bg-slate-100 rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full bg-primary transition-all duration-500"
+                                                    style={{ width: `${Math.round((subtasks.filter(s => s.is_completed).length / subtasks.length) * 100)}%` }}
+                                                />
+                                            </div>
+                                            <span className="text-[10px] font-bold text-slate-400 whitespace-nowrap">
+                                                {subtasks.filter(s => s.is_completed).length}/{subtasks.length} COMPLETED
+                                            </span>
+                                        </div>
                                     )}
                                 </h3>
                             </div>
@@ -156,35 +203,42 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                                 />
                             </form>
 
-                            <div className="space-y-2">
+                            <div className="space-y-1">
                                 {subtasks?.map((subtask) => (
                                     <div
                                         key={subtask.id}
-                                        className="group flex items-center gap-3 p-3 hover:bg-slate-50 rounded-lg transition-all border border-transparent hover:border-slate-100"
+                                        className="group flex items-center gap-3 p-2.5 hover:bg-slate-50 rounded-xl transition-all border border-transparent hover:border-slate-100"
                                     >
                                         <button
                                             onClick={() => toggleSubtask.mutate({ id: subtask.id, is_completed: !subtask.is_completed })}
                                             className={cn(
-                                                "h-5 w-5 rounded border flex items-center justify-center transition-colors",
-                                                subtask.is_completed ? "bg-primary border-primary text-white" : "border-slate-300 bg-white"
+                                                "h-5 w-5 rounded-md border-2 flex items-center justify-center transition-all duration-200",
+                                                subtask.is_completed
+                                                    ? "bg-primary border-primary text-white scale-100"
+                                                    : "border-slate-300 bg-white group-hover:border-primary/50"
                                             )}
                                         >
-                                            {subtask.is_completed && <CheckSquare className="h-3 w-3" />}
+                                            {subtask.is_completed && <CheckSquare className="h-3.5 w-3.5" />}
                                         </button>
                                         <span className={cn(
-                                            "flex-1 text-sm transition-all",
+                                            "flex-1 text-sm transition-all duration-300",
                                             subtask.is_completed ? "text-slate-400 line-through" : "text-slate-700 font-medium"
                                         )}>
                                             {subtask.title}
                                         </span>
                                         <button
                                             onClick={() => deleteSubtask.mutate(subtask.id)}
-                                            className="opacity-0 group-hover:opacity-100 p-1.5 hover:text-red-500 transition-all"
+                                            className="opacity-0 group-hover:opacity-100 p-1.5 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </button>
                                     </div>
                                 ))}
+                                {(!subtasks || subtasks.length === 0) && (
+                                    <div className="py-8 text-center border-2 border-dashed border-slate-100 rounded-xl">
+                                        <p className="text-sm text-slate-400">No subtasks yet. Break it down!</p>
+                                    </div>
+                                )}
                             </div>
                         </section>
                     </div>
@@ -195,25 +249,88 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                         <div className="space-y-6">
                             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">Task Details</h3>
                             <div className="grid gap-4">
-                                <div className="flex items-center gap-3 text-sm">
-                                    <User className="h-4 w-4 text-slate-400" />
-                                    <span className="text-slate-500 w-20">Assignee</span>
-                                    <span className="font-semibold text-slate-900">{task.assignee?.name || 'Unassigned'}</span>
+                                {/* Assignee Selector */}
+                                <div className="space-y-1.5 relative">
+                                    <div className="flex items-center gap-3 text-sm">
+                                        <User className="h-4 w-4 text-slate-400" />
+                                        <span className="text-slate-500 w-20">Assignee</span>
+                                        <button
+                                            onClick={() => setIsEditingAssignee(!isEditingAssignee)}
+                                            className="font-bold text-slate-900 flex items-center gap-2 hover:bg-slate-100 px-2 py-1 rounded-md transition-colors -ml-2"
+                                        >
+                                            {task.assignee?.name || 'Unassigned'}
+                                        </button>
+                                    </div>
+                                    {isEditingAssignee && (
+                                        <div className="absolute top-full mt-2 left-0 right-0 bg-white border rounded-xl shadow-2xl z-20 max-h-[200px] overflow-y-auto p-2 animate-in fade-in zoom-in duration-200">
+                                            {users?.map((u) => (
+                                                <button
+                                                    key={u.id}
+                                                    className={cn(
+                                                        "w-full text-left px-3 py-2 text-xs font-bold rounded-lg transition-colors flex items-center gap-3",
+                                                        task.assignee_id === u.id ? "bg-primary/10 text-primary" : "text-slate-600 hover:bg-slate-50"
+                                                    )}
+                                                    onClick={async () => {
+                                                        await updateTask.mutateAsync({ assignee_id: u.id });
+                                                        setIsEditingAssignee(false);
+                                                    }}
+                                                >
+                                                    <div className="h-6 w-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px]">
+                                                        {u.name.charAt(0)}
+                                                    </div>
+                                                    {u.name}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
+
                                 <div className="flex items-center gap-3 text-sm">
                                     <Calendar className="h-4 w-4 text-slate-400" />
                                     <span className="text-slate-500 w-20">Due Date</span>
-                                    <span className="font-semibold text-slate-900">{task.due_date ? formatDate(task.due_date) : 'No date set'}</span>
+                                    <span className="font-bold text-slate-900">{task.due_date ? formatDate(task.due_date) : 'No date set'}</span>
                                 </div>
-                                <div className="flex items-center gap-3 text-sm">
-                                    <Flag className="h-4 w-4 text-slate-400" />
-                                    <span className="text-slate-500 w-20">Priority</span>
-                                    <Badge variant={
-                                        task.priority === 'critical' ? 'destructive' :
-                                            task.priority === 'high' ? 'warning' : 'outline'
-                                    } className="capitalize">
-                                        {task.priority}
-                                    </Badge>
+
+                                {/* Priority Selector */}
+                                <div className="space-y-1.5 relative">
+                                    <div className="flex items-center gap-3 text-sm">
+                                        <Flag className="h-4 w-4 text-slate-400" />
+                                        <span className="text-slate-500 w-20">Priority</span>
+                                        <button
+                                            onClick={() => setIsEditingPriority(!isEditingPriority)}
+                                            className="hover:bg-slate-100 px-2 py-1 rounded-md transition-colors -ml-2"
+                                        >
+                                            <Badge variant={
+                                                task.priority === 'critical' ? 'destructive' :
+                                                    task.priority === 'high' ? 'warning' : 'outline'
+                                            } className="capitalize font-bold">
+                                                {task.priority}
+                                            </Badge>
+                                        </button>
+                                    </div>
+                                    {isEditingPriority && (
+                                        <div className="absolute top-full mt-2 left-0 right-0 bg-white border rounded-xl shadow-2xl z-20 p-2 animate-in fade-in zoom-in duration-200">
+                                            {['low', 'medium', 'high', 'critical'].map((p) => (
+                                                <button
+                                                    key={p}
+                                                    className={cn(
+                                                        "w-full text-left px-3 py-2 text-xs font-bold rounded-lg transition-colors flex items-center gap-2",
+                                                        task.priority === p ? "bg-primary/10 text-primary" : "text-slate-600 hover:bg-slate-50"
+                                                    )}
+                                                    onClick={async () => {
+                                                        await updateTask.mutateAsync({ priority: p as any });
+                                                        setIsEditingPriority(false);
+                                                    }}
+                                                >
+                                                    <div className={cn(
+                                                        "h-2 w-2 rounded-full",
+                                                        p === 'critical' ? 'bg-red-500' : p === 'high' ? 'bg-orange-500' : p === 'medium' ? 'bg-blue-500' : 'bg-slate-400'
+                                                    )} />
+                                                    {p.charAt(0).toUpperCase() + p.slice(1)}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -221,35 +338,44 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                         {/* Comments Section */}
                         <div className="flex-1 flex flex-col min-h-0 space-y-4">
                             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
-                                <MessageSquare className="h-4 w-4" />
-                                Activity
+                                <Activity className="h-4 w-4" />
+                                Task Feed
                             </h3>
 
                             <div className="flex-1 overflow-y-auto space-y-6 pr-2 scrollbar-thin">
                                 {comments?.map((comment) => (
-                                    <div key={comment.id} className="flex gap-4">
-                                        <div className="h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0">
-                                            <span className="text-xs font-bold text-slate-500">
-                                                {comment.user?.name?.charAt(0) || 'U'}
+                                    <div key={comment.id} className="flex gap-4 group/comment">
+                                        <div className="h-9 w-9 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 shadow-inner flex items-center justify-center flex-shrink-0 border border-white">
+                                            <span className="text-xs font-black text-slate-600">
+                                                {comment.user?.name?.charAt(0).toUpperCase() || 'U'}
                                             </span>
                                         </div>
-                                        <div className="space-y-1 flex-1 min-w-0">
+                                        <div className="space-y-1.5 flex-1 min-w-0">
                                             <div className="flex items-center justify-between">
-                                                <span className="text-xs font-bold text-slate-900">
-                                                    {comment.user?.name || 'Unknown User'}
-                                                </span>
-                                                <span className="text-[10px] text-slate-400">
-                                                    {formatDate(comment.created_at)}
-                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm font-bold text-slate-900">
+                                                        {comment.user?.name || 'Unknown User'}
+                                                    </span>
+                                                    <span className="h-1 w-1 rounded-full bg-slate-300" />
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
+                                                        {formatDate(comment.created_at)}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <div className="bg-white border rounded-xl rounded-tl-none p-3 shadow-sm border-slate-100">
-                                                <p className="text-sm text-slate-600 break-words">
+                                            <div className="bg-white border rounded-2xl rounded-tl-none p-4 shadow-sm border-slate-100/80 group-hover/comment:border-primary/20 transition-colors">
+                                                <p className="text-sm text-slate-600 leading-relaxed break-words">
                                                     {comment.comment}
                                                 </p>
                                             </div>
                                         </div>
                                     </div>
                                 ))}
+                                {(!comments || comments.length === 0) && (
+                                    <div className="flex flex-col items-center justify-center py-12 text-slate-400 gap-3">
+                                        <Activity className="h-8 w-8 opacity-20" />
+                                        <p className="text-xs font-medium">No messages in this feed yet.</p>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Comment Input */}

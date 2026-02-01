@@ -3,14 +3,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 export interface Approval {
     id: string;
-    entity_type: 'task_stage' | 'budget_increase' | 'project_completion';
+    project_id: string;
+    requester_id: string;
+    entity_type: string;
     entity_id: string;
-    requested_by: string;
-    approved_by: string | null;
     status: 'pending' | 'approved' | 'rejected';
     comments: string | null;
     created_at: string;
-    updated_at: string;
     requester?: {
         name: string;
         email: string;
@@ -21,29 +20,37 @@ export interface Approval {
     };
     project?: {
         name: string;
+        company_id: string;
     };
 }
 
 export interface CreateApprovalInput {
-    entity_type: string;
-    entity_id: string;
-    requested_by: string;
-    comments?: string;
+    project_id: string;
+    lead_id: string;
+    type: string;
+    content: string;
+    status?: string;
 }
 
-export function useApprovals() {
+export function useApprovals(companyId?: string) {
     return useQuery({
-        queryKey: ['approvals'],
+        queryKey: ['approvals', companyId],
         queryFn: async () => {
-            const { data, error } = await supabase
+            let query = supabase
                 .from('approvals')
                 .select(`
                     *,
-                    requester:users!approvals_requested_by_fkey(name, email),
-                    approver:users!approvals_approved_by_fkey(name, email)
+                    requester:users!approvals_requester_id_fkey(name, email),
+                    approver:users!approvals_approved_by_fkey(name, email),
+                    project:projects!approvals_project_id_fkey(name, company_id)
                 `)
                 .order('created_at', { ascending: false });
 
+            if (companyId && companyId !== 'all') {
+                query = query.eq('project.company_id', companyId);
+            }
+
+            const { data, error } = await query;
             if (error) throw error;
             return data as Approval[];
         },
@@ -58,7 +65,8 @@ export function usePendingApprovals() {
                 .from('approvals')
                 .select(`
                     *,
-                    requester:users!approvals_requested_by_fkey(name, email)
+                    lead:users!approvals_lead_id_fkey(name, email),
+                    project:projects!approvals_project_id_fkey(name)
                 `)
                 .eq('status', 'pending')
                 .order('created_at', { ascending: false });
@@ -77,11 +85,15 @@ export function useCreateApproval() {
             const { data, error } = await supabase
                 .from('approvals')
                 .insert([input])
-                .select()
+                .select(`
+                    *,
+                    lead:users!approvals_lead_id_fkey(name, email),
+                    project:projects!approvals_project_id_fkey(name)
+                `)
                 .single();
 
             if (error) throw error;
-            return data;
+            return data as Approval;
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['approvals'] });
@@ -103,11 +115,16 @@ export function useProcessApproval() {
                 .from('approvals')
                 .update({ status, approved_by, comments, updated_at: new Date().toISOString() })
                 .eq('id', id)
-                .select()
+                .select(`
+                    *,
+                    requester:users!approvals_requester_id_fkey(name, email),
+                    approver:users!approvals_approved_by_fkey(name, email),
+                    project:projects!approvals_project_id_fkey(name, company_id)
+                `)
                 .single();
 
             if (error) throw error;
-            return data;
+            return data as Approval;
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['approvals'] });

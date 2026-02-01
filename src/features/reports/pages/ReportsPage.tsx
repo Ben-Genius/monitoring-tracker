@@ -1,46 +1,49 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Download, FileSpreadsheet, Calendar } from 'lucide-react';
+import { useCompanyStore } from '@/hooks/useCompanyStore';
 
 const reports = [
     {
         id: '1',
         name: 'Task Completion Report',
-        description: 'Weekly task completion metrics by team and company',
-        frequency: 'Weekly',
-        lastGenerated: '2026-01-28',
+        description: 'Monthly task completion metrics by team and company',
+        frequency: 'Monthly',
+        lastGenerated: null,
     },
     {
         id: '2',
         name: 'Financial Performance',
         description: 'Project profitability and cost analysis',
-        frequency: 'Monthly',
-        lastGenerated: '2026-01-01',
+        frequency: 'Quarterly',
+        lastGenerated: null,
     },
     {
         id: '3',
         name: 'Idle Task Report',
-        description: 'Tasks with no updates in 48+ hours',
-        frequency: 'Daily',
-        lastGenerated: '2026-01-30',
+        description: 'Detailed analysis of tasks with no updates in 48+ hours',
+        frequency: 'On-demand',
+        lastGenerated: null,
     },
     {
         id: '4',
         name: 'Pipeline Forecast',
         description: 'Sales pipeline and revenue projections',
         frequency: 'Monthly',
-        lastGenerated: '2026-01-01',
+        lastGenerated: null,
     },
 ];
 
 export default function ReportsPage() {
+    const { selectedCompanyId } = useCompanyStore();
+
     return (
         <div className="space-y-6">
             {/* Page Header */}
             <div>
                 <h1 className="text-3xl font-bold text-gray-900">Reports</h1>
                 <p className="text-gray-500 mt-1">
-                    Generate and export comprehensive reports
+                    Generate and export comprehensive reports {selectedCompanyId !== 'all' ? `for company context` : '(Global View)'}
                 </p>
             </div>
 
