@@ -3,8 +3,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Save, Bell, Shield, Database } from 'lucide-react';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+
 
 export default function SettingsPage() {
+    const { user } = useAuth();
+    const isAdmin = user?.role === 'admin';
+
     return (
         <div className="space-y-6">
             {/* Page Header */}
@@ -28,21 +33,23 @@ export default function SettingsPage() {
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
                             <label className="text-sm font-medium">Company Name</label>
-                            <Input defaultValue="Macwest" />
+                            <Input defaultValue="Macwest" disabled={!isAdmin} />
                         </div>
                         <div className="space-y-2">
                             <label className="text-sm font-medium">Time Zone</label>
-                            <select className="w-full h-10 px-3 rounded-md border border-input bg-background">
+                            <select className="w-full h-10 px-3 rounded-md border border-input bg-background" disabled={!isAdmin}>
                                 <option>UTC-5 (Eastern Time)</option>
                                 <option>UTC-6 (Central Time)</option>
                                 <option>UTC-7 (Mountain Time)</option>
                                 <option>UTC-8 (Pacific Time)</option>
                             </select>
                         </div>
-                        <Button>
-                            <Save className="h-4 w-4 mr-2" />
-                            Save Changes
-                        </Button>
+                        {isAdmin && (
+                            <Button>
+                                <Save className="h-4 w-4 mr-2" />
+                                Save Changes
+                            </Button>
+                        )}
                     </CardContent>
                 </Card>
 
@@ -89,74 +96,78 @@ export default function SettingsPage() {
                     </CardContent>
                 </Card>
 
-                {/* Database Settings */}
-                <Card>
-                    <CardHeader>
-                        <div className="flex items-center space-x-2">
-                            <Database className="h-5 w-5 text-primary" />
-                            <CardTitle>Database</CardTitle>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="font-medium">Connection Status</p>
-                                <p className="text-sm text-gray-500">Supabase PostgreSQL</p>
+                {/* Database Settings - Admin Only */}
+                {isAdmin && (
+                    <Card>
+                        <CardHeader>
+                            <div className="flex items-center space-x-2">
+                                <Database className="h-5 w-5 text-primary" />
+                                <CardTitle>Database</CardTitle>
                             </div>
-                            <Badge variant="success">Connected</Badge>
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="font-medium">Last Backup</p>
-                                <p className="text-sm text-gray-500">2026-01-30 00:00 UTC</p>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="font-medium">Connection Status</p>
+                                    <p className="text-sm text-gray-500">Supabase PostgreSQL</p>
+                                </div>
+                                <Badge variant="success">Connected</Badge>
                             </div>
-                            <Button variant="outline" size="sm">
-                                Backup Now
-                            </Button>
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="font-medium">Storage Used</p>
-                                <p className="text-sm text-gray-500">245 MB / 500 MB</p>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="font-medium">Last Backup</p>
+                                    <p className="text-sm text-gray-500">2026-01-30 00:00 UTC</p>
+                                </div>
+                                <Button variant="outline" size="sm">
+                                    Backup Now
+                                </Button>
                             </div>
-                            <div className="w-32 bg-gray-200 rounded-full h-2">
-                                <div
-                                    className="bg-primary h-2 rounded-full"
-                                    style={{ width: '49%' }}
-                                />
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="font-medium">Storage Used</p>
+                                    <p className="text-sm text-gray-500">245 MB / 500 MB</p>
+                                </div>
+                                <div className="w-32 bg-gray-200 rounded-full h-2">
+                                    <div
+                                        className="bg-primary h-2 rounded-full"
+                                        style={{ width: '49%' }}
+                                    />
+                                </div>
                             </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                )}
 
-                {/* Company Management */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Company Management</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                            <p className="text-sm font-medium">Active Companies</p>
+                {/* Company Management - Admin Only */}
+                {isAdmin && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Company Management</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
                             <div className="space-y-2">
-                                <div className="flex items-center justify-between p-2 border rounded-md">
-                                    <span>Macwest</span>
-                                    <Badge variant="macwest">Active</Badge>
-                                </div>
-                                <div className="flex items-center justify-between p-2 border rounded-md">
-                                    <span>Cypress</span>
-                                    <Badge variant="cypress">Active</Badge>
-                                </div>
-                                <div className="flex items-center justify-between p-2 border rounded-md">
-                                    <span>Northbrook</span>
-                                    <Badge variant="northbrook">Active</Badge>
+                                <p className="text-sm font-medium">Active Companies</p>
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between p-2 border rounded-md">
+                                        <span>Macwest</span>
+                                        <Badge variant="secondary" className="bg-red-50 text-red-700">Active</Badge>
+                                    </div>
+                                    <div className="flex items-center justify-between p-2 border rounded-md">
+                                        <span>Cypress</span>
+                                        <Badge variant="secondary" className="bg-green-50 text-green-700">Active</Badge>
+                                    </div>
+                                    <div className="flex items-center justify-between p-2 border rounded-md">
+                                        <span>Northbrook</span>
+                                        <Badge variant="secondary" className="bg-blue-50 text-blue-700">Active</Badge>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <Button variant="outline" className="w-full">
-                            Add Company
-                        </Button>
-                    </CardContent>
-                </Card>
+                            <Button variant="outline" className="w-full">
+                                Add Company
+                            </Button>
+                        </CardContent>
+                    </Card>
+                )}
             </div>
         </div>
     );

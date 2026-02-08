@@ -77,7 +77,7 @@ export default function LoginPage() {
                     </div>
 
                     {/* Setup Notice */}
-                    <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
+                    <div className="bg-primary/5 border border-primary/20 rounded-md p-4">
                         <p className="text-sm text-primary font-medium">
                             🚀 First time? See <strong>LOGIN_CREDENTIALS.md</strong> for setup
                         </p>
@@ -120,7 +120,7 @@ export default function LoginPage() {
                         </div>
 
                         {error && (
-                            <div className="bg-error/10 border border-error text-error text-sm p-4 rounded-lg">
+                            <div className="bg-error/10 border border-error text-error text-sm p-4 rounded-md">
                                 {error}
                             </div>
                         )}
@@ -157,7 +157,7 @@ export default function LoginPage() {
                         {testimonials.map((testimonial, index) => (
                             <div
                                 key={index}
-                                className="bg-white rounded-2xl p-5 shadow-lg hover:shadow-xl transition-shadow"
+                                className="bg-white rounded-2xl p-5hover:shadow-xl transition-shadow"
                             >
                                 <div className="flex items-start space-x-4">
                                     <img

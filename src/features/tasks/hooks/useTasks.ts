@@ -2,6 +2,27 @@ import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 // Types
+export interface Subtask {
+    id: string;
+    task_id: string;
+    title: string;
+    is_completed: boolean;
+    created_at: string;
+}
+
+export interface TaskComment {
+    id: string;
+    task_id: string;
+    user_id: string;
+    comment: string;
+    created_at: string;
+    updated_at: string;
+    user?: {
+        name: string;
+        email: string;
+    };
+}
+
 export interface Task {
     id: string;
     title: string;
@@ -11,25 +32,41 @@ export interface Task {
     stage: 'talking_stage' | 'yet_to_start' | 'in_progress' | 'blockers' | 'completed';
     priority: 'low' | 'medium' | 'high' | 'critical';
     due_date: string | null;
-    created_by: string;
     created_at: string;
     updated_at: string;
     completed_at: string | null;
     project?: {
         name: string;
         company_id: string;
+        company?: {
+            name: string;
+        };
     };
     assignee?: {
         name: string;
         email: string;
+    };
+    assignees?: {
+        user: {
+            id: string;
+            name: string;
+            email: string;
+        }
+    }[];
+    subtasks?: Subtask[];
+    comments?: TaskComment[];
+    _count?: {
+        comments: number;
+        subtasks: number;
     };
 }
 
 export interface CreateTaskInput {
     title: string;
     description?: string;
-    project_id: string;
+    project_id?: string;
     assignee_id: string;
+    assignee_ids?: string[];
     stage?: Task['stage'];
     priority?: Task['priority'];
     due_date?: string;
@@ -41,7 +78,9 @@ export interface UpdateTaskInput {
     stage?: Task['stage'];
     priority?: Task['priority'];
     due_date?: string;
-    assignee_id?: string;
+    assignee_id?: string | null;
+    assignee_ids?: string[];
+    project_id?: string | null;
 }
 
 // Fetch all tasks
@@ -49,6 +88,8 @@ export function useTasks(filters?: {
     project_id?: string;
     assignee_id?: string;
     stage?: string;
+    category?: string;
+    company_id?: string;
 }) {
     return useQuery({
         queryKey: ['tasks', filters],
@@ -57,8 +98,11 @@ export function useTasks(filters?: {
                 .from('tasks')
                 .select(`
           *,
-          project:projects(name, company_id),
-          assignee:users!tasks_assignee_id_fkey(name, email)
+          project:projects(name, company_id, company:companies(name)),
+          assignee:users!tasks_assignee_id_users_id_fk(name, email),
+          assignees:task_assignees(user:users(id, name, email)),
+          subtasks(id, is_completed),
+          comments:task_comments(id)
         `)
                 .order('created_at', { ascending: false });
 
@@ -70,6 +114,10 @@ export function useTasks(filters?: {
             }
             if (filters?.stage) {
                 query = query.eq('stage', filters.stage);
+            }
+
+            if (filters?.company_id) {
+                query = query.eq('project.company_id', filters.company_id);
             }
 
             const { data, error } = await query;
@@ -88,9 +136,11 @@ export function useTask(id: string) {
                 .from('tasks')
                 .select(`
           *,
-          project:projects(name, company_id),
-          assignee:users!tasks_assignee_id_fkey(name, email),
-          creator:users!tasks_created_by_fkey(name, email)
+          project:projects(name, company_id, company:companies(name)),
+          assignee:users!tasks_assignee_id_users_id_fk(name, email),
+          assignees:task_assignees(user:users(id, name, email)),
+          creator:users!tasks_created_by_users_id_fk(name, email),
+          subtasks(*)
         `)
                 .eq('id', id)
                 .single();
@@ -111,17 +161,40 @@ export function useCreateTask() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('Not authenticated');
 
-            const { data, error } = await supabase
+            // Separate assignee_ids from the rest of the task data
+            const { assignee_ids, ...taskData } = input;
+
+            // 1. Create the task
+            const { data: task, error: taskError } = await supabase
                 .from('tasks')
                 .insert({
-                    ...input,
+                    ...taskData,
                     created_by: user.id,
                 })
                 .select()
                 .single();
 
-            if (error) throw error;
-            return data;
+            if (taskError) throw taskError;
+
+            // 2. Create task assignees if multiple provided
+            if (assignee_ids && assignee_ids.length > 0) {
+                const assigneesPayload = assignee_ids.map(userId => ({
+                    task_id: task.id,
+                    user_id: userId
+                }));
+
+                const { error: assigneesError } = await supabase
+                    .from('task_assignees')
+                    .insert(assigneesPayload);
+
+                if (assigneesError) {
+                    console.error('Failed to save task assignees:', assigneesError);
+                    // We don't throw here to avoid failing the whole task creation, 
+                    // but in a strict system we might want to transaction this.
+                }
+            }
+
+            return task;
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['tasks'] });
@@ -135,9 +208,41 @@ export function useUpdateTask(id: string) {
 
     return useMutation({
         mutationFn: async (input: UpdateTaskInput) => {
+            const { assignee_ids, ...updateData } = input;
+
+            // Handle multi-assignee update
+            if (assignee_ids) {
+                // 1. Update/Reset Primary Assignee
+                // Use the first selected user as primary, or null if empty
+                updateData.assignee_id = assignee_ids[0] || null;
+
+                // 2. Sync task_assignees table
+                // First delete existing
+                const { error: deleteError } = await supabase
+                    .from('task_assignees')
+                    .delete()
+                    .eq('task_id', id);
+
+                if (deleteError) throw deleteError;
+
+                // Then insert new ones
+                if (assignee_ids.length > 0) {
+                    const assigneesPayload = assignee_ids.map(userId => ({
+                        task_id: id,
+                        user_id: userId
+                    }));
+
+                    const { error: insertError } = await supabase
+                        .from('task_assignees')
+                        .insert(assigneesPayload);
+
+                    if (insertError) throw insertError;
+                }
+            }
+
             const { data, error } = await supabase
                 .from('tasks')
-                .update(input)
+                .update(updateData)
                 .eq('id', id)
                 .select()
                 .single();
@@ -174,21 +279,160 @@ export function useUpdateTaskStage() {
     });
 }
 
-// Delete task
-export function useDeleteTask() {
-    const queryClient = useQueryClient();
+// --- Subtasks Hooks ---
 
+export function useSubtasks(taskId: string) {
+    return useQuery({
+        queryKey: ['subtasks', taskId],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('subtasks')
+                .select('*')
+                .eq('task_id', taskId)
+                .order('created_at', { ascending: true });
+
+            if (error) throw error;
+            return data as Subtask[];
+        },
+        enabled: !!taskId,
+    });
+}
+
+export function useCreateSubtask() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (input: { task_id: string; title: string }) => {
+            const { data, error } = await supabase
+                .from('subtasks')
+                .insert(input)
+                .select()
+                .single();
+            if (error) throw error;
+            return data;
+        },
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['subtasks', variables.task_id] });
+            queryClient.invalidateQueries({ queryKey: ['task', variables.task_id] });
+        },
+    });
+}
+
+export function useUpdateSubtask(taskId: string) {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async ({ id, title }: { id: string; title: string }) => {
+            const { data, error } = await supabase
+                .from('subtasks')
+                .update({ title })
+                .eq('id', id)
+                .select()
+                .single();
+            if (error) throw error;
+            return data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['subtasks', taskId] });
+        },
+    });
+}
+
+export function useToggleSubtask(taskId: string) {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async ({ id, is_completed }: { id: string; is_completed: boolean }) => {
+            const { data, error } = await supabase
+                .from('subtasks')
+                .update({ is_completed })
+                .eq('id', id)
+                .select()
+                .single();
+            if (error) throw error;
+            return data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['subtasks', taskId] });
+        },
+    });
+}
+
+export function useDeleteSubtask(taskId: string) {
+    const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (id: string) => {
             const { error } = await supabase
-                .from('tasks')
+                .from('subtasks')
                 .delete()
                 .eq('id', id);
-
             if (error) throw error;
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['tasks'] });
+            queryClient.invalidateQueries({ queryKey: ['subtasks', taskId] });
+            queryClient.invalidateQueries({ queryKey: ['task', taskId] });
+        },
+    });
+}
+
+// --- Comments Hooks ---
+
+export function useTaskComments(taskId: string) {
+    return useQuery({
+        queryKey: ['comments', taskId],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('task_comments')
+                .select(`
+                    *,
+                    user:users(name, email)
+                `)
+                .eq('task_id', taskId)
+                .order('created_at', { ascending: true });
+
+            if (error) throw error;
+            return data as TaskComment[];
+        },
+        enabled: !!taskId,
+    });
+}
+
+export function useCreateComment() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (input: { task_id: string; content: string }) => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error('Not authenticated');
+
+            const { data, error } = await supabase
+                .from('task_comments')
+                .insert({
+                    task_id: input.task_id,
+                    comment: input.content,
+                    user_id: user.id
+                })
+                .select()
+                .single();
+            if (error) throw error;
+            return data;
+        },
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['comments', variables.task_id] });
+            queryClient.invalidateQueries({ queryKey: ['task', variables.task_id] });
+        },
+    });
+}
+
+export function useDeleteComment(taskId: string) {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (id: string) => {
+            const { error } = await supabase
+                .from('task_comments')
+                .delete()
+                .eq('id', id);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['comments', taskId] });
+            queryClient.invalidateQueries({ queryKey: ['task', taskId] });
         },
     });
 }
