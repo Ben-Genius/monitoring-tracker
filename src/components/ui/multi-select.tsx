@@ -112,7 +112,7 @@ export function MultiSelect({
             </div>
 
             {open && (
-                <div className="absolute top-full mt-2 z-50 px-1 py-1 w-full min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 bg-white max-h-[200px] overflow-y-auto">
+                <div className="absolute top-full mt-2 z-50 px-1 py-1 w-full min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 max-h-[200px] overflow-y-auto">
                     {filteredOptions.length === 0 ? (
                         <p className="p-2 text-sm text-muted-foreground text-center">No results found.</p>
                     ) : (

@@ -78,8 +78,8 @@ export default function ProjectsPage() {
             {/* Page Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-slate-900">Projects Monitoring</h1>
-                    <p className="text-slate-500 mt-1">
+                    <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50">Projects Monitoring</h1>
+                    <p className="text-slate-500 dark:text-slate-400 mt-1">
                         Comprehensive tracking of project lifecycles and performance.
                     </p>
                 </div>
@@ -101,10 +101,10 @@ export default function ProjectsPage() {
             {/* Lifecycle Tabs */}
             <Tabs defaultValue="all" className="w-full" onValueChange={setActiveTab}>
                 <div className="flex items-center justify-between mb-6">
-                    <TabsList className="bg-slate-100/50 p-1 border border-slate-200/50">
+                    <TabsList className="bg-slate-100/50 dark:bg-slate-800/50 p-1 border border-slate-200/50 dark:border-slate-700/50">
                         <TabsTrigger
                             value="all"
-                            className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                            className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm data-[state=active]:text-slate-900 dark:data-[state=active]:text-slate-50 text-slate-500 dark:text-slate-400"
                         >
                             <span
                                 className="flex items-center"
@@ -116,7 +116,7 @@ export default function ProjectsPage() {
                         </TabsTrigger>
                         <TabsTrigger
                             value="upcoming"
-                            className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                            className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm data-[state=active]:text-slate-900 dark:data-[state=active]:text-slate-50 text-slate-500 dark:text-slate-400"
                         >
                             <span
                                 className="flex items-center"
@@ -128,7 +128,7 @@ export default function ProjectsPage() {
                         </TabsTrigger>
                         <TabsTrigger
                             value="active"
-                            className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                            className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm data-[state=active]:text-slate-900 dark:data-[state=active]:text-slate-50 text-slate-500 dark:text-slate-400"
                         >
                             <span
                                 className="flex items-center"
@@ -140,7 +140,7 @@ export default function ProjectsPage() {
                         </TabsTrigger>
                         <TabsTrigger
                             value="completed"
-                            className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                            className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm data-[state=active]:text-slate-900 dark:data-[state=active]:text-slate-50 text-slate-500 dark:text-slate-400"
                         >
                             <span
                                 className="flex items-center"
@@ -152,7 +152,7 @@ export default function ProjectsPage() {
                         </TabsTrigger>
                         <TabsTrigger
                             value="backlogs"
-                            className="data-[state=active]:bg-white data-[state=active]:shadow-sm text-warning"
+                            className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm text-warning"
                         >
                             <AlertCircle className="h-4 w-4 mr-2" />
                             Backlogs ({stats.backlogs})
@@ -168,7 +168,7 @@ export default function ProjectsPage() {
                         const projectTheme = getCompanyTheme(project.company?.name || '');
 
                         return (
-                            <Card key={project.id} className="group hover:shadow-xl transition-all duration-300 border-slate-200/60 overflow-hidden bg-white">
+                            <Card key={project.id} className="group hover:shadow-xl transition-all duration-300 border-slate-200/60 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900">
                                 <CardHeader className="pb-4 relative">
                                     <div className="absolute top-0 right-0 p-4">
                                         <Badge
@@ -196,11 +196,8 @@ export default function ProjectsPage() {
                                         >
                                             {project.company?.name || 'Venture'}
                                         </Badge>
-                                        <CardTitle className="text-xl font-bold text-slate-900 group-hover:text-primary transition-colors">
-                                            <span
-                                                className="group-hover:transition-colors"
-                                                style={{ color: 'rgba(15, 23, 42, 1)' }}
-                                            >
+                                        <CardTitle className="text-xl font-bold text-slate-900 dark:text-slate-50 group-hover:text-primary transition-colors">
+                                            <span className="group-hover:transition-colors">
                                                 {project.name}
                                             </span>
                                         </CardTitle>
@@ -208,12 +205,12 @@ export default function ProjectsPage() {
                                 </CardHeader>
                                 <CardContent className="space-y-6">
                                     {/* Project Meta */}
-                                    <div className="grid grid-cols-2 gap-4 py-3 border-y border-slate-100">
-                                        <div className="flex items-center gap-2 text-xs text-slate-500">
+                                    <div className="grid grid-cols-2 gap-4 py-3 border-y border-slate-100 dark:border-slate-800">
+                                        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                                             <User className="h-3.5 w-3.5" />
                                             <span className="truncate font-medium">Lead: {project.lead?.name || 'Unassigned'}</span>
                                         </div>
-                                        <div className="flex items-center gap-2 text-xs text-slate-500">
+                                        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                                             <Calendar className="h-3.5 w-3.5" />
                                             <span className="font-medium">{project.start_date ? new Date(project.start_date).toLocaleDateString() : 'No Start Date'}</span>
                                         </div>
@@ -222,7 +219,7 @@ export default function ProjectsPage() {
                                     {/* Performance Stats */}
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between text-sm">
-                                            <span className="text-slate-500 font-medium">Budget Performance</span>
+                                            <span className="text-slate-500 dark:text-slate-400 font-medium">Budget Performance</span>
                                             <Badge
                                                 variant={
                                                     profitability.status === 'healthy' ? 'success' :
@@ -234,7 +231,7 @@ export default function ProjectsPage() {
                                             </Badge>
                                         </div>
                                         <div className="flex items-center justify-between">
-                                            <span className="text-xl font-bold text-slate-900">{formatCurrency(contractValue)}</span>
+                                            <span className="text-xl font-bold text-slate-900 dark:text-slate-50">{formatCurrency(contractValue)}</span>
                                             <div className={cn(
                                                 "flex items-center gap-1 text-sm font-bold",
                                                 profitability.profit > 0 ? "text-success" : "text-error"
@@ -248,7 +245,7 @@ export default function ProjectsPage() {
                                     {/* Execution Progress */}
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between">
-                                            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Execution Progress</span>
+                                            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Execution Progress</span>
                                             <span className="text-xs font-black" style={{ color: projectTheme.primary }}>
                                                 {(() => {
                                                     const total = project.tasks?.length || 0;
@@ -257,7 +254,7 @@ export default function ProjectsPage() {
                                                 })()}%
                                             </span>
                                         </div>
-                                        <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-50">
+                                        <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden border border-slate-50 dark:border-slate-800">
                                             <div
                                                 className="h-full transition-all duration-1000 ease-out"
                                                 style={{
@@ -270,7 +267,7 @@ export default function ProjectsPage() {
                                                 }}
                                             />
                                         </div>
-                                        <div className="flex items-center justify-between text-[11px] text-slate-400 font-medium">
+                                        <div className="flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500 font-medium">
                                             <span>Handover: {project.expected_handover ? new Date(project.expected_handover).toLocaleDateString() : 'TBD'}</span>
                                             <span>Timeline Tracked</span>
                                         </div>
@@ -278,7 +275,7 @@ export default function ProjectsPage() {
 
                                     <Button
                                         variant="outline"
-                                        className="w-full h-11 border-slate-200 font-bold transition-all shadow-sm hover:bg-slate-50"
+                                        className="w-full h-11 border-slate-200 dark:border-slate-700 bg-transparent dark:text-slate-300 font-bold transition-all shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800"
                                         style={{ '--hover-color': projectTheme.primary } as any}
                                         onClick={() => navigate(`/projects/${project.id}`)}
                                         onMouseEnter={(e) => (e.currentTarget.style.color = projectTheme.primary)}
@@ -293,10 +290,10 @@ export default function ProjectsPage() {
                 </div>
 
                 {filteredProjects.length === 0 && (
-                    <div className="flex flex-col items-center justify-center py-32 bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-200">
-                        <LayoutGrid className="h-12 w-12 text-slate-200 mb-4" />
-                        <h3 className="text-lg font-bold text-slate-900">No {activeTab} projects found</h3>
-                        <p className="text-slate-500 text-sm mt-1">Try adjusting your filters or create a new project.</p>
+                    <div className="flex flex-col items-center justify-center py-32 bg-slate-50/50 dark:bg-slate-900/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+                        <LayoutGrid className="h-12 w-12 text-slate-200 dark:text-slate-700 mb-4" />
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50">No {activeTab} projects found</h3>
+                        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Try adjusting your filters or create a new project.</p>
                         {canCreateProject && (
                             <Button
                                 onClick={() => setIsCreateModalOpen(true)}

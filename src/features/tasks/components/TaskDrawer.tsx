@@ -99,7 +99,7 @@ export default function TaskDrawer({ taskId, open, onClose }: TaskDrawerProps) {
                             />
                         ) : (
                             <h1
-                                className="text-2xl font-bold text-slate-900 cursor-text hover:bg-slate-50 px-2 py-1 -mx-2 rounded"
+                                className="text-2xl font-bold text-slate-900 dark:text-slate-50 cursor-text hover:bg-slate-50 dark:hover:bg-slate-800 px-2 py-1 -mx-2 rounded"
                                 onClick={() => setIsEditingTitle(true)}
                             >
                                 {task.title}
@@ -107,7 +107,7 @@ export default function TaskDrawer({ taskId, open, onClose }: TaskDrawerProps) {
                         )}
 
                         {task.project && (
-                            <p className="text-sm text-slate-500">
+                            <p className="text-sm text-slate-500 dark:text-slate-400">
                                 in <span className="font-medium">{task.project.name}</span>
                             </p>
                         )}
@@ -117,7 +117,7 @@ export default function TaskDrawer({ taskId, open, onClose }: TaskDrawerProps) {
                     <div className="grid grid-cols-2 gap-4">
                         {/* Assignee */}
                         <div className="space-y-2">
-                            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
                                 <User className="h-4 w-4" />
                                 Assignee
                             </label>
@@ -131,7 +131,7 @@ export default function TaskDrawer({ taskId, open, onClose }: TaskDrawerProps) {
 
                         {/* Due Date */}
                         <div className="space-y-2">
-                            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
                                 <Calendar className="h-4 w-4" />
                                 Due Date
                             </label>
@@ -144,7 +144,7 @@ export default function TaskDrawer({ taskId, open, onClose }: TaskDrawerProps) {
 
                         {/* Priority */}
                         <div className="space-y-2">
-                            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
                                 <Flag className="h-4 w-4" />
                                 Priority
                             </label>
@@ -162,7 +162,7 @@ export default function TaskDrawer({ taskId, open, onClose }: TaskDrawerProps) {
 
                         {/* Stage */}
                         <div className="space-y-2">
-                            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
                                 <Clock className="h-4 w-4" />
                                 Stage
                             </label>
@@ -180,7 +180,7 @@ export default function TaskDrawer({ taskId, open, onClose }: TaskDrawerProps) {
 
                     {/* Description */}
                     <div className="space-y-2">
-                        <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                        <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
                             <AlignLeft className="h-4 w-4" />
                             Description
                         </label>
@@ -196,7 +196,7 @@ export default function TaskDrawer({ taskId, open, onClose }: TaskDrawerProps) {
 
                     {/* Subtasks Section */}
                     <div className="space-y-2">
-                        <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                        <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
                             <CheckSquare className="h-4 w-4" />
                             Subtasks ({task.subtasks?.length || 0})
                         </label>
@@ -207,7 +207,7 @@ export default function TaskDrawer({ taskId, open, onClose }: TaskDrawerProps) {
 
                     {/* Comments Section */}
                     <div className="space-y-2">
-                        <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                        <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
                             <MessageSquare className="h-4 w-4" />
                             Comments ({task.comments?.length || 0})
                         </label>
@@ -217,7 +217,7 @@ export default function TaskDrawer({ taskId, open, onClose }: TaskDrawerProps) {
                     </div>
 
                     {/* Metadata */}
-                    <div className="pt-4 border-t border-slate-200 text-xs text-slate-500 space-y-1">
+                    <div className="pt-4 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 space-y-1">
                         <p>Created {format(new Date(task.created_at), 'MMM d, yyyy')}</p>
                         {task.completed_at && (
                             <p>Completed {format(new Date(task.completed_at), 'MMM d, yyyy')}</p>

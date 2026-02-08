@@ -93,13 +93,13 @@ export default function CreateTaskModal({
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-md shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="bg-white dark:bg-slate-900 rounded-md shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-slate-800">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b">
-                    <h2 className="text-xl font-bold">Create New Task</h2>
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-slate-50">Create New Task</h2>
                     <button
                         onClick={onClose}
-                        className="p-2 hover:bg-gray-100 rounded-md"
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-md text-slate-500 dark:text-slate-400"
                     >
                         <X className="h-5 w-5" />
                     </button>
@@ -109,7 +109,7 @@ export default function CreateTaskModal({
                 <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
                     {/* Title */}
                     <div>
-                        <label className="block text-sm font-medium mb-2">
+                        <label className="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">
                             Title <span className="text-error">*</span>
                         </label>
                         <Input
@@ -124,7 +124,7 @@ export default function CreateTaskModal({
 
                     {/* Description */}
                     <div>
-                        <label className="block text-sm font-medium mb-2">
+                        <label className="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">
                             Description
                         </label>
                         <textarea
@@ -137,8 +137,8 @@ export default function CreateTaskModal({
 
                     {/* Project */}
                     <div>
-                        <label className="block text-sm font-medium mb-2">
-                            Project <span className="text-slate-400 text-xs font-normal ml-1">(Optional)</span>
+                        <label className="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">
+                            Project <span className="text-slate-400 dark:text-slate-500 text-xs font-normal ml-1">(Optional)</span>
                         </label>
                         <select
                             {...register('project_id')}
@@ -156,14 +156,14 @@ export default function CreateTaskModal({
                     {/* Assignee */}
                     <div>
                         <div className="flex items-center justify-between mb-2">
-                            <label className="text-sm font-medium">
+                            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
                                 Assignees <span className="text-error">*</span>
                             </label>
                             <Button
                                 type="button"
                                 variant="ghost"
                                 size="sm"
-                                className="h-7 text-xs gap-1.5 text-slate-500 hover:text-primary"
+                                className="h-7 text-xs gap-1.5 text-slate-500 dark:text-slate-400 hover:text-primary"
                                 onClick={() => toast.error('User management is currently limited to the Management page.')}
                             >
                                 <UserPlus className="h-3.5 w-3.5" />
@@ -198,10 +198,10 @@ export default function CreateTaskModal({
 
                     {/* Priority */}
                     <div>
-                        <label className="block text-sm font-medium mb-2">Priority</label>
+                        <label className="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">Priority</label>
                         <select
                             {...register('priority')}
-                            className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                            className="w-full h-10 px-3 rounded-md border border-input bg-background dark:bg-slate-800 text-slate-900 dark:text-slate-50"
                         >
                             <option value="low">Low</option>
                             <option value="medium">Medium</option>
@@ -212,7 +212,7 @@ export default function CreateTaskModal({
 
                     {/* Due Date */}
                     <div>
-                        <label className="block text-sm font-medium mb-2">Due Date</label>
+                        <label className="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">Due Date</label>
                         <Input type="date" {...register('due_date')} />
                     </div>
 

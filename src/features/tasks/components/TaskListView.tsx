@@ -98,9 +98,9 @@ function TaskSection({ title, tasks, onTaskClick, onTaskComplete }: TaskSectionP
         <div className="space-y-2">
             {/* Section Header */}
             <div className="flex items-center gap-3 px-2">
-                <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-                <span className="text-xs font-medium text-slate-400">{tasks.length}</span>
-                <div className="flex-1 h-px bg-slate-200" />
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">{title}</h2>
+                <span className="text-xs font-medium text-slate-400 dark:text-slate-500">{tasks.length}</span>
+                <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800" />
             </div>
 
             {/* Task Rows */}
@@ -136,17 +136,17 @@ function TaskRow({ task, onClick, onComplete }: TaskRowProps) {
     };
 
     const priorityColors = {
-        low: 'bg-slate-100 text-slate-600',
-        medium: 'bg-blue-100 text-blue-700',
-        high: 'bg-orange-100 text-orange-700',
-        critical: 'bg-red-100 text-red-700',
+        low: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
+        medium: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
+        high: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300',
+        critical: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300',
     };
 
     return (
         <div
             className={cn(
                 "group flex items-center gap-3 px-3 py-2.5 rounded-lg border border-transparent",
-                "hover:bg-slate-50 hover:border-slate-200 cursor-pointer transition-all",
+                "hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-200 dark:hover:border-slate-700 cursor-pointer transition-all",
                 isCompleted && "opacity-60"
             )}
             onClick={onClick}
@@ -162,15 +162,15 @@ function TaskRow({ task, onClick, onComplete }: TaskRowProps) {
                 {isCompleted ? (
                     <CheckCircle2 className="h-5 w-5 text-success" />
                 ) : (
-                    <Circle className="h-5 w-5 text-slate-300 group-hover:text-slate-400" />
+                    <Circle className="h-5 w-5 text-slate-300 dark:text-slate-600 group-hover:text-slate-400 dark:group-hover:text-slate-500" />
                 )}
             </button>
 
             {/* Task Title */}
             <div className="flex-1 min-w-0">
                 <p className={cn(
-                    "text-sm font-medium text-slate-900 truncate",
-                    isCompleted && "line-through text-slate-500"
+                    "text-sm font-medium text-slate-900 dark:text-slate-50 truncate",
+                    isCompleted && "line-through text-slate-500 dark:text-slate-500"
                 )}>
                     {task.title}
                 </p>
@@ -180,7 +180,7 @@ function TaskRow({ task, onClick, onComplete }: TaskRowProps) {
             {task.due_date && (
                 <div className={cn(
                     "flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium",
-                    isOverdue ? "bg-red-50 text-red-600" : "text-slate-500"
+                    isOverdue ? "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400" : "text-slate-500 dark:text-slate-400"
                 )}>
                     <Calendar className="h-3.5 w-3.5" />
                     {formatDueDate(task.due_date)}
@@ -189,7 +189,7 @@ function TaskRow({ task, onClick, onComplete }: TaskRowProps) {
 
             {/* Assignee */}
             {task.assignee && (
-                <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                     <User className="h-3.5 w-3.5" />
                     <span className="truncate max-w-[100px]">{task.assignee.name}</span>
                 </div>
@@ -197,7 +197,7 @@ function TaskRow({ task, onClick, onComplete }: TaskRowProps) {
 
             {/* Project */}
             {task.project && (
-                <div className="hidden sm:block px-2 py-1 rounded text-xs font-medium bg-slate-100 text-slate-600 truncate max-w-[150px]">
+                <div className="hidden sm:block px-2 py-1 rounded text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 truncate max-w-[150px]">
                     {task.project.name}
                 </div>
             )}

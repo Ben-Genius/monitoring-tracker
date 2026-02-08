@@ -27,16 +27,16 @@ export default function Header() {
     const theme = getCompanyTheme(currentCompany?.name || '');
 
     return (
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
+        <header className="h-16 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between px-6">
             {/* Company Selector */}
             <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2">
-                    <Building2 className="h-5 w-5 text-gray-500" />
+                    <Building2 className="h-5 w-5 text-gray-500 dark:text-slate-400" />
                     {isAdmin ? (
                         <select
                             value={selectedCompanyId}
                             onChange={(e) => setSelectedCompanyId(e.target.value)}
-                            className="border-none bg-transparent text-lg font-semibold focus:outline-none focus:ring-0 cursor-pointer"
+                            className="border-none bg-transparent text-lg font-semibold text-gray-900 dark:text-slate-50 focus:outline-none focus:ring-0 cursor-pointer"
                         >
                             <option value="all">Global View</option>
                             {companies.map((company) => (
@@ -46,7 +46,7 @@ export default function Header() {
                             ))}
                         </select>
                     ) : (
-                        <span className="text-lg font-semibold text-gray-900">
+                        <span className="text-lg font-semibold text-gray-900 dark:text-slate-50">
                             {currentCompany?.name || 'Loading...'}
                         </span>
                     )}
@@ -79,8 +79,8 @@ export default function Header() {
                 </div>
 
                 {/* Notifications */}
-                <button className="relative p-2 rounded-md hover:bg-gray-100">
-                    <Bell className="h-5 w-5 text-gray-600" />
+                <button className="relative p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800">
+                    <Bell className="h-5 w-5 text-gray-600 dark:text-slate-400" />
                     <span className="absolute top-1 right-1 h-2 w-2 bg-error rounded-full"></span>
                 </button>
             </div>

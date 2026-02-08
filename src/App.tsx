@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './features/auth/hooks/useAuth';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 // Pages
 import LoginPage from './features/auth/pages/LoginPage';
@@ -39,40 +40,42 @@ function App() {
     }, [checkSession]);
 
     return (
-        <QueryClientProvider client={queryClient}>
-            <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-                <Routes>
-                    {/* Public routes */}
-                    <Route path="/" element={<LoginPage />} />
-                    <Route path="/signup" element={<SignupPage />} />
-                    <Route path="/login" element={<Navigate to="/" replace />} />
+        <ThemeProvider>
+            <QueryClientProvider client={queryClient}>
+                <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+                    <Routes>
+                        {/* Public routes */}
+                        <Route path="/" element={<LoginPage />} />
+                        <Route path="/signup" element={<SignupPage />} />
+                        <Route path="/login" element={<Navigate to="/" replace />} />
 
-                    {/* Protected routes */}
-                    <Route
-                        element={
-                            <ProtectedRoute>
-                                <DashboardLayout />
-                            </ProtectedRoute>
-                        }
-                    >
-                        <Route path="/dashboard" element={<DashboardPage />} />
-                        <Route path="/tasks" element={<TaskBoardPage />} />
-                        <Route path="/projects" element={<ProjectsPage />} />
-                        <Route path="/projects/:id" element={<ProjectDetailPage />} />
-                        <Route path="/analytics" element={<AnalyticsPage />} />
-                        <Route path="/pipeline" element={<PipelinePage />} />
-                        <Route path="/reports" element={<ReportsPage />} />
-                        <Route path="/settings" element={<SettingsPage />} />
-                        <Route path="/approvals" element={<ApprovalsPage />} />
-                        <Route path="/users" element={<UserManagementPage />} />
-                    </Route>
+                        {/* Protected routes */}
+                        <Route
+                            element={
+                                <ProtectedRoute>
+                                    <DashboardLayout />
+                                </ProtectedRoute>
+                            }
+                        >
+                            <Route path="/dashboard" element={<DashboardPage />} />
+                            <Route path="/tasks" element={<TaskBoardPage />} />
+                            <Route path="/projects" element={<ProjectsPage />} />
+                            <Route path="/projects/:id" element={<ProjectDetailPage />} />
+                            <Route path="/analytics" element={<AnalyticsPage />} />
+                            <Route path="/pipeline" element={<PipelinePage />} />
+                            <Route path="/reports" element={<ReportsPage />} />
+                            <Route path="/settings" element={<SettingsPage />} />
+                            <Route path="/approvals" element={<ApprovalsPage />} />
+                            <Route path="/users" element={<UserManagementPage />} />
+                        </Route>
 
-                    {/* Catch all */}
-                    <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-            </Router>
-            <Toaster position="top-right" />
-        </QueryClientProvider >
+                        {/* Catch all */}
+                        <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                </Router>
+                <Toaster position="top-right" />
+            </QueryClientProvider>
+        </ThemeProvider>
     );
 }
 

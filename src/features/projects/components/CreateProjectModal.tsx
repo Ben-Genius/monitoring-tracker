@@ -81,21 +81,21 @@ export default function CreateProjectModal({
 
     return (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-800">
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-slate-50/50">
+                <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
                     <div className="flex items-center gap-3">
                         <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                             <Layout className="h-6 w-6" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-slate-900">Initialize New Project</h2>
-                            <p className="text-sm text-slate-500">Set up a new monitoring lifecycle.</p>
+                            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-50">Initialize New Project</h2>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">Set up a new monitoring lifecycle.</p>
                         </div>
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 hover:bg-slate-200/50 rounded-full transition-colors"
+                        className="p-2 hover:bg-slate-200/50 dark:hover:bg-slate-800 rounded-full transition-colors"
                     >
                         <X className="h-5 w-5 text-slate-400" />
                     </button>
@@ -106,14 +106,14 @@ export default function CreateProjectModal({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Name */}
                         <div className="md:col-span-2 space-y-2">
-                            <label className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                            <label className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
                                 Project Identity <span className="text-error font-black">*</span>
                             </label>
                             <Input
                                 {...register('name')}
                                 placeholder="e.g. Pipeline Expansion Phase II"
                                 className={cn(
-                                    "h-12 bg-slate-50 border-slate-200 focus:bg-white transition-all",
+                                    "h-12 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-900 dark:text-slate-50 transition-all",
                                     errors.name && "border-error focus:ring-error"
                                 )}
                             />
@@ -124,20 +124,20 @@ export default function CreateProjectModal({
 
                         {/* Description */}
                         <div className="md:col-span-2 space-y-2">
-                            <label className="text-sm font-bold text-slate-700 uppercase tracking-wider gap-2">
+                            <label className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider gap-2">
                                 Detailed Scope
                             </label>
                             <textarea
                                 {...register('description')}
                                 placeholder="Describe the project objectives and key deliverables..."
                                 rows={3}
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm"
+                                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm dark:text-slate-50 placeholder:text-slate-400"
                             />
                         </div>
 
                         {/* Company (Admin only) */}
                         <div className="space-y-2">
-                            <label className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                            <label className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
                                 <Briefcase className="h-3.5 w-3.5" />
                                 Portfolio Company <span className="text-error font-black">*</span>
                             </label>
@@ -145,7 +145,7 @@ export default function CreateProjectModal({
                                 {...register('company_id')}
                                 disabled={!isAdmin}
                                 className={cn(
-                                    "w-full h-12 px-4 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:bg-white transition-all appearance-none",
+                                    "w-full h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:bg-white dark:focus:bg-slate-900 dark:text-slate-50 transition-all appearance-none",
                                     !isAdmin && "opacity-60 cursor-not-allowed"
                                 )}
                                 onChange={(e) => {
@@ -232,12 +232,12 @@ export default function CreateProjectModal({
                     </div>
 
                     {/* Actions */}
-                    <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
+                    <div className="flex justify-end gap-3 pt-6 border-t border-slate-100 dark:border-slate-800">
                         <Button
                             type="button"
                             variant="outline"
                             onClick={onClose}
-                            className="h-12 px-8 rounded-xl font-bold border-slate-200 text-slate-600"
+                            className="h-12 px-8 rounded-xl font-bold border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
                         >
                             Cancel
                         </Button>

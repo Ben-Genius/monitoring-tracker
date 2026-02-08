@@ -146,21 +146,21 @@ export default function TaskBoardPage() {
             {/* Page Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-slate-900">Tasks</h1>
-                    <p className="text-sm text-slate-500">
+                    <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50">Tasks</h1>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
                         Manage and track all your tasks
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
                     {/* View Switcher */}
-                    <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
+                    <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
                         <button
                             onClick={() => setView('list')}
                             className={cn(
                                 "px-3 py-1.5 rounded-md text-sm font-medium transition-all",
                                 view === 'list'
-                                    ? "bg-white text-slate-900 shadow-sm"
-                                    : "text-slate-600 hover:text-slate-900"
+                                    ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-50 shadow-sm"
+                                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
                             )}
                         >
                             <List className="h-4 w-4 inline mr-1.5" />
@@ -171,8 +171,8 @@ export default function TaskBoardPage() {
                             className={cn(
                                 "px-3 py-1.5 rounded-md text-sm font-medium transition-all",
                                 view === 'board'
-                                    ? "bg-white text-slate-900 shadow-sm"
-                                    : "text-slate-600 hover:text-slate-900"
+                                    ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-50 shadow-sm"
+                                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
                             )}
                         >
                             <LayoutGrid className="h-4 w-4 inline mr-1.5" />
@@ -286,7 +286,7 @@ function TaskColumn({ stage, tasks, onAddTask, stageId, onTaskClick, activeTheme
         <div
             ref={setNodeRef}
             className={cn(
-                "flex-shrink-0 w-[350px] rounded-xl flex flex-col max-h-full bg-slate-50/50 border border-slate-200/50",
+                "flex-shrink-0 w-[350px] rounded-xl flex flex-col max-h-full bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-800/50",
                 stage.tint
             )}
             style={stage.tintStyle}
@@ -295,20 +295,20 @@ function TaskColumn({ stage, tasks, onAddTask, stageId, onTaskClick, activeTheme
             <div className="p-4 flex items-center justify-between sticky top-0 bg-transparent backdrop-blur-sm z-10">
                 <div className="flex items-center gap-2.5">
                     <div
-                        className={cn("p-1.5 rounded-md shadow-sm bg-white", stage.color.startsWith('bg-') ? stage.color.replace('bg-', 'text-') : '')}
+                        className={cn("p-1.5 rounded-md shadow-sm bg-white dark:bg-slate-800", stage.color.startsWith('bg-') ? stage.color.replace('bg-', 'text-') : '')}
                         style={stage.style}
                     >
                         <stage.icon className="h-4 w-4" />
                     </div>
                     <div>
-                        <h3 className="text-sm font-bold text-slate-900 leading-none">{stage.name}</h3>
-                        <p className="text-[11px] text-slate-500 mt-1 font-medium">{tasks.length} tasks</p>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-50 leading-none">{stage.name}</h3>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 font-medium">{tasks.length} tasks</p>
                     </div>
                 </div>
                 <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 hover:bg-white/80 rounded-md"
+                    className="h-8 w-8 hover:bg-white/80 dark:hover:bg-slate-800/80 rounded-md"
                     onClick={onAddTask}
                 >
                     <Plus className="h-4 w-4 text-slate-500" />
@@ -326,8 +326,8 @@ function TaskColumn({ stage, tasks, onAddTask, stageId, onTaskClick, activeTheme
                 ))}
 
                 {tasks.length === 0 && (
-                    <div className="flex flex-col items-center justify-center py-12 px-4 rounded-xl border-2 border-dashed border-slate-200/50 bg-white/30">
-                        <p className="text-[11px] font-medium text-slate-400 text-center">
+                    <div className="flex flex-col items-center justify-center py-12 px-4 rounded-xl border-2 border-dashed border-slate-200/50 dark:border-slate-800/50 bg-white/30 dark:bg-slate-900/30">
+                        <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 text-center">
                             No tasks in this stage
                         </p>
                     </div>
@@ -336,7 +336,7 @@ function TaskColumn({ stage, tasks, onAddTask, stageId, onTaskClick, activeTheme
                 {tasks.length > 0 && (
                     <button
                         onClick={onAddTask}
-                        className="w-full py-2.5 flex items-center justify-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-900 hover:bg-white/80 rounded-xl border border-transparent hover:border-slate-200 transition-all group"
+                        className="w-full py-2.5 flex items-center justify-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/80 dark:hover:bg-slate-800/80 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all group"
                         onMouseEnter={(e) => (e.currentTarget.style.color = activeTheme.primary)}
                         onMouseLeave={(e) => (e.currentTarget.style.color = '')}
                     >

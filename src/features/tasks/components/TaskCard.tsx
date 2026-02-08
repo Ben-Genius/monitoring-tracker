@@ -31,10 +31,10 @@ export default function TaskCard({ task, isDragging = false, onClick }: TaskCard
 
     const getPriorityConfig = (priority: string) => {
         const configs: Record<string, { color: string; bg: string; text: string }> = {
-            low: { color: 'bg-blue-500', bg: 'bg-blue-50', text: 'text-blue-700' },
-            medium: { color: 'bg-green-500', bg: 'bg-green-50', text: 'text-green-700' },
-            high: { color: 'bg-orange-500', bg: 'bg-orange-50', text: 'text-orange-700' },
-            critical: { color: 'bg-red-500', bg: 'bg-red-50', text: 'text-red-700' },
+            low: { color: 'bg-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-700 dark:text-blue-300' },
+            medium: { color: 'bg-green-500', bg: 'bg-green-50 dark:bg-green-900/20', text: 'text-green-700 dark:text-green-300' },
+            high: { color: 'bg-orange-500', bg: 'bg-orange-50 dark:bg-orange-900/20', text: 'text-orange-700 dark:text-orange-300' },
+            critical: { color: 'bg-red-500', bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-700 dark:text-red-300' },
         };
         return configs[priority] || configs.low;
     };
@@ -62,15 +62,15 @@ export default function TaskCard({ task, isDragging = false, onClick }: TaskCard
                 onClick?.();
             }}
             className={cn(
-                'group relative bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200 cursor-grab active:cursor-grabbing select-none',
+                'group relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-200 cursor-grab active:cursor-grabbing select-none',
                 isDragging && 'opacity-40 scale-95 shadow-2xl ring-2 ring-primary/20',
-                isOverdue && 'border-red-200 bg-red-50/30',
-                isDueToday && 'border-orange-200 bg-orange-50/30'
+                isOverdue && 'border-red-200 dark:border-red-900/50 bg-red-50/30 dark:bg-red-900/10',
+                isDueToday && 'border-orange-200 dark:border-orange-900/50 bg-orange-50/30 dark:bg-orange-900/10'
             )}
         >
             {/* Grab Handle (Visible on group hover) */}
             <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                <GripVertical className="h-4 w-4 text-slate-400" />
+                <GripVertical className="h-4 w-4 text-slate-400 dark:text-slate-500" />
             </div>
 
             {/* Project & Priority Header */}
@@ -96,24 +96,24 @@ export default function TaskCard({ task, isDragging = false, onClick }: TaskCard
             </div>
 
             {/* Task Title */}
-            <h3 className="font-semibold text-sm text-slate-900 mb-1.5 line-clamp-2 leading-snug">
+            <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-50 mb-1.5 line-clamp-2 leading-snug">
                 {task.title}
             </h3>
 
             {/* Description */}
             {task.description && (
-                <p className="text-xs text-slate-500 mb-4 line-clamp-2 leading-relaxed">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 line-clamp-2 leading-relaxed">
                     {task.description}
                 </p>
             )}
 
             {/* Subtask / Progress */}
             <div className="mb-4">
-                <div className="flex items-center justify-between text-[10px] font-medium text-slate-400 mb-1">
+                <div className="flex items-center justify-between text-[10px] font-medium text-slate-400 dark:text-slate-500 mb-1">
                     <span>Progress</span>
                     <span>{progress}%</span>
                 </div>
-                <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                     <div
                         className={cn("h-full rounded-full transition-all duration-500", task.stage === 'completed' ? 'bg-success' : '')}
                         style={{
@@ -130,16 +130,16 @@ export default function TaskCard({ task, isDragging = false, onClick }: TaskCard
                     {task.due_date && (
                         <div className={cn(
                             "flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-md",
-                            isOverdue ? "text-red-600 bg-red-50" :
-                                isDueToday ? "text-orange-600 bg-orange-50" :
-                                    "text-slate-500"
+                            isOverdue ? "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20" :
+                                isDueToday ? "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20" :
+                                    "text-slate-500 dark:text-slate-400"
                         )}>
                             <Calendar className="h-3 w-3" />
                             <span>{formatDate(task.due_date)}</span>
                         </div>
                     )}
 
-                    <div className="flex items-center gap-2 text-slate-400">
+                    <div className="flex items-center gap-2 text-slate-400 dark:text-slate-500">
                         {subtasksCount > 0 && (
                             <div className="flex items-center gap-0.5 text-[10px]" title="Subtasks">
                                 <CheckSquare className="h-3 w-3" />
@@ -163,7 +163,7 @@ export default function TaskCard({ task, isDragging = false, onClick }: TaskCard
                                 <div
                                     key={user.id}
                                     title={user.name}
-                                    className="h-7 w-7 rounded-full bg-slate-100 border-2 border-white ring-1 ring-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-700 overflow-hidden shadow-sm hover:z-10 hover:ring-opacity-50 transition-all cursor-help relative"
+                                    className="h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-white dark:border-slate-900 ring-1 ring-slate-200 dark:ring-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-700 dark:text-slate-300 overflow-hidden shadow-sm hover:z-10 hover:ring-opacity-50 transition-all cursor-help relative"
                                     style={{ '--tw-ring-color': theme.primary } as any}
                                 >
                                     {user.name
@@ -175,7 +175,7 @@ export default function TaskCard({ task, isDragging = false, onClick }: TaskCard
                             ))}
                             {task.assignees.length > 3 && (
                                 <div
-                                    className="h-7 w-7 rounded-full bg-slate-50 border-2 border-white ring-1 ring-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500 shadow-sm relative z-0"
+                                    className="h-7 w-7 rounded-full bg-slate-50 dark:bg-slate-800 border-2 border-white dark:border-slate-900 ring-1 ring-slate-200 dark:ring-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-500 dark:text-slate-400 shadow-sm relative z-0"
                                 >
                                     +{task.assignees.length - 3}
                                 </div>
@@ -184,7 +184,7 @@ export default function TaskCard({ task, isDragging = false, onClick }: TaskCard
                     ) : task.assignee ? (
                         <div
                             title={task.assignee.name}
-                            className="h-7 w-7 rounded-full bg-slate-100 border-2 border-white ring-1 ring-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-700 overflow-hidden shadow-sm hover:ring-opacity-50 transition-all cursor-help relative z-0"
+                            className="h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-white dark:border-slate-900 ring-1 ring-slate-200 dark:ring-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-700 dark:text-slate-300 overflow-hidden shadow-sm hover:ring-opacity-50 transition-all cursor-help relative z-0"
                             style={{ '--tw-ring-color': theme.primary } as any}
                         >
                             {task.assignee.name
@@ -194,8 +194,8 @@ export default function TaskCard({ task, isDragging = false, onClick }: TaskCard
                                 .toUpperCase()}
                         </div>
                     ) : (
-                        <div className="h-7 w-7 rounded-full bg-slate-50 border-2 border-white border-dashed flex items-center justify-center">
-                            <span className="text-slate-300 text-[10px]">?</span>
+                        <div className="h-7 w-7 rounded-full bg-slate-50 dark:bg-slate-800 border-2 border-white dark:border-slate-900 border-dashed flex items-center justify-center">
+                            <span className="text-slate-300 dark:text-slate-600 text-[10px]">?</span>
                         </div>
                     )}
                 </div>

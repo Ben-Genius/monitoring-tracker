@@ -130,7 +130,7 @@ export default function ProjectDetailPage() {
                     <Button
                         variant="outline"
                         size="sm"
-                        className="rounded-xl border-slate-200"
+                        className="rounded-xl border-slate-200 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
                         onClick={() => {
                             navigator.clipboard.writeText(window.location.href);
                             // Assuming toast is available or use alert fallback
@@ -142,7 +142,7 @@ export default function ProjectDetailPage() {
                     <Button
                         variant="outline"
                         size="sm"
-                        className="rounded-xl border-slate-200"
+                        className="rounded-xl border-slate-200 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
                         onClick={() => alert("Export started. You will receive an email shortly.")}
                     >
                         <Download className="h-4 w-4 mr-2" /> Export
@@ -156,7 +156,7 @@ export default function ProjectDetailPage() {
                 <div className="space-y-6">
                     {/* Breadcrumbs & Badge */}
                     <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-white border border-slate-200 shadow-sm text-slate-500">
+                        <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm text-slate-500 dark:text-slate-400">
                             <Building2 className="h-5 w-5" />
                         </div>
                         <div className="flex items-center gap-2 text-sm font-medium">
@@ -171,27 +171,27 @@ export default function ProjectDetailPage() {
                     </div>
 
                     {/* Title */}
-                    <h1 className="text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 leading-[1.1]">
+                    <h1 className="text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-slate-50 leading-[1.1]">
                         {project.name}
                     </h1>
 
                     {/* Mission Statement (Interactive) */}
-                    <div className="relative bg-slate-50 rounded-2xl p-6 border-l-4 transition-all duration-300" style={{ borderColor: theme.primary }}>
-                        <Quote className="absolute top-4 left-4 h-8 w-8 text-slate-200 -z-0" />
+                    <div className="relative bg-slate-50 dark:bg-slate-900 rounded-2xl p-6 border-l-4 transition-all duration-300" style={{ borderColor: theme.primary }}>
+                        <Quote className="absolute top-4 left-4 h-8 w-8 text-slate-200 dark:text-slate-800 -z-0" />
                         <div className="relative z-10">
-                            <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Mission Statement</p>
-                            <div className={cn("text-sm text-slate-700 leading-relaxed font-medium transition-all", isExpanded ? "max-h-full" : "max-h-[120px] overflow-hidden relative")}>
+                            <p className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2">Mission Statement</p>
+                            <div className={cn("text-sm text-slate-700 dark:text-slate-300 leading-relaxed font-medium transition-all", isExpanded ? "max-h-full" : "max-h-[120px] overflow-hidden relative")}>
                                 <p>
                                     {project.description || 'Strategic infrastructure initiative designed to optimize regional operational throughput and enhance system reliability.'}
                                 </p>
                                 {!isExpanded && project.description && project.description.length > 200 && (
-                                    <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-slate-50 to-transparent" />
+                                    <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-slate-50 dark:from-slate-900 to-transparent" />
                                 )}
                             </div>
                             {project.description && project.description.length > 200 && (
                                 <button
                                     onClick={() => setIsExpanded(!isExpanded)}
-                                    className="mt-2 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-primary transition-colors flex items-center gap-1"
+                                    className="mt-2 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 hover:text-primary transition-colors flex items-center gap-1"
                                 >
                                     {isExpanded ? 'Read Less' : 'Read More'}
                                     <ChevronRight className={cn("h-3 w-3 transition-transform", isExpanded ? "-rotate-90" : "rotate-90")} />
@@ -252,10 +252,10 @@ export default function ProjectDetailPage() {
                                     <span>Project Lead</span>
                                 </div>
                                 <div className="flex items-center gap-2 h-8">
-                                    <div className="h-6 w-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500 border border-slate-200">
+                                    <div className="h-6 w-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
                                         {project.lead?.name?.[0] || 'JD'}
                                     </div>
-                                    <span className="text-sm font-semibold text-slate-900">
+                                    <span className="text-sm font-semibold text-slate-900 dark:text-slate-50">
                                         {project.lead?.name || 'John Doe'}
                                     </span>
                                 </div>
@@ -281,7 +281,7 @@ export default function ProjectDetailPage() {
 
             {/* Minimal Navigation & Content Tabs */}
             <Tabs defaultValue="overview" className="w-full space-y-8" onValueChange={setActiveTab}>
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-2 rounded-2xl border border-slate-200">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800">
                     <TabsList className="bg-transparent h-auto p-0 flex gap-1">
                         {[
                             { id: 'overview', label: 'Overview', icon: BarChart2 },
@@ -294,7 +294,7 @@ export default function ProjectDetailPage() {
                                 value={tab.id}
                                 className={cn(
                                     "px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all duration-200 gap-2 border border-transparent",
-                                    activeTab === tab.id ? "bg-slate-900 text-white shadow-none" : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+                                    activeTab === tab.id ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-none" : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-50 hover:bg-slate-50 dark:hover:bg-slate-800"
                                 )}
                                 style={activeTab === tab.id ? { backgroundColor: theme.primary } : {}}
                             >
@@ -307,13 +307,13 @@ export default function ProjectDetailPage() {
                     <div className="flex items-center gap-4 px-4">
                         <div className="flex -space-x-2">
                             {[1, 2, 3].map(_ => (
-                                <div key={_} className="h-8 w-8 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center font-bold text-[10px] text-slate-500">
+                                <div key={_} className="h-8 w-8 rounded-full border-2 border-white dark:border-slate-800 bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-[10px] text-slate-500 dark:text-slate-400">
                                     {String.fromCharCode(64 + _)}
                                 </div>
                             ))}
-                            <div className="h-8 w-8 rounded-full border-2 border-white bg-slate-900 flex items-center justify-center font-bold text-[10px] text-white">+5</div>
+                            <div className="h-8 w-8 rounded-full border-2 border-white dark:border-slate-800 bg-slate-900 dark:bg-slate-100 flex items-center justify-center font-bold text-[10px] text-white dark:text-slate-900">+5</div>
                         </div>
-                        <Button variant="ghost" size="sm" className="font-bold text-slate-400 text-xs hover:text-slate-900">Manage Team</Button>
+                        <Button variant="ghost" size="sm" className="font-bold text-slate-400 dark:text-slate-500 text-xs hover:text-slate-900 dark:hover:text-slate-300">Manage Team</Button>
                     </div>
                 </div>
 
@@ -326,19 +326,19 @@ export default function ProjectDetailPage() {
                     />
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <Card className="lg:col-span-2 rounded-2xl border-slate-200 shadow-none overflow-hidden">
-                            <CardHeader className="p-6 bg-slate-50/30 border-b border-slate-100 flex flex-row items-center justify-between">
+                        <Card className="lg:col-span-2 rounded-2xl border-slate-200 dark:border-slate-800 shadow-none overflow-hidden bg-white dark:bg-slate-900">
+                            <CardHeader className="p-6 bg-slate-50/30 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between">
                                 <div>
-                                    <h3 className="text-lg font-bold text-slate-900 tracking-tight">Executive Summary</h3>
-                                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">Key Performance Metrics</p>
+                                    <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50 tracking-tight">Executive Summary</h3>
+                                    <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-0.5">Key Performance Metrics</p>
                                 </div>
                                 <ActivityBadge status={profitability.status} />
                             </CardHeader>
                             <CardContent className="p-8">
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                    <MetricItem label="Financial Margin" value={`${profitability.percentage.toFixed(1)}%`} sub="Revenue Efficiency" color={profitability.status === 'healthy' ? "text-emerald-600" : "text-rose-600"} />
-                                    <MetricItem label="Completion Rate" value={`${project.tasks && project.tasks.length > 0 ? Math.round((project.tasks.filter(t => t.stage === 'completed').length / project.tasks.length) * 100) : 0}%`} sub="Task Execution" color="text-slate-900" />
-                                    <MetricItem label="Liquidity" value={formatCurrency(Math.max(0, (project.contract_value || 0) - (project.actual_cost || 0)))} sub="Available Budget" color="text-slate-900" />
+                                    <MetricItem label="Financial Margin" value={`${profitability.percentage.toFixed(1)}%`} sub="Revenue Efficiency" color={profitability.status === 'healthy' ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"} />
+                                    <MetricItem label="Completion Rate" value={`${project.tasks && project.tasks.length > 0 ? Math.round((project.tasks.filter(t => t.stage === 'completed').length / project.tasks.length) * 100) : 0}%`} sub="Task Execution" color="text-slate-900 dark:text-slate-50" />
+                                    <MetricItem label="Liquidity" value={formatCurrency(Math.max(0, (project.contract_value || 0) - (project.actual_cost || 0)))} sub="Available Budget" color="text-slate-900 dark:text-slate-50" />
                                 </div>
 
                                 <div className="mt-10 pt-8 border-t border-slate-100">
@@ -354,10 +354,10 @@ export default function ProjectDetailPage() {
                         </Card>
 
                         <div className="space-y-6">
-                            <Card className="rounded-2xl border-slate-200 shadow-none bg-white">
+                            <Card className="rounded-2xl border-slate-200 dark:border-slate-800 shadow-none bg-white dark:bg-slate-900">
                                 <CardHeader className="p-6 pb-2">
-                                    <h3 className="text-lg font-bold text-slate-900 tracking-tight">Project Pulse</h3>
-                                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">Live Activity Feed</p>
+                                    <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50 tracking-tight">Project Pulse</h3>
+                                    <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-0.5">Live Activity Feed</p>
                                 </CardHeader>
                                 <CardContent className="px-6 pb-6 pt-2">
                                     <div className="space-y-5">
@@ -365,7 +365,7 @@ export default function ProjectDetailPage() {
                                             <PulseItem key={task.id} task={task} isLast={i === 4} theme={theme} />
                                         ))}
                                     </div>
-                                    <Button variant="ghost" className="w-full mt-6 font-bold text-[10px] uppercase tracking-wider text-slate-400 hover:text-slate-900 rounded-lg hover:bg-slate-50 transition-colors" onClick={() => setActiveTab('tasks')}>
+                                    <Button variant="ghost" className="w-full mt-6 font-bold text-[10px] uppercase tracking-wider text-slate-400 hover:text-slate-900 dark:text-slate-500 dark:hover:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" onClick={() => setActiveTab('tasks')}>
                                         View All Tasks <ChevronRight className="h-3 w-3 ml-1" />
                                     </Button>
                                 </CardContent>
@@ -400,7 +400,7 @@ export default function ProjectDetailPage() {
 
                         {/* Progress Overview */}
                         {tasks.length > 0 && (
-                            <Card className="rounded-xl border-slate-200 shadow-none p-4 bg-gradient-to-br from-slate-50 to-white">
+                            <Card className="rounded-xl border-slate-200 dark:border-slate-800 shadow-none p-4 bg-gradient-to-br from-slate-50 to-white dark:from-slate-900 dark:to-slate-950">
                                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                                     {[
                                         { label: 'Talking Stage', stage: 'talking_stage', icon: MessageSquare, color: 'text-blue-600 bg-blue-50' },
@@ -433,7 +433,7 @@ export default function ProjectDetailPage() {
                                     <div
                                         key={task.id}
                                         onClick={() => setSelectedTaskId(task.id)}
-                                        className="group bg-white border border-slate-200 rounded-xl p-4 hover:border-slate-300 hover:shadow-sm transition-all cursor-pointer"
+                                        className="group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-sm transition-all cursor-pointer"
                                     >
                                         <div className="flex items-start justify-between gap-4">
                                             <div className="flex-1 min-w-0">
@@ -637,20 +637,20 @@ export default function ProjectDetailPage() {
 function MetricItem({ label, value, sub, color }: { label: string, value: string, sub: string, color: string }) {
     return (
         <div className="space-y-1">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</p>
+            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">{label}</p>
             <h4 className={cn("text-3xl font-bold tracking-tight", color)}>{value}</h4>
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{sub}</p>
+            <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">{sub}</p>
         </div>
     );
 }
 
 function InfoStrip({ icon: Icon, label, value }: { icon: any, label: string, value: string }) {
     return (
-        <div className="flex items-center gap-4 p-4 rounded-xl border border-slate-100 bg-white hover:bg-slate-50 transition-colors cursor-default">
-            <div className="h-9 w-9 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 shrink-0"><Icon className="h-4 w-4" /></div>
+        <div className="flex items-center gap-4 p-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-default">
+            <div className="h-9 w-9 rounded-lg bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 shrink-0"><Icon className="h-4 w-4" /></div>
             <div className="min-w-0">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</p>
-                <p className="text-sm font-bold text-slate-900 truncate">{value}</p>
+                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">{label}</p>
+                <p className="text-sm font-bold text-slate-900 dark:text-slate-50 truncate">{value}</p>
             </div>
         </div>
     );
@@ -659,18 +659,18 @@ function InfoStrip({ icon: Icon, label, value }: { icon: any, label: string, val
 function PulseItem({ task, isLast, theme }: { task: any, isLast: boolean, theme: any }) {
     return (
         <div className="flex gap-4 relative">
-            {!isLast && <div className="absolute left-[13px] top-[26px] bottom-[-20px] w-px bg-slate-100" />}
+            {!isLast && <div className="absolute left-[13px] top-[26px] bottom-[-20px] w-px bg-slate-100 dark:bg-slate-800" />}
             <div className={cn(
-                "h-7 w-7 rounded-full flex items-center justify-center shrink-0 z-10 border border-white",
-                task.stage === 'completed' ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-400"
+                "h-7 w-7 rounded-full flex items-center justify-center shrink-0 z-10 border border-white dark:border-slate-900",
+                task.stage === 'completed' ? "bg-emerald-500 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500"
             )}
                 style={task.stage === 'in_progress' ? { backgroundColor: theme.primary, color: '#fff' } : {}}
             >
                 {task.stage === 'completed' ? <CheckCircle2 className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
             </div>
             <div className="min-w-0">
-                <p className="text-xs font-bold text-slate-900 truncate leading-tight">{task.title}</p>
-                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">{task.stage.replace('_', ' ')}</p>
+                <p className="text-xs font-bold text-slate-900 dark:text-slate-50 truncate leading-tight">{task.title}</p>
+                <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-0.5">{task.stage.replace('_', ' ')}</p>
             </div>
         </div>
     );
@@ -679,16 +679,16 @@ function PulseItem({ task, isLast, theme }: { task: any, isLast: boolean, theme:
 function CommentItem({ comment }: { comment: any }) {
     return (
         <div className="flex gap-4">
-            <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center font-bold text-slate-700 text-xs shrink-0">
+            <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-700 dark:text-slate-300 text-xs shrink-0">
                 {comment.user?.name[0]}
             </div>
             <div className="flex-1 space-y-2">
                 <div className="flex items-center justify-between">
-                    <p className="text-xs font-bold text-slate-900">{comment.user?.name} <span className="text-[9px] font-semibold text-slate-400 ml-1 uppercase">Monitor</span></p>
-                    <p className="text-[10px] font-semibold text-slate-400">{new Date(comment.created_at).toLocaleDateString()}</p>
+                    <p className="text-xs font-bold text-slate-900 dark:text-slate-50">{comment.user?.name} <span className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 ml-1 uppercase">Monitor</span></p>
+                    <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">{new Date(comment.created_at).toLocaleDateString()}</p>
                 </div>
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                    <p className="text-sm font-medium text-slate-600 leading-relaxed italic">"{comment.content}"</p>
+                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
+                    <p className="text-sm font-medium text-slate-600 dark:text-slate-300 leading-relaxed italic">"{comment.content}"</p>
                 </div>
                 <div className="flex items-center gap-4 px-1">
                     <button className="text-[9px] font-bold text-slate-400 uppercase tracking-wider hover:text-slate-900 transition-colors">Acknowledge</button>
@@ -701,15 +701,15 @@ function CommentItem({ comment }: { comment: any }) {
 
 function AttachmentCard({ asset, theme }: { asset: any, theme: any }) {
     return (
-        <div className="p-5 bg-white border border-slate-200 rounded-2xl hover:border-slate-300 transition-colors cursor-pointer group">
+        <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl hover:border-slate-300 dark:hover:border-slate-700 transition-colors cursor-pointer group">
             <div className="flex items-start justify-between mb-4">
                 <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${theme.primary}10`, color: theme.primary }}>
                     <FileText className="h-5 w-5" />
                 </div>
-                <Badge variant="outline" className="text-[9px] h-5 px-1.5 border-slate-200 font-bold bg-slate-50 text-slate-500 uppercase">{asset.type || 'Doc'}</Badge>
+                <Badge variant="outline" className="text-[9px] h-5 px-1.5 border-slate-200 dark:border-slate-700 font-bold bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 uppercase">{asset.type || 'Doc'}</Badge>
             </div>
             <div className="space-y-3">
-                <p className="text-sm font-bold text-slate-800 truncate leading-tight group-hover:text-slate-900 transition-colors">{asset.name}</p>
+                <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate leading-tight group-hover:text-slate-900 dark:group-hover:text-white transition-colors">{asset.name}</p>
                 <div className="flex items-center justify-between">
                     <span className="flex items-center gap-1 text-[10px] font-semibold text-slate-400">
                         <Paperclip className="h-3 w-3" /> {asset.size}

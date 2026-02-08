@@ -90,8 +90,8 @@ export default function DashboardPage() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Dashboard</h1>
-                    <p className="text-gray-500 text-sm mt-1">Overview of project performance</p>
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-50 tracking-tight">Dashboard</h1>
+                    <p className="text-gray-500 dark:text-slate-400 text-sm mt-1">Overview of project performance</p>
                 </div>
             </div>
 
@@ -102,8 +102,8 @@ export default function DashboardPage() {
                         <CardContent className="p-6">
                             <div className="flex justify-between items-start mb-4">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-500">{stat.title}</p>
-                                    <h3 className="text-3xl font-bold text-gray-900 mt-2">{stat.value}</h3>
+                                    <p className="text-sm font-medium text-gray-500 dark:text-slate-400">{stat.title}</p>
+                                    <h3 className="text-3xl font-bold text-gray-900 dark:text-slate-50 mt-2">{stat.value}</h3>
                                 </div>
                                 {stat.change !== 0 && (
                                     <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 flex items-center gap-1">
@@ -112,7 +112,7 @@ export default function DashboardPage() {
                                     </Badge>
                                 )}
                             </div>
-                            <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden mt-2">
+                            <div className="h-1.5 w-full bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden mt-2">
                                 <div
                                     className="h-full rounded-full transition-all duration-1000"
                                     style={{
@@ -133,8 +133,8 @@ export default function DashboardPage() {
                     <CardContent className="p-6">
                         <div className="flex items-center justify-between mb-6">
                             <div>
-                                <h3 className="text-lg font-bold text-gray-900">Performance Trend</h3>
-                                <p className="text-sm text-gray-500">Project velocity over time</p>
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-slate-50">Performance Trend</h3>
+                                <p className="text-sm text-gray-500 dark:text-slate-400">Project velocity over time</p>
                             </div>
                             <Button variant="outline" size="sm" className="text-xs">
                                 Export
@@ -172,14 +172,14 @@ export default function DashboardPage() {
                 <Card>
                     <CardContent className="p-6">
                         <div className="mb-6">
-                            <h3 className="text-lg font-bold text-gray-900">Task Distribution</h3>
-                            <p className="text-sm text-gray-500">Current breakdown by status</p>
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-slate-50">Task Distribution</h3>
+                            <p className="text-sm text-gray-500 dark:text-slate-400">Current breakdown by status</p>
                         </div>
                         <div className="h-[200px] w-full flex items-center justify-center relative">
                             {/* Inner Circle Label */}
                             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                <span className="text-3xl font-bold text-gray-900">{stats?.activeTasks || 0}</span>
-                                <span className="text-xs text-gray-500 uppercase tracking-wider">Active</span>
+                                <span className="text-3xl font-bold text-gray-900 dark:text-slate-50">{stats?.activeTasks || 0}</span>
+                                <span className="text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wider">Active</span>
                             </div>
 
                             <ResponsiveContainer width="100%" height="100%">
@@ -205,8 +205,8 @@ export default function DashboardPage() {
                             {taskDistribution.map((item) => (
                                 <div key={item.name} className="flex items-center text-sm">
                                     <div className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: item.color }}></div>
-                                    <span className="text-gray-600 line-clamp-1">{item.name}</span>
-                                    <span className="ml-auto font-medium text-gray-900">
+                                    <span className="text-gray-600 dark:text-slate-300 line-clamp-1">{item.name}</span>
+                                    <span className="ml-auto font-medium text-gray-900 dark:text-slate-50">
                                         {Math.round((item.value / (taskDistribution.reduce((acc, curr) => acc + curr.value, 0) || 1)) * 100)}%
                                     </span>
                                 </div>
@@ -222,14 +222,14 @@ export default function DashboardPage() {
                 <Card className="lg:col-span-2">
                     <CardContent className="p-6">
                         <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-lg font-bold text-gray-900">Recent Projects</h3>
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-slate-50">Recent Projects</h3>
                             <Button variant="outline" size="sm" onClick={() => navigate('/projects')} className="font-bold">
                                 View All
                             </Button>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {recentProjects?.map((project) => (
-                                <div key={project.id} className="flex items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors bg-white">
+                                <div key={project.id} className="flex items-center justify-between p-4 border border-gray-100 dark:border-slate-700 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors bg-white dark:bg-slate-900">
                                     <div className="flex items-center gap-4">
                                         <div className={cn(
                                             "w-10 h-10 rounded-md flex items-center justify-center",
@@ -240,12 +240,12 @@ export default function DashboardPage() {
                                             <FolderKanban className="w-5 h-5 transition-transform group-hover:scale-110" />
                                         </div>
                                         <div>
-                                            <p className="font-bold text-gray-900 text-sm">{project.name}</p>
-                                            <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">{project.company_name}</p>
+                                            <p className="font-bold text-gray-900 dark:text-slate-50 text-sm">{project.name}</p>
+                                            <p className="text-[10px] text-gray-500 dark:text-slate-400 font-medium uppercase tracking-wider">{project.company_name}</p>
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-[10px] text-gray-400 font-bold mb-1">{formatCurrency(project.contract_value)}</p>
+                                        <p className="text-[10px] text-gray-400 dark:text-slate-500 font-bold mb-1">{formatCurrency(project.contract_value)}</p>
                                         <Badge variant={project.status as any} className="capitalize text-[10px] h-5">
                                             {project.status.replace('_', ' ')}
                                         </Badge>
@@ -253,7 +253,7 @@ export default function DashboardPage() {
                                 </div>
                             ))}
                             {(!recentProjects || recentProjects.length === 0) && (
-                                <p className="col-span-2 text-center text-gray-500 py-4 text-sm">No recent projects found.</p>
+                                <p className="col-span-2 text-center text-gray-500 dark:text-slate-400 py-4 text-sm">No recent projects found.</p>
                             )}
                         </div>
                     </CardContent>
@@ -264,8 +264,8 @@ export default function DashboardPage() {
                     <CardContent className="p-6">
                         <div className="mb-6 flex items-center justify-between">
                             <div>
-                                <h3 className="text-lg font-bold text-gray-900">Idle Tasks</h3>
-                                <p className="text-[10px] text-gray-500 font-medium uppercase">Not updated in 48+h</p>
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-slate-50">Idle Tasks</h3>
+                                <p className="text-[10px] text-gray-500 dark:text-slate-400 font-medium uppercase">Not updated in 48+h</p>
                             </div>
                             <Button variant="ghost" size="icon" className="rounded-full h-8 w-8 text-primary hover:bg-primary/5">
                                 <Activity className="w-4 h-4" />
@@ -274,9 +274,9 @@ export default function DashboardPage() {
                         <div className="space-y-3">
                             {idleTasks?.map((task) => (
                                 <div key={task.id} className="p-3 bg-red-50/30 border border-red-100 rounded-xl hover:bg-red-50 transition-colors">
-                                    <p className="text-sm font-bold text-gray-900 line-clamp-1">{task.title}</p>
+                                    <p className="text-sm font-bold text-gray-900 dark:text-slate-50 line-clamp-1">{task.title}</p>
                                     <div className="flex justify-between items-center mt-2">
-                                        <p className="text-[10px] text-gray-500 font-bold">{task.assignee_name}</p>
+                                        <p className="text-[10px] text-gray-500 dark:text-slate-400 font-bold">{task.assignee_name}</p>
                                         <Badge variant="destructive" className="text-[9px] h-5 px-1.5 font-black uppercase">
                                             {task.days_idle}D Idle
                                         </Badge>
@@ -304,7 +304,7 @@ export default function DashboardPage() {
                                 <div className="p-2 bg-blue-100 rounded-md">
                                     <Clock className="w-5 h-5 text-blue-600" />
                                 </div>
-                                <h3 className="text-lg font-bold text-gray-900">Recent Tasks</h3>
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-slate-50">Recent Tasks</h3>
                             </div>
                             <Button variant="ghost" size="sm" onClick={() => navigate('/tasks')} className="text-primary hover:text-primary hover:bg-primary/5 font-bold">
                                 View Board
@@ -312,7 +312,7 @@ export default function DashboardPage() {
                         </div>
                         <div className="space-y-3">
                             {recentTasks?.map((task) => (
-                                <div key={task.id} className="flex items-center justify-between p-3 border border-gray-100 rounded-xl hover:border-blue-200 transition-all bg-white group">
+                                <div key={task.id} className="flex items-center justify-between p-3 border border-gray-100 dark:border-slate-700 rounded-xl hover:border-blue-200 dark:hover:border-blue-500 transition-all bg-white dark:bg-slate-900 group">
                                     <div className="flex items-center gap-3">
                                         <div className={cn(
                                             "w-2 h-2 rounded-full",
@@ -321,8 +321,8 @@ export default function DashboardPage() {
                                                     task.stage === 'blockers' ? 'bg-error' : 'bg-slate-300'
                                         )} />
                                         <div>
-                                            <p className="text-sm font-bold text-gray-900 line-clamp-1 group-hover:text-primary transition-colors">{task.title}</p>
-                                            <p className="text-[10px] text-gray-500 font-medium">
+                                            <p className="text-sm font-bold text-gray-900 dark:text-slate-50 line-clamp-1 group-hover:text-primary transition-colors">{task.title}</p>
+                                            <p className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">
                                                 {task.project_name} • {task.assignee_name}
                                             </p>
                                         </div>
@@ -333,7 +333,7 @@ export default function DashboardPage() {
                                 </div>
                             ))}
                             {(!recentTasks || recentTasks.length === 0) && (
-                                <p className="text-center text-gray-500 py-8 text-sm">No recent tasks found.</p>
+                                <p className="text-center text-gray-500 dark:text-slate-400 py-8 text-sm">No recent tasks found.</p>
                             )}
                         </div>
                     </CardContent>
@@ -347,7 +347,7 @@ export default function DashboardPage() {
                                 <div className="p-2 bg-purple-100 rounded-md">
                                     <ShieldCheck className="w-5 h-5 text-purple-600" />
                                 </div>
-                                <h3 className="text-lg font-bold text-gray-900">Pending Approvals</h3>
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-slate-50">Pending Approvals</h3>
                             </div>
                             <Button variant="ghost" size="sm" onClick={() => navigate('/approvals')} className="text-primary hover:text-primary hover:bg-primary/5 font-bold">
                                 View All
@@ -355,14 +355,14 @@ export default function DashboardPage() {
                         </div>
                         <div className="space-y-3">
                             {recentApprovals?.map((approval) => (
-                                <div key={approval.id} className="flex items-center justify-between p-3 border border-gray-100 rounded-xl hover:border-purple-200 transition-all bg-white group">
+                                <div key={approval.id} className="flex items-center justify-between p-3 border border-gray-100 dark:border-slate-700 rounded-xl hover:border-purple-200 dark:hover:border-purple-500 transition-all bg-white dark:bg-slate-900 group">
                                     <div className="flex items-center gap-3">
                                         <div className="p-2 bg-slate-50 rounded-md group-hover:bg-purple-50 transition-colors">
                                             <ClipboardCheck className="w-4 h-4 text-slate-500 group-hover:text-purple-600" />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-bold text-gray-900 line-clamp-1 group-hover:text-purple-700 transition-colors">{approval.title}</p>
-                                            <p className="text-[10px] text-gray-500 font-medium">
+                                            <p className="text-sm font-bold text-gray-900 dark:text-slate-50 line-clamp-1 group-hover:text-purple-700 transition-colors">{approval.title}</p>
+                                            <p className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">
                                                 {approval.company_name} • By {approval.requester_name}
                                             </p>
                                         </div>
@@ -379,7 +379,7 @@ export default function DashboardPage() {
                                 </div>
                             ))}
                             {(!recentApprovals || recentApprovals.length === 0) && (
-                                <p className="text-center text-gray-500 py-8 text-sm">No pending approvals found.</p>
+                                <p className="text-center text-gray-500 dark:text-slate-400 py-8 text-sm">No pending approvals found.</p>
                             )}
                         </div>
                     </CardContent>

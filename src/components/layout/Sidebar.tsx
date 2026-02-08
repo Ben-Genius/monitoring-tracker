@@ -17,6 +17,7 @@ import { cn, getCompanyTheme } from '@/lib/utils';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useCompanyStore } from '@/hooks/useCompanyStore';
 import { useCompanies } from '@/features/projects/hooks/useProjects';
+import ThemeToggle from '@/components/ThemeToggle';
 
 const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -46,12 +47,12 @@ export default function Sidebar() {
     return (
         <div
             className={cn(
-                'bg-white border-r border-gray-200 flex flex-col transition-all duration-300 h-screen sticky top-0',
+                'bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-700 flex flex-col transition-all duration-300 h-screen sticky top-0',
                 collapsed ? 'w-20' : 'w-72'
             )}
         >
             {/* Header / Brand */}
-            <div className="h-16 flex items-center px-6 border-b border-gray-100">
+            <div className="h-16 flex items-center px-6 border-b border-gray-100 dark:border-slate-800">
                 <div
                     className="p-2 rounded-md mr-3 transition-colors duration-300"
                     style={{ backgroundColor: `${theme.primary}15` }}
@@ -60,8 +61,8 @@ export default function Sidebar() {
                 </div>
                 {!collapsed && (
                     <div className="flex flex-col">
-                        <span className="font-bold text-gray-900 text-lg leading-tight">Monitoring</span>
-                        <span className="text-xs text-gray-500 font-medium tracking-wider">TRACKER SUITE</span>
+                        <span className="font-bold text-gray-900 dark:text-slate-50 text-lg leading-tight">Monitoring</span>
+                        <span className="text-xs text-gray-500 dark:text-slate-400 font-medium tracking-wider">TRACKER SUITE</span>
                     </div>
                 )}
             </div>
@@ -134,7 +135,7 @@ export default function Sidebar() {
             </div>
 
             {/* Footer / User Profile */}
-            <div className="p-4 border-t border-gray-100 bg-gray-50/50">
+            <div className="p-4 border-t border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-800/50">
                 <div className={cn("flex items-center", collapsed ? "justify-center" : "justify-between")}>
                     <div className="flex items-center">
                         <div
@@ -147,26 +148,29 @@ export default function Sidebar() {
                         </div>
                         {!collapsed && (
                             <div className="ml-3">
-                                <p className="text-sm font-semibold text-gray-900 truncate max-w-[120px]">
+                                <p className="text-sm font-semibold text-gray-900 dark:text-slate-50 truncate max-w-[120px]">
                                     {user?.name || 'User'}
                                 </p>
-                                <p className="text-xs text-gray-500 truncate">{user?.role || 'Member'}</p>
+                                <p className="text-xs text-gray-500 dark:text-slate-400 truncate">{user?.role || 'Member'}</p>
                             </div>
                         )}
                     </div>
                     {!collapsed && (
-                        <button
-                            onClick={signOut}
-                            className="p-2 hover:bg-white hover:shadow-sm rounded-full transition-all text-gray-400 hover:text-destructive"
-                            title="Sign out"
-                        >
-                            <LogOut className="h-4 w-4" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                            <ThemeToggle />
+                            <button
+                                onClick={signOut}
+                                className="p-2 hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm rounded-full transition-all text-gray-400 hover:text-destructive"
+                                title="Sign out"
+                            >
+                                <LogOut className="h-4 w-4" />
+                            </button>
+                        </div>
                     )}
                 </div>
                 <button
                     onClick={() => setCollapsed(!collapsed)}
-                    className="absolute -right-3 top-20 bg-white border border-gray-200 shadow-sm rounded-full p-1 text-gray-400 hover:text-primary transition-colors hover:shadow-md"
+                    className="absolute -right-3 top-20 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-sm rounded-full p-1 text-gray-400 hover:text-primary transition-colors hover:shadow-md"
                     style={{ color: collapsed ? theme.primary : undefined }}
                 >
                     {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
