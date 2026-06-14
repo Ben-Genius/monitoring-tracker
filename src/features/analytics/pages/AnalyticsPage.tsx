@@ -26,7 +26,6 @@ import {
     useMonthlyTrend,
     useTopPerformers
 } from '../hooks/useAnalytics';
-import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AnalyticsPage() {

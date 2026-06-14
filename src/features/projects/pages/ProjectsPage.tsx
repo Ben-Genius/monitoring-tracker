@@ -17,7 +17,6 @@ import {
 import { formatCurrency, calculateProfitability, cn, getCompanyTheme } from '@/lib/utils';
 import { useProjects, useCompanies } from '@/features/projects/hooks/useProjects';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
