@@ -27,6 +27,7 @@ import {
     useTopPerformers
 } from '../hooks/useAnalytics';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AnalyticsPage() {
     const { selectedCompanyId } = useCompanyStore();
@@ -47,8 +48,37 @@ export default function AnalyticsPage() {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center h-screen">
-                <LoadingSpinner size="lg" />
+            <div className="space-y-6">
+                <div>
+                    <Skeleton className="h-10 w-48 mb-2" />
+                    <Skeleton className="h-5 w-96" />
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <Card className="border-slate-200/60 shadow-sm">
+                        <CardHeader className="border-b border-slate-50 bg-slate-50/20">
+                            <Skeleton className="h-6 w-48" />
+                        </CardHeader>
+                        <CardContent className="pt-6 h-[300px]">
+                            <Skeleton className="h-full w-full rounded-full" />
+                        </CardContent>
+                    </Card>
+                    <Card className="border-slate-200/60 shadow-sm">
+                        <CardHeader className="border-b border-slate-50 bg-slate-50/20">
+                            <Skeleton className="h-6 w-48" />
+                        </CardHeader>
+                        <CardContent className="pt-6 h-[300px]">
+                            <Skeleton className="h-full w-full" />
+                        </CardContent>
+                    </Card>
+                    <Card className="lg:col-span-2 border-slate-200/60 shadow-md">
+                        <CardHeader className="border-b border-slate-50 bg-slate-50/20">
+                            <Skeleton className="h-6 w-64" />
+                        </CardHeader>
+                        <CardContent className="pt-6 h-[300px]">
+                            <Skeleton className="h-full w-full" />
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
         );
     }

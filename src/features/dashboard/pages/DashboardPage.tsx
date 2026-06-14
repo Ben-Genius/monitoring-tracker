@@ -14,7 +14,7 @@ import {
 import { useDashboardStats, useIdleTasks, useRecentProjects, useTaskDistribution, usePerformanceTrend, useRecentTasks, useRecentApprovals } from '../hooks/useDashboard';
 import { useCompanies } from '@/features/projects/hooks/useProjects';
 import { useCompanyStore } from '@/hooks/useCompanyStore';
-import LoadingSpinner from '@/components/common/LoadingSpinner';
+import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency, cn, getCompanyTheme } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -48,8 +48,45 @@ export default function DashboardPage() {
 
     if (statsLoading) {
         return (
-            <div className="flex items-center justify-center h-screen">
-                <LoadingSpinner size="lg" />
+            <div className="space-y-8 p-1">
+                {/* Header Skeleton */}
+                <div className="flex items-center justify-between">
+                    <div>
+                        <Skeleton className="h-8 w-48 mb-2" />
+                        <Skeleton className="h-4 w-64" />
+                    </div>
+                </div>
+
+                {/* KPI Cards Skeleton */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {[1, 2, 3, 4].map((i) => (
+                        <Card key={i}>
+                            <CardContent className="p-6">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className="w-full space-y-2">
+                                        <Skeleton className="h-4 w-1/2" />
+                                        <Skeleton className="h-8 w-3/4" />
+                                    </div>
+                                </div>
+                                <Skeleton className="h-1.5 w-full mt-4" />
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+
+                {/* Main Charts Section Skeleton */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <Card className="lg:col-span-2">
+                        <CardContent className="p-6 h-[400px]">
+                            <Skeleton className="h-full w-full" />
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="p-6 h-[400px]">
+                            <Skeleton className="h-full w-full" />
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
         );
     }

@@ -99,9 +99,7 @@ export function useTasks(filters?: {
                 .select(`
           *,
           project:projects(name, company_id, company:companies(name)),
-          assignee:users!tasks_assignee_id_users_id_fk(name, email),
-          assignees:task_assignees(user:users(id, name, email)),
-          subtasks(id, is_completed),
+          assignee:users!tasks_assignee_id_fkey(name, email),
           comments:task_comments(id)
         `)
                 .order('created_at', { ascending: false });
@@ -137,10 +135,8 @@ export function useTask(id: string) {
                 .select(`
           *,
           project:projects(name, company_id, company:companies(name)),
-          assignee:users!tasks_assignee_id_users_id_fk(name, email),
-          assignees:task_assignees(user:users(id, name, email)),
-          creator:users!tasks_created_by_users_id_fk(name, email),
-          subtasks(*)
+          assignee:users!tasks_assignee_id_fkey(name, email),
+          creator:users!tasks_created_by_fkey(name, email)
         `)
                 .eq('id', id)
                 .single();
@@ -176,23 +172,7 @@ export function useCreateTask() {
 
             if (taskError) throw taskError;
 
-            // 2. Create task assignees if multiple provided
-            if (assignee_ids && assignee_ids.length > 0) {
-                const assigneesPayload = assignee_ids.map(userId => ({
-                    task_id: task.id,
-                    user_id: userId
-                }));
 
-                const { error: assigneesError } = await supabase
-                    .from('task_assignees')
-                    .insert(assigneesPayload);
-
-                if (assigneesError) {
-                    console.error('Failed to save task assignees:', assigneesError);
-                    // We don't throw here to avoid failing the whole task creation, 
-                    // but in a strict system we might want to transaction this.
-                }
-            }
 
             return task;
         },
@@ -210,34 +190,8 @@ export function useUpdateTask(id: string) {
         mutationFn: async (input: UpdateTaskInput) => {
             const { assignee_ids, ...updateData } = input;
 
-            // Handle multi-assignee update
-            if (assignee_ids) {
-                // 1. Update/Reset Primary Assignee
-                // Use the first selected user as primary, or null if empty
+            if (assignee_ids && assignee_ids.length > 0) {
                 updateData.assignee_id = assignee_ids[0] || null;
-
-                // 2. Sync task_assignees table
-                // First delete existing
-                const { error: deleteError } = await supabase
-                    .from('task_assignees')
-                    .delete()
-                    .eq('task_id', id);
-
-                if (deleteError) throw deleteError;
-
-                // Then insert new ones
-                if (assignee_ids.length > 0) {
-                    const assigneesPayload = assignee_ids.map(userId => ({
-                        task_id: id,
-                        user_id: userId
-                    }));
-
-                    const { error: insertError } = await supabase
-                        .from('task_assignees')
-                        .insert(assigneesPayload);
-
-                    if (insertError) throw insertError;
-                }
             }
 
             const { data, error } = await supabase

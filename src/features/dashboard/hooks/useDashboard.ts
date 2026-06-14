@@ -196,7 +196,7 @@ export function useIdleTasks(companyId?: string) {
           id,
           title,
           updated_at,
-          assignee:users!tasks_assignee_id_users_id_fk(name),
+          assignee:users!tasks_assignee_id_fkey(name),
           project:projects!inner(company_id)
         `)
                 .lt('updated_at', twoDaysAgo.toISOString())
@@ -288,7 +288,7 @@ export function useRecentTasks(limit = 5, companyId?: string) {
           stage,
           created_at,
           project:projects!inner(name, company:companies(name)),
-          assignee:users!tasks_assignee_id_users_id_fk(name)
+          assignee:users!tasks_assignee_id_fkey(name)
         `);
 
             if (companyId && companyId !== 'all') {

@@ -46,8 +46,8 @@ export function useProjects(companyId?: string) {
                 .select(`
           *,
           company:companies(name),
-          lead:users!projects_lead_id_fkey(name),
-          tasks!tasks_project_id_projects_id_fk(id, title, stage)
+          lead:users!projects_created_by_fkey(name),
+          tasks!tasks_project_id_fkey(id, title, stage)
         `)
                 .order('created_at', { ascending: false });
 
@@ -72,8 +72,8 @@ export function useProject(id: string) {
                 .select(`
           *,
           company:companies(name),
-          lead:users!projects_lead_id_fkey(name, email),
-          tasks!tasks_project_id_projects_id_fk(id, title, stage)
+          lead:users!projects_created_by_fkey(name, email),
+          tasks!tasks_project_id_fkey(id, title, stage)
         `)
                 .eq('id', id)
                 .single();

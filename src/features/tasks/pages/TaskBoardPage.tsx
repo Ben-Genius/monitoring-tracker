@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { useTasks, useUpdateTaskStage, Task } from '../hooks/useTasks';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import LoadingSpinner from '@/components/common/LoadingSpinner';
+import { Skeleton } from '@/components/ui/skeleton';
 import TaskCard from '../components/TaskCard';
 import TaskListView from '../components/TaskListView';
 import TaskDrawer from '../components/TaskDrawer';
@@ -135,8 +135,60 @@ export default function TaskBoardPage() {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center h-96">
-                <LoadingSpinner size="lg" />
+            <div className="flex flex-col h-[calc(100vh-100px)] space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <Skeleton className="h-8 w-32 mb-2" />
+                        <Skeleton className="h-4 w-48" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Skeleton className="h-9 w-32" />
+                        <Skeleton className="h-9 w-64" />
+                        <Skeleton className="h-9 w-24" />
+                        <Skeleton className="h-9 w-28" />
+                    </div>
+                </div>
+                {view === 'list' ? (
+                    <div className="space-y-8 mt-6">
+                        {[1, 2].map(section => (
+                            <div key={section} className="space-y-2">
+                                <div className="flex items-center gap-3 px-2">
+                                    <Skeleton className="h-5 w-32" />
+                                    <Skeleton className="h-4 w-6" />
+                                    <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800" />
+                                </div>
+                                <div className="space-y-1">
+                                    {[1, 2, 3].map(row => (
+                                        <div key={row} className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-transparent bg-white dark:bg-slate-900">
+                                            <Skeleton className="h-5 w-5 rounded-full" />
+                                            <div className="flex-1">
+                                                <Skeleton className="h-5 w-1/3" />
+                                            </div>
+                                            <Skeleton className="hidden sm:block h-6 w-24 rounded" />
+                                            <Skeleton className="hidden md:block h-6 w-16 rounded-full" />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="flex-1 flex gap-6 overflow-hidden mt-6">
+                        {[1, 2, 3, 4, 5].map(i => (
+                            <div key={i} className="flex-shrink-0 w-[350px] rounded-xl flex flex-col bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200/50 h-full">
+                                <div className="p-4 border-b border-slate-200/50">
+                                    <Skeleton className="h-5 w-24 mb-2" />
+                                    <Skeleton className="h-3 w-16" />
+                                </div>
+                                <div className="p-3 space-y-3">
+                                    {[1, 2, 3].map(j => (
+                                        <Skeleton key={j} className="h-32 w-full rounded-xl" />
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
         );
     }

@@ -18,6 +18,7 @@ import { formatCurrency, calculateProfitability, cn, getCompanyTheme } from '@/l
 import { useProjects, useCompanies } from '@/features/projects/hooks/useProjects';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CreateProjectModal from '@/features/projects/components/CreateProjectModal';
@@ -46,8 +47,44 @@ export default function ProjectsPage() {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center h-96">
-                <LoadingSpinner size="lg" />
+            <div className="space-y-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <Skeleton className="h-10 w-64 mb-2" />
+                        <Skeleton className="h-4 w-96" />
+                    </div>
+                    <Skeleton className="h-10 w-32" />
+                </div>
+                
+                <div className="flex items-center justify-between mb-6">
+                    <Skeleton className="h-12 w-full max-w-[500px]" />
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
+                        <Card key={i} className="bg-white dark:bg-slate-900 border-slate-200/60">
+                            <CardHeader className="pb-4">
+                                <Skeleton className="h-5 w-24 mb-2" />
+                                <Skeleton className="h-7 w-3/4" />
+                            </CardHeader>
+                            <CardContent className="space-y-6">
+                                <div className="grid grid-cols-2 gap-4 py-3 border-y border-slate-100">
+                                    <Skeleton className="h-4 w-full" />
+                                    <Skeleton className="h-4 w-full" />
+                                </div>
+                                <div className="space-y-3">
+                                    <Skeleton className="h-6 w-full" />
+                                    <Skeleton className="h-8 w-1/2" />
+                                </div>
+                                <div className="space-y-3">
+                                    <Skeleton className="h-2 w-full" />
+                                    <Skeleton className="h-4 w-full" />
+                                </div>
+                                <Skeleton className="h-11 w-full" />
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
             </div>
         );
     }

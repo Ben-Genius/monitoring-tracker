@@ -215,6 +215,15 @@ CREATE TRIGGER update_task_stage_timestamps_trigger BEFORE UPDATE ON tasks
 -- ROW LEVEL SECURITY (RLS)
 -- =====================================================
 
+-- Helper functions to avoid infinite recursion in RLS
+CREATE OR REPLACE FUNCTION get_auth_company_id() RETURNS uuid AS $$
+  SELECT company_id FROM users WHERE id = auth.uid();
+$$ LANGUAGE sql SECURITY DEFINER SET search_path = public;
+
+CREATE OR REPLACE FUNCTION get_auth_role() RETURNS text AS $$
+  SELECT role FROM users WHERE id = auth.uid();
+$$ LANGUAGE sql SECURITY DEFINER SET search_path = public;
+
 -- Enable RLS on all tables
 ALTER TABLE companies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
@@ -232,44 +241,40 @@ CREATE POLICY "Companies are viewable by everyone" ON companies
 CREATE POLICY "Users can view users in their company" ON users
   FOR SELECT USING (
     auth.uid() = id OR
-    company_id IN (SELECT company_id FROM users WHERE id = auth.uid()) OR
-    (SELECT role FROM users WHERE id = auth.uid()) = 'admin'
+    company_id = get_auth_company_id() OR
+    get_auth_role() = 'admin'
   );
 
 -- Projects: Can view projects in their company (or all if admin)
 CREATE POLICY "Users can view projects in their company" ON projects
   FOR SELECT USING (
-    company_id IN (SELECT company_id FROM users WHERE id = auth.uid()) OR
-    (SELECT role FROM users WHERE id = auth.uid()) = 'admin'
+    company_id = get_auth_company_id() OR
+    get_auth_role() = 'admin'
   );
 
 CREATE POLICY "Users can create projects in their company" ON projects
   FOR INSERT WITH CHECK (
-    company_id IN (SELECT company_id FROM users WHERE id = auth.uid())
+    company_id = get_auth_company_id()
   );
 
 CREATE POLICY "Leads and admins can update projects" ON projects
   FOR UPDATE USING (
-    (SELECT role FROM users WHERE id = auth.uid()) IN ('lead', 'admin')
+    get_auth_role() IN ('lead', 'admin')
   );
 
 -- Tasks: Can view tasks in their company's projects
 CREATE POLICY "Users can view tasks in their company" ON tasks
   FOR SELECT USING (
     project_id IN (
-      SELECT id FROM projects WHERE company_id IN (
-        SELECT company_id FROM users WHERE id = auth.uid()
-      )
+      SELECT id FROM projects WHERE company_id = get_auth_company_id()
     ) OR
-    (SELECT role FROM users WHERE id = auth.uid()) = 'admin'
+    get_auth_role() = 'admin'
   );
 
 CREATE POLICY "Users can create tasks" ON tasks
   FOR INSERT WITH CHECK (
     project_id IN (
-      SELECT id FROM projects WHERE company_id IN (
-        SELECT company_id FROM users WHERE id = auth.uid()
-      )
+      SELECT id FROM projects WHERE company_id = get_auth_company_id()
     )
   );
 
@@ -277,7 +282,7 @@ CREATE POLICY "Users can update their assigned tasks" ON tasks
   FOR UPDATE USING (
     assignee_id = auth.uid() OR
     created_by = auth.uid() OR
-    (SELECT role FROM users WHERE id = auth.uid()) IN ('lead', 'admin')
+    get_auth_role() IN ('lead', 'admin')
   );
 
 -- Task Comments: Can view comments on tasks they can see
@@ -294,8 +299,8 @@ CREATE POLICY "Users can create comments" ON task_comments
 -- Pipeline Projects: Same as projects
 CREATE POLICY "Users can view pipeline in their company" ON pipeline_projects
   FOR SELECT USING (
-    company_id IN (SELECT company_id FROM users WHERE id = auth.uid()) OR
-    (SELECT role FROM users WHERE id = auth.uid()) = 'admin'
+    company_id = get_auth_company_id() OR
+    get_auth_role() = 'admin'
   );
 
 -- Notifications: Users can only see their own

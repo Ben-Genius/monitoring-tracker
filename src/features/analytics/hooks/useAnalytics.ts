@@ -95,7 +95,7 @@ export function useTopPerformers() {
                 .from('users')
                 .select(`
                     name,
-                    tasks!tasks_assignee_id_users_id_fk(stage, completed_at, expected_handover)
+                    tasks!tasks_assignee_id_fkey(stage, completed_at, expected_handover)
                 `);
 
             if (error) throw error;

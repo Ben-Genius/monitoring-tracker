@@ -6,7 +6,7 @@ You have Supabase configured! Now you need to create a user account.
 
 ### Step 1: Run the Database Schema
 
-1. Open your Supabase project: https://fujpwkijoerifonrtwid.supabase.co
+1. Open your Supabase project: https://osqqbennflaviyhqmamv.supabase.co
 2. Go to **SQL Editor**
 3. Copy and paste the contents of `supabase-schema.sql`
 4. Click **Run** to create all tables
