@@ -49,7 +49,7 @@ export default function ReportsPage() {
     const theme = getCompanyTheme(currentCompanyName);
 
     return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="space-y-6 animate-fade-in">
             {/* Page Header */}
             <div>
                 <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Reports</h1>
@@ -61,7 +61,7 @@ export default function ReportsPage() {
             {/* Reports Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {reports.map((report) => (
-                    <Card key={report.id} className="border-slate-200/60 shadow-sm hover:shadow-md transition-all group overflow-hidden">
+                    <Card key={report.id} className="border-slate-200/60 shadow-sm hover:shadow-md transition-all group overflow-hidden card-lift">
                         <div className="h-1 w-full" style={{ backgroundColor: theme.primary }} />
                         <CardHeader className="pb-4">
                             <div className="flex items-start justify-between">

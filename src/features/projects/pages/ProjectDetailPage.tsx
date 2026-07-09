@@ -119,7 +119,7 @@ export default function ProjectDetailPage() {
 
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="space-y-8 animate-fade-in">
             {/* Header / Action Bar */}
             <div className="flex items-center justify-between">
                 <Button variant="ghost" onClick={() => navigate('/projects')} className="group font-bold text-slate-500 hover:text-slate-900">

@@ -61,7 +61,7 @@ export default function ProjectsPage() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                     {[1, 2, 3, 4, 5, 6].map((i) => (
-                        <Card key={i} className="bg-white dark:bg-slate-900 border-slate-200/60">
+                        <Card key={i} className="bg-white dark:bg-slate-900 border-slate-200/60 rounded-xl">
                             <CardHeader className="pb-4">
                                 <Skeleton className="h-5 w-24 mb-2" />
                                 <Skeleton className="h-7 w-3/4" />
@@ -110,7 +110,7 @@ export default function ProjectsPage() {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-fade-in">
             {/* Page Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
@@ -204,7 +204,7 @@ export default function ProjectsPage() {
                         const projectTheme = getCompanyTheme(project.company?.name || '');
 
                         return (
-                            <Card key={project.id} className="group hover:shadow-xl transition-all duration-300 border-slate-200/60 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900">
+                            <Card key={project.id} className="group hover:shadow-xl transition-all duration-300 border-slate-200/60 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 rounded-xl card-lift">
                                 <CardHeader className="pb-4 relative">
                                     <div className="absolute top-0 right-0 p-4">
                                         <Badge

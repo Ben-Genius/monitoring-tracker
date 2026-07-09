@@ -47,29 +47,26 @@ export default function Sidebar() {
     return (
         <div
             className={cn(
-                'bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-700 flex flex-col transition-all duration-300 h-screen sticky top-0',
+                'bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-r border-gray-200/60 dark:border-slate-700/60 flex flex-col transition-all duration-500 ease-apple h-screen sticky top-0',
                 collapsed ? 'w-20' : 'w-72'
             )}
         >
-            {/* Header / Brand */}
-            <div className="h-16 flex items-center px-6 border-b border-gray-100 dark:border-slate-800">
+            <div className="h-16 flex items-center px-6 border-b border-gray-100/60 dark:border-slate-800/60">
                 <div
-                    className="p-2 rounded-md mr-3 transition-colors duration-300"
+                    className="p-2 rounded-xl mr-3 transition-all duration-300"
                     style={{ backgroundColor: `${theme.primary}15` }}
                 >
                     <BarChart3 className="h-6 w-6" style={{ color: theme.primary }} />
                 </div>
                 {!collapsed && (
-                    <div className="flex flex-col">
+                    <div className="flex flex-col animate-fade-in">
                         <span className="font-bold text-gray-900 dark:text-slate-50 text-lg leading-tight">Monitoring</span>
                         <span className="text-xs text-gray-500 dark:text-slate-400 font-medium tracking-wider">TRACKER SUITE</span>
                     </div>
                 )}
             </div>
 
-            {/* Navigation */}
             <div className="flex-1 py-6 px-4 space-y-8 overflow-y-auto">
-                {/* Main Menu */}
                 <div className="space-y-1">
                     {!collapsed && (
                         <p className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">
@@ -83,7 +80,7 @@ export default function Sidebar() {
                                 key={item.name}
                                 to={item.href}
                                 className={cn(
-                                    'flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-200 group'
+                                    'flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group'
                                 )}
                                 style={{
                                     backgroundColor: isActive ? `${theme.primary}10` : 'transparent',
@@ -93,8 +90,9 @@ export default function Sidebar() {
                             >
                                 <item.icon
                                     className={cn(
-                                        'h-5 w-5 transition-colors',
-                                        !collapsed && 'mr-3'
+                                        'h-5 w-5 transition-all duration-200',
+                                        !collapsed && 'mr-3',
+                                        !isActive && 'text-gray-500 dark:text-slate-400 group-hover:text-gray-700 dark:group-hover:text-slate-300'
                                     )}
                                     style={{
                                         color: isActive ? theme.primary : undefined
@@ -106,7 +104,6 @@ export default function Sidebar() {
                     })}
                 </div>
 
-                {/* System / Bottom Area */}
                 <div className="space-y-1">
                     {!collapsed && (
                         <p className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">
@@ -116,7 +113,7 @@ export default function Sidebar() {
                     <Link
                         to="/settings"
                         className={cn(
-                            'flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+                            'flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 text-gray-600 dark:text-slate-400 hover:bg-gray-100/50 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200',
                             location.pathname === '/settings' && 'text-primary bg-primary/5'
                         )}
                         style={location.pathname === '/settings' ? {
@@ -126,7 +123,7 @@ export default function Sidebar() {
                         title={collapsed ? "Settings" : undefined}
                     >
                         <Settings
-                            className={cn('h-5 w-5 text-gray-400 mr-3')}
+                            className={cn('h-5 w-5 mr-3 transition-all duration-200')}
                             style={location.pathname === '/settings' ? { color: theme.primary } : {}}
                         />
                         {!collapsed && <span>Settings</span>}
@@ -134,8 +131,7 @@ export default function Sidebar() {
                 </div>
             </div>
 
-            {/* Footer / User Profile */}
-            <div className="p-4 border-t border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-800/50">
+            <div className="p-4 border-t border-gray-100/60 dark:border-slate-800/60 bg-gray-50/30 dark:bg-slate-800/30">
                 <div className={cn("flex items-center", collapsed ? "justify-center" : "justify-between")}>
                     <div className="flex items-center">
                         <div
@@ -147,7 +143,7 @@ export default function Sidebar() {
                             {user?.name?.charAt(0) || 'U'}
                         </div>
                         {!collapsed && (
-                            <div className="ml-3">
+                            <div className="ml-3 animate-fade-in">
                                 <p className="text-sm font-semibold text-gray-900 dark:text-slate-50 truncate max-w-[120px]">
                                     {user?.name || 'User'}
                                 </p>
@@ -160,7 +156,7 @@ export default function Sidebar() {
                             <ThemeToggle />
                             <button
                                 onClick={signOut}
-                                className="p-2 hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm rounded-full transition-all text-gray-400 hover:text-destructive"
+                                className="p-2 hover:bg-white/50 dark:hover:bg-slate-700/50 hover:shadow-sm rounded-full transition-all text-gray-400 hover:text-destructive active:scale-90"
                                 title="Sign out"
                             >
                                 <LogOut className="h-4 w-4" />
@@ -170,7 +166,7 @@ export default function Sidebar() {
                 </div>
                 <button
                     onClick={() => setCollapsed(!collapsed)}
-                    className="absolute -right-3 top-20 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-sm rounded-full p-1 text-gray-400 hover:text-primary transition-colors hover:shadow-md"
+                    className="absolute -right-3 top-20 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/60 dark:border-slate-700/60 shadow-sm rounded-full p-1 text-gray-400 hover:text-primary transition-all hover:shadow-md active:scale-90"
                     style={{ color: collapsed ? theme.primary : undefined }}
                 >
                     {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}

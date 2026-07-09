@@ -67,7 +67,7 @@ export default function ApprovalsPage() {
     const processedApprovals = approvals?.filter(a => a.status !== 'pending') || [];
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="space-y-8 animate-fade-in">
             {/* Header */}
             <div className="flex flex-col gap-4">
                 <div>
@@ -126,7 +126,7 @@ export default function ApprovalsPage() {
                 <div className="space-y-4">
                     <h2 className="text-xl font-bold text-slate-900">Pending Requests</h2>
                     {pendingApprovals.map((approval) => (
-                        <Card key={approval.id} className="border-l-4 border-l-amber-500 hover:shadow-lg transition-shadow">
+                        <Card key={approval.id} className="border-l-4 border-l-amber-500 hover:shadow-lg transition-shadow card-lift">
                             <CardContent className="p-6">
                                 <div className="space-y-6">
                                     {/* Header */}

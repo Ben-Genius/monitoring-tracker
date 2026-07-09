@@ -1,0 +1,75 @@
+- generic [ref=e3]:
+  - generic [ref=e5]:
+    - navigation "Main" [ref=e6]:
+      - link "Go to home" [ref=e7] [cursor=pointer]:
+        - /url: /
+        - img "Website logo" [ref=e9]
+      - list [ref=e10]:
+        - listitem [ref=e11]:
+          - link "Home" [ref=e12] [cursor=pointer]:
+            - /url: /
+        - listitem [ref=e13]:
+          - link "About" [ref=e14] [cursor=pointer]:
+            - /url: /about
+        - listitem [ref=e15]:
+          - link "Services" [ref=e16] [cursor=pointer]:
+            - /url: /services
+        - listitem [ref=e17]:
+          - link "Help and Support" [ref=e18] [cursor=pointer]:
+            - /url: /help-support/helpcard
+        - listitem [ref=e19]:
+          - link "Login" [ref=e20] [cursor=pointer]:
+            - /url: https://portal-dev.hobortshipping.com/login
+        - link "Register" [ref=e21] [cursor=pointer]:
+          - /url: /register
+    - separator [ref=e22]
+  - generic [ref=e24]:
+    - paragraph
+  - contentinfo [ref=e27]:
+    - generic [ref=e28]:
+      - generic [ref=e29]:
+        - generic [ref=e30]:
+          - heading "USA Address" [level=3] [ref=e31]
+          - generic [ref=e32]:
+            - paragraph [ref=e33]: 815 Progress Ct Ste A
+            - paragraph [ref=e34]: HOBORT SHIPPING
+            - paragraph [ref=e35]: Lawrenceville, Georgia (GA) 30043
+            - paragraph [ref=e36]: United States
+            - link "+1 404-543-4422" [ref=e37] [cursor=pointer]:
+              - /url: tel:+1 404-543-4422
+        - generic [ref=e38]:
+          - heading "Ghana Address" [level=3] [ref=e39]
+          - generic [ref=e40]:
+            - paragraph [ref=e41]: JWVQ+9WR
+            - paragraph [ref=e42]: HOBORT SHIPPING
+            - paragraph [ref=e43]: Sakumono, Greater Accra
+            - paragraph [ref=e44]: Ghana
+            - link "+233 50 403 0404" [ref=e45] [cursor=pointer]:
+              - /url: tel:+233 50 403 0404
+        - generic [ref=e46]:
+          - heading "Quick Links" [level=3] [ref=e47]
+          - navigation [ref=e48]:
+            - link "About Us" [ref=e49] [cursor=pointer]:
+              - /url: /about
+            - link "FAQs" [ref=e50] [cursor=pointer]:
+              - /url: /help-support/faq
+            - link "Support" [ref=e51] [cursor=pointer]:
+              - /url: /help-support/contactcard
+            - link "Terms & Privacy" [ref=e52] [cursor=pointer]:
+              - /url: /terms-and-condition-privacy
+        - generic [ref=e53]:
+          - heading "Connect" [level=3] [ref=e54]
+          - generic [ref=e55]:
+            - link "Facebook" [ref=e56] [cursor=pointer]:
+              - /url: https://facebook.com/hobortshipping
+              - img [ref=e57]
+            - link "Twitter" [ref=e59] [cursor=pointer]:
+              - /url: https://twitter.com/hobortshipping
+              - img [ref=e60]
+            - link "Instagram" [ref=e62] [cursor=pointer]:
+              - /url: https://instagram.com/hobortshipping
+              - img [ref=e63]
+            - link "WhatsApp" [ref=e65] [cursor=pointer]:
+              - /url: tel:+14045434422
+              - img [ref=e66]
+      - paragraph [ref=e69]: Copyright © 2026 Hobort Shipping. All rights reserved.

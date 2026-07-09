@@ -66,11 +66,9 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // Company colors
         macwest: "#6366f1",
         cypress: "#8b5cf6",
         northbrook: "#ec4899",
-        // Task stage colors
         talking: "#94a3b8",
         yetToStart: "#fbbf24",
         inProgress: "#3b82f6",
@@ -81,6 +79,16 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        pill: "980px",
+      },
+      fontFamily: {
+        sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"Helvetica Neue"', 'sans-serif'],
+      },
+      transitionTimingFunction: {
+        'apple': 'cubic-bezier(0.25, 0.1, 0.25, 1)',
+        'spring': 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+        'spring-gentle': 'cubic-bezier(0.34, 1.3, 0.64, 1)',
+        'snappy': 'cubic-bezier(0.4, 0, 0.2, 1)',
       },
       keyframes: {
         "accordion-down": {
@@ -91,10 +99,35 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        "spring-up": {
+          "0%": { transform: "translateY(16px) scale(0.97)", opacity: "0" },
+          "100%": { transform: "translateY(0) scale(1)", opacity: "1" },
+        },
+        "fade-scale-in": {
+          "0%": { opacity: "0", transform: "scale(0.95)" },
+          "100%": { opacity: "1", transform: "scale(1)" },
+        },
+        "fade-in": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
+        "slide-up": {
+          from: { opacity: "0", transform: "translateY(12px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "haptic-tap": {
+          "0%, 100%": { transform: "scale(1)" },
+          "50%": { transform: "scale(0.96)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "spring-up": "spring-up 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)",
+        "fade-scale-in": "fade-scale-in 0.4s cubic-bezier(0.25, 0.1, 0.25, 1)",
+        "fade-in": "fade-in 0.3s ease",
+        "slide-up": "slide-up 0.5s cubic-bezier(0.25, 0.1, 0.25, 1)",
+        "haptic-tap": "haptic-tap 0.1s ease",
       },
     },
   },

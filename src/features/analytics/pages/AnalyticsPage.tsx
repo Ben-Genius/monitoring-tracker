@@ -47,13 +47,13 @@ export default function AnalyticsPage() {
 
     if (isLoading) {
         return (
-            <div className="space-y-6">
+            <div className="space-y-6 animate-fade-in">
                 <div>
                     <Skeleton className="h-10 w-48 mb-2" />
                     <Skeleton className="h-5 w-96" />
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <Card className="border-slate-200/60 shadow-sm">
+                    <Card className="card-lift border-slate-200/60 shadow-sm">
                         <CardHeader className="border-b border-slate-50 bg-slate-50/20">
                             <Skeleton className="h-6 w-48" />
                         </CardHeader>
@@ -61,7 +61,7 @@ export default function AnalyticsPage() {
                             <Skeleton className="h-full w-full rounded-full" />
                         </CardContent>
                     </Card>
-                    <Card className="border-slate-200/60 shadow-sm">
+                    <Card className="card-lift border-slate-200/60 shadow-sm">
                         <CardHeader className="border-b border-slate-50 bg-slate-50/20">
                             <Skeleton className="h-6 w-48" />
                         </CardHeader>
@@ -69,7 +69,7 @@ export default function AnalyticsPage() {
                             <Skeleton className="h-full w-full" />
                         </CardContent>
                     </Card>
-                    <Card className="lg:col-span-2 border-slate-200/60 shadow-md">
+                    <Card className="card-lift lg:col-span-2 border-slate-200/60 shadow-md">
                         <CardHeader className="border-b border-slate-50 bg-slate-50/20">
                             <Skeleton className="h-6 w-64" />
                         </CardHeader>
@@ -83,7 +83,7 @@ export default function AnalyticsPage() {
     }
 
     return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="space-y-6 animate-fade-in animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Page Header */}
             <div>
                 <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Analytics</h1>
@@ -95,7 +95,7 @@ export default function AnalyticsPage() {
             {/* Charts Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Task Stage Distribution */}
-                <Card className="border-slate-200/60 shadow-sm overflow-hidden">
+                <Card className="card-lift border-slate-200/60 shadow-sm overflow-hidden">
                     <CardHeader className="border-b border-slate-50 bg-slate-50/20">
                         <CardTitle className="text-lg font-bold">Task Stage Distribution</CardTitle>
                     </CardHeader>
@@ -128,7 +128,7 @@ export default function AnalyticsPage() {
                 </Card>
 
                 {/* Company Performance */}
-                <Card className="border-slate-200/60 shadow-sm overflow-hidden">
+                <Card className="card-lift border-slate-200/60 shadow-sm overflow-hidden">
                     <CardHeader className="border-b border-slate-50 bg-slate-50/20">
                         <CardTitle className="text-lg font-bold">Financial Realization</CardTitle>
                     </CardHeader>
@@ -152,7 +152,7 @@ export default function AnalyticsPage() {
                 </Card>
 
                 {/* Monthly Trend */}
-                <Card className="lg:col-span-2 border-slate-200/60 shadow-md overflow-hidden">
+                <Card className="card-lift lg:col-span-2 border-slate-200/60 shadow-md overflow-hidden">
                     <CardHeader className="border-b border-slate-50 bg-slate-50/20">
                         <CardTitle className="text-lg font-bold">Momentum & Revenue Growth</CardTitle>
                     </CardHeader>
@@ -193,7 +193,7 @@ export default function AnalyticsPage() {
                 </Card>
 
                 {/* Top Performers */}
-                <Card className="lg:col-span-2 border-slate-200/60overflow-hidden">
+                <Card className="card-lift lg:col-span-2 border-slate-200/60 overflow-hidden">
                     <CardHeader className="border-b border-slate-50 bg-slate-50/20">
                         <CardTitle className="text-lg font-bold">Execution Leaders</CardTitle>
                     </CardHeader>

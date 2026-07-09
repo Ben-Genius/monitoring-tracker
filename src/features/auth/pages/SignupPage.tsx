@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
+import { Loader2, UserPlus, Mail, Lock, ArrowLeft } from 'lucide-react';
 
 export default function SignupPage() {
     const [searchParams] = useSearchParams();
@@ -15,8 +15,6 @@ export default function SignupPage() {
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [inviteData, setInviteData] = useState<any>(null);
-
-    // Form fields
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');
 
@@ -58,21 +56,17 @@ export default function SignupPage() {
         setError(null);
 
         try {
-            // 1. Sign Up
             const { data: authData, error: authError } = await supabase.auth.signUp({
                 email: inviteData.email,
                 password,
                 options: {
-                    data: {
-                        full_name: name,
-                    }
+                    data: { full_name: name }
                 }
             });
 
             if (authError) throw authError;
             if (!authData.user) throw new Error("Signup failed");
 
-            // 2. Create User Profile
             const { error: profileError } = await supabase
                 .from('users')
                 .insert({
@@ -88,18 +82,14 @@ export default function SignupPage() {
                 throw new Error("Failed to create user profile: " + profileError.message);
             }
 
-            // 3. Mark invite as used
             await supabase
                 .from('pending_invites')
                 .update({ used: true })
                 .eq('id', inviteData.id);
 
-            // 4. Navigate
-            // Wait a moment for session to set
             setTimeout(() => {
                 navigate('/dashboard');
             }, 1000);
-
         } catch (err: any) {
             console.error('Signup error:', err);
             setError(err.message || 'Failed to sign up');
@@ -108,71 +98,111 @@ export default function SignupPage() {
         }
     }
 
-    if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><Loader2 className="animate-spin bg-primary" /></div>;
+    if (loading) return (
+        <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-950">
+            <div className="flex flex-col items-center gap-3">
+                <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                <p className="text-sm text-gray-500 dark:text-slate-400">Validating invitation...</p>
+            </div>
+        </div>
+    );
 
     if (error) return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-            <Card className="w-full max-w-md">
-                <CardHeader>
-                    <CardTitle className="text-red-600">Invitation Error</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p>{error}</p>
-                </CardContent>
-                <CardFooter>
-                    <Button onClick={() => navigate('/login')} className="w-full">Back to Login</Button>
-                </CardFooter>
-            </Card>
+        <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-950 p-4">
+            <div className="w-full max-w-md animate-fade-scale-in">
+                <Card className="rounded-2xl border-gray-200/60 dark:border-slate-700/60 shadow-lg">
+                    <CardHeader>
+                        <div className="w-12 h-12 rounded-2xl bg-error/10 flex items-center justify-center mb-4 mx-auto">
+                            <Loader2 className="w-6 h-6 text-error" />
+                        </div>
+                        <CardTitle className="text-center text-error">Invitation Error</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-center text-gray-600 dark:text-slate-400">{error}</p>
+                    </CardContent>
+                    <CardFooter>
+                        <Button onClick={() => navigate('/login')} className="w-full rounded-pill">Back to Login</Button>
+                    </CardFooter>
+                </Card>
+            </div>
         </div>
     );
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-            <Card className="w-full max-w-md">
-                <CardHeader className="space-y-1">
-                    <CardTitle className="text-2xl font-bold text-center">Accept Invitation</CardTitle>
-                    <p className="text-center text-sm text-gray-500">
-                        Join {inviteData.company?.name || 'the team'} as a {inviteData.role}
-                    </p>
-                </CardHeader>
-                <CardContent>
-                    <form onSubmit={handleSignup} className="space-y-4">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">Email</label>
-                            <Input value={inviteData.email} disabled className="bg-gray-100" />
+        <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-950 p-4">
+            <div className="w-full max-w-md animate-spring-up">
+                <Card className="rounded-2xl border-gray-200/60 dark:border-slate-700/60 shadow-lg">
+                    <CardHeader className="space-y-1 pb-4">
+                        <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-4 mx-auto">
+                            <UserPlus className="w-6 h-6 text-primary" />
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">Full Name</label>
-                            <Input
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                required
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">Create Password</label>
-                            <Input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                                minLength={6}
-                            />
-                        </div>
+                        <CardTitle className="text-2xl font-bold text-center tracking-tight">Accept Invitation</CardTitle>
+                        <p className="text-center text-sm text-gray-500 dark:text-slate-400">
+                            Join <strong>{inviteData.company?.name || 'the team'}</strong> as a <strong className="capitalize">{inviteData.role}</strong>
+                        </p>
+                    </CardHeader>
+                    <CardContent>
+                        <form onSubmit={handleSignup} className="space-y-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-700 dark:text-slate-300">Email</label>
+                                <div className="relative">
+                                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                    <Input value={inviteData.email} disabled className="pl-10 bg-gray-50/50 dark:bg-slate-800/50" />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-700 dark:text-slate-300">Full Name</label>
+                                <div className="relative">
+                                    <UserPlus className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                    <Input
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value)}
+                                        required
+                                        placeholder="Enter your full name"
+                                        className="pl-10"
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-700 dark:text-slate-300">Create Password</label>
+                                <div className="relative">
+                                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                    <Input
+                                        type="password"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        required
+                                        minLength={6}
+                                        placeholder="Min. 6 characters"
+                                        className="pl-10"
+                                    />
+                                </div>
+                            </div>
 
-                        {error && <p className="text-red-500 text-sm">{error}</p>}
+                            {error && (
+                                <div className="bg-error/10 border border-error/20 text-error text-sm p-4 rounded-2xl">
+                                    {error}
+                                </div>
+                            )}
 
-                        <Button type="submit" className="w-full" disabled={submitting}>
-                            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create Account'}
-                        </Button>
-                    </form>
-                </CardContent>
-                <CardFooter className="justify-center">
-                    <Link to="/login" className="text-sm text-gray-500 hover:text-gray-900">
-                        Already have an account? Sign in
-                    </Link>
-                </CardFooter>
-            </Card>
+                            <Button type="submit" className="w-full rounded-pill h-11" disabled={submitting}>
+                                {submitting ? (
+                                    <span className="flex items-center gap-2">
+                                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        Creating account...
+                                    </span>
+                                ) : 'Create Account'}
+                            </Button>
+                        </form>
+                    </CardContent>
+                    <CardFooter className="justify-center pt-2">
+                        <Link to="/login" className="text-sm text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 transition-colors inline-flex items-center gap-1">
+                            <ArrowLeft className="w-3 h-3" />
+                            Already have an account? Sign in
+                        </Link>
+                    </CardFooter>
+                </Card>
+            </div>
         </div>
     );
 }

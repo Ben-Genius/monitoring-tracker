@@ -145,7 +145,7 @@ function TaskRow({ task, onClick, onComplete }: TaskRowProps) {
     return (
         <div
             className={cn(
-                "group flex items-center gap-3 px-3 py-2.5 rounded-lg border border-transparent",
+                "card-lift group flex items-center gap-3 px-3 py-2.5 rounded-xl border border-transparent",
                 "hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-200 dark:hover:border-slate-700 cursor-pointer transition-all",
                 isCompleted && "opacity-60"
             )}
