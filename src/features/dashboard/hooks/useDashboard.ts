@@ -157,27 +157,29 @@ export function useTaskDistribution(companyId?: string) {
     });
 }
 
-// Fetch performance trend for area chart (mocked with real date logic)
 export function usePerformanceTrend(companyId?: string) {
     return useQuery({
         queryKey: ['performance-trend', companyId],
         queryFn: async () => {
-            // For now, we'll return some baseline data based on created_at dates
-            // In a real app, this would be a more complex aggregation
-            const { data, error } = await supabase
+            let query = supabase
                 .from('tasks')
                 .select('created_at, project:projects!inner(company_id)')
                 .order('created_at', { ascending: true });
 
+            if (companyId && companyId !== 'all') {
+                query = query.eq('project.company_id', companyId);
+            }
+
+            const { data, error } = await query;
             if (error) throw error;
 
-            const trend: Record<string, number> = {};
+            const trend = new Map<string, number>();
             data?.forEach((task: any) => {
                 const date = new Date(task.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                trend[date] = (trend[date] || 0) + 1;
+                trend.set(date, (trend.get(date) || 0) + 1);
             });
 
-            return Object.entries(trend).map(([name, value]) => ({ name, value }));
+            return Array.from(trend.entries()).map(([name, value]) => ({ name, value }));
         },
     });
 }

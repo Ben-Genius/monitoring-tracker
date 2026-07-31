@@ -4,11 +4,11 @@ import { useQuery } from '@tanstack/react-query';
 export interface PipelineProject {
     id: string;
     name: string;
-    client: string;
+    client_name: string;
     estimated_value: number;
     probability: number;
     stage: string;
-    expected_close: string;
+    expected_close_date: string;
     company_id: string;
     company_name?: string;
 }

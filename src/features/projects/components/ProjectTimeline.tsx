@@ -4,7 +4,9 @@ import {
     Clock,
     ArrowRight,
     Play,
-    Check
+    Check,
+    ListTodo,
+    Flag
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -22,9 +24,13 @@ interface ProjectTimelineProps {
     className?: string;
     theme?: { primary: string; accent: string };
     onRequestTransition?: () => void;
+    taskProgress?: number;
+    totalTasks?: number;
+    completedTasks?: number;
+    milestoneProgress?: number;
 }
 
-export default function ProjectTimeline({ currentStage, className, theme: customTheme, onRequestTransition }: ProjectTimelineProps) {
+export default function ProjectTimeline({ currentStage, className, theme: customTheme, onRequestTransition, taskProgress, totalTasks, completedTasks, milestoneProgress }: ProjectTimelineProps) {
     const defaultTheme = { primary: '#6366f1', accent: '#8b5cf6' }; // Default indigo/violet
     const theme = customTheme || defaultTheme;
 
@@ -104,11 +110,27 @@ export default function ProjectTimeline({ currentStage, className, theme: custom
                                 "Project completed. Final review and handover documents are being finalized."}
                     </p>
                 </div>
+                <div className="flex items-center gap-4">
+                    {totalTasks !== undefined && (
+                        <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                            <ListTodo className="h-3.5 w-3.5" />
+                            <span>{completedTasks ?? 0}/{totalTasks} tasks</span>
+                            <span className="text-slate-300 dark:text-slate-600">·</span>
+                            <span>{taskProgress ?? 0}%</span>
+                        </div>
+                    )}
+                    {milestoneProgress !== undefined && (
+                        <div className="flex items-center gap-1 text-xs font-semibold text-amber-500">
+                            <Flag className="h-3.5 w-3.5" />
+                            <span>{milestoneProgress}% milestones</span>
+                        </div>
+                    )}
+                </div>
                 {currentStage !== 'completed' && (
                     <Button
                         size="sm"
                         variant="secondary"
-                        className="font-bold h-9 px-5 rounded-lg text-xs"
+                        className="font-bold h-9 px-5 rounded-lg text-xs shrink-0"
                         onClick={onRequestTransition}
                     >
                         Request Transition

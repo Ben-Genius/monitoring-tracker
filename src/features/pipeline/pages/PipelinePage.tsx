@@ -34,7 +34,7 @@ export default function PipelinePage() {
     }
 
     return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="space-y-6 animate-fade-in">
             {/* Page Header */}
             <div className="flex items-center justify-between">
                 <div>
@@ -54,7 +54,7 @@ export default function PipelinePage() {
 
             {/* Pipeline Summary */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="border-slate-200/60 shadow-sm group hover:shadow-md transition-all">
+                <Card className="border-slate-200/60 shadow-sm group hover:shadow-md transition-all card-lift">
                     <CardContent className="p-6">
                         <div className="flex items-center justify-between">
                             <div>
@@ -75,7 +75,7 @@ export default function PipelinePage() {
                     </CardContent>
                 </Card>
 
-                <Card className="border-slate-200/60 shadow-sm group hover:shadow-md transition-all">
+                <Card className="border-slate-200/60 shadow-sm group hover:shadow-md transition-all card-lift">
                     <CardContent className="p-6">
                         <div className="flex items-center justify-between">
                             <div>
@@ -93,7 +93,7 @@ export default function PipelinePage() {
                     </CardContent>
                 </Card>
 
-                <Card className="border-slate-200/60 shadow-sm group hover:shadow-md transition-all">
+                <Card className="border-slate-200/60 shadow-sm group hover:shadow-md transition-all card-lift">
                     <CardContent className="p-6">
                         <div className="flex items-center justify-between">
                             <div>
@@ -200,11 +200,11 @@ export default function PipelinePage() {
                                             </div>
                                             <div className="flex items-center gap-1.5 hover:text-slate-600 transition-colors">
                                                 <Calendar className="h-3.5 w-3.5" />
-                                                Expected {project.expected_close}
+                                                Expected {project.expected_close_date}
                                             </div>
                                             <div className="flex items-center gap-1.5 hover:text-slate-600 transition-colors">
                                                 <Badge variant="outline" className="border-slate-100 text-[10px] font-bold text-slate-400">
-                                                    Client: {project.client}
+                                                    Client: {project.client_name}
                                                 </Badge>
                                             </div>
                                         </div>

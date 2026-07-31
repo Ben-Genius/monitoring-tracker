@@ -1,0 +1,274 @@
+- generic [ref=e3] [box=0,0,1200,3934]:
+  - generic [ref=e5] [box=0,0,1200,66]:
+    - navigation "Main" [ref=e6] [box=13,13,1174,39]:
+      - link "Go to home" [ref=e7] [cursor=pointer] [box=53,13,128,31]:
+        - /url: /
+        - img "Website logo" [ref=e9] [box=53,13,128,31]
+      - list [ref=e10] [box=639,14,508,28]:
+        - listitem [ref=e11] [box=639,18,38,20]:
+          - link "Home" [ref=e12] [cursor=pointer] [box=639,20,38,17]:
+            - /url: /
+        - listitem [ref=e13] [box=701,18,39,20]:
+          - link "About" [ref=e14] [cursor=pointer] [box=701,20,39,17]:
+            - /url: /about
+        - listitem [ref=e15] [box=764,18,55,20]:
+          - link "Services" [ref=e16] [cursor=pointer] [box=764,20,55,17]:
+            - /url: /services
+        - listitem [ref=e17] [box=843,18,113,20]:
+          - link "Help and Support" [ref=e18] [cursor=pointer] [box=843,20,113,17]:
+            - /url: /help-support/helpcard
+        - listitem [ref=e19] [box=981,16,57,25]:
+          - link "Login" [ref=e20] [cursor=pointer] [box=981,17,57,24]:
+            - /url: https://portal-dev.hobortshipping.com/login
+        - link "Register" [ref=e21] [cursor=pointer] [box=1062,14,85,28]:
+          - /url: /register
+    - separator [ref=e22] [box=13,52,1174,1]
+  - generic [ref=e70] [box=0,66,1200,3510]:
+    - generic [ref=e71] [box=0,66,1200,1606]:
+      - generic [ref=e74] [box=0,320,1200,212]:
+        - generic [ref=e75] [box=279,320,641,140]:
+          - generic [ref=e76] [box=279,320,641,40]: DISCOVER
+          - heading "HOBORT SHIPPING" [level=1] [ref=e77] [box=279,360,641,72]
+          - paragraph [ref=e78] [box=279,432,641,28]: Lightning-Fast Global Deliveries at Your Fingertips
+        - link "Create a New Shipment" [ref=e80] [cursor=pointer] [box=508,480,184,52]:
+          - /url: /register
+          - button "Create a New Shipment" [ref=e81] [box=508,491,184,40]
+      - generic [ref=e84] [box=12,786,1200,150]:
+        - link " Get Shipping Quote" [ref=e86] [cursor=pointer] [box=13,747,305,117]:
+          - /url: /getQuote
+          - generic [ref=e87] [box=13,747,305,117]:
+            - generic [ref=e88] [box=153,767,24,27]: 
+            - heading "Get Shipping Quote" [level=4] [ref=e90] [box=91,804,148,25]
+        - link " Delivery services" [ref=e92] [cursor=pointer] [box=338,747,305,117]:
+          - /url: /delivery-services/export
+          - generic [ref=e93] [box=338,747,305,117]:
+            - generic [ref=e94] [box=477,767,27,27]: 
+            - heading "Delivery services" [level=4] [ref=e96] [box=425,804,130,25]
+        - generic [ref=e99] [box=686,774,502,62]:
+          - textbox "Enter your tracking number here" [ref=e100] [box=687,775,366,59]:
+            - /placeholder: Enter your tracking  number here
+          - button "Track" [ref=e101] [cursor=pointer] [box=1053,775,134,60]:
+            - generic [ref=e102] [box=1085,796,42,18]: Track
+            - img [ref=e103] [box=1135,795,20,20]
+      - generic [ref=e105] [box=0,1016,1200,736]:
+        - heading "Get to know Hobort" [level=2] [ref=e108] [box=10,1045,378,57]: Get to know Hobort
+        - generic [ref=e110] [box=0,1088,1200,664]:
+          - generic [ref=e111] [box=0,1160,270,600]:
+            - generic [ref=e112] [box=0,1160,270,108]:
+              - paragraph [ref=e113] [box=24,1184,222,20]: Trusted
+              - heading "Who We Are" [level=2] [ref=e114] [box=24,1204,222,32]
+            - button "+" [ref=e116] [cursor=pointer] [box=222,1712,32,32]:
+              - generic [ref=e117] [box=232,1714,12,28]: +
+          - generic [ref=e118] [box=310,1160,270,600]:
+            - generic [ref=e119] [box=310,1160,270,108]:
+              - paragraph [ref=e120] [box=334,1184,222,20]: Fast
+              - heading "Our Commitment" [level=2] [ref=e121] [box=334,1204,222,32]
+            - button "+" [ref=e123] [cursor=pointer] [box=532,1712,32,32]:
+              - generic [ref=e124] [box=542,1714,12,28]: +
+          - generic [ref=e125] [box=620,1160,270,600]:
+            - generic [ref=e126] [box=620,1160,270,140]:
+              - paragraph [ref=e127] [box=644,1184,222,20]: Reliable
+              - heading "Ready to Create Shipment" [level=2] [ref=e128] [box=644,1204,222,64]
+            - button "+" [ref=e130] [cursor=pointer] [box=842,1712,32,32]:
+              - generic [ref=e131] [box=852,1714,12,28]: +
+          - generic [ref=e132] [box=930,1160,270,600]:
+            - generic [ref=e133] [box=930,1160,270,108]:
+              - paragraph [ref=e134] [box=954,1184,222,20]: Global
+              - heading "Global Shipment" [level=2] [ref=e135] [box=954,1204,222,32]
+            - button "+" [ref=e137] [cursor=pointer] [box=1152,1712,32,32]:
+              - generic [ref=e138] [box=1162,1714,12,28]: +
+    - generic [ref=e139] [box=0,1792,1200,775]:
+      - heading "Explore our services" [level=2] [ref=e142] [box=10,1821,389,57]: Explore our services
+      - generic [ref=e144] [box=32,1937,1136,582]:
+        - generic [ref=e145] [box=32,1937,1136,550]:
+          - button [disabled] [ref=e146] [box=12,2212,32,34]:
+            - img [ref=e147] [box=20,2222,16,16]
+          - button [disabled] [ref=e149] [box=1160,2212,32,34]:
+            - img [ref=e150] [box=1168,2222,16,16]
+          - generic [ref=e153] [box=-179,1937,1136,550]:
+            - generic [ref=e157] [box=-163,2454,347,276]:
+              - heading "Pick-Up Service" [level=3] [ref=e158] [box=-139,2478,299,32]
+              - generic [ref=e159] [box=-139,2546,299,180]:
+                - paragraph [ref=e160] [box=-139,2546,299,120]: We offer pick-up service for our customers residing anywhere in the world. You can mail your packages to us or have us pick up your shipment for ahead transportation to Ghana.
+                - button "Learn More" [ref=e161] [cursor=pointer] [box=-139,2690,120,36]
+            - generic [ref=e165] [box=215,2447,347,300]:
+              - heading "Air Delivery/Air Cargo" [level=3] [ref=e166] [box=239,2471,299,32]
+              - generic [ref=e167] [box=239,2539,299,204]:
+                - paragraph [ref=e168] [box=239,2539,299,144]: Hobort Operates one of the largest and most advanced freight networks in the world including the United States, United Kingdom, Europe, Canada, and all major countries at cost-effective delivery solutions.
+                - button "Learn More" [ref=e169] [cursor=pointer] [box=239,2707,120,36]
+            - generic [ref=e173] [box=594,2454,347,276]:
+              - heading "Ocean Freight" [level=3] [ref=e174] [box=618,2478,299,32]
+              - generic [ref=e175] [box=618,2546,299,180]:
+                - paragraph [ref=e176] [box=618,2546,299,120]: Enjoy faster delivery and affordable shipping cost with our strong global network. Our highly skilled team of experts takes care of your shipment throughout the entire process.
+                - button "Learn More" [ref=e177] [cursor=pointer] [box=618,2690,120,36]
+            - generic [ref=e181] [box=973,2461,347,252]:
+              - heading "Customs Clearing" [level=3] [ref=e182] [box=997,2485,299,32]
+              - generic [ref=e183] [box=997,2553,299,156]:
+                - paragraph [ref=e184] [box=997,2553,299,96]: We offer comprehensive shipping services, from picking up, shipping, and clearing at the port up to delivery in Ghana. No hassle for your beneficiaries.
+                - button "Learn More" [ref=e185] [cursor=pointer] [box=997,2673,120,36]
+            - generic [ref=e189] [box=1351,2454,347,276]:
+              - heading "Auto/Vehicle Delivery" [level=3] [ref=e190] [box=1375,2478,299,32]
+              - generic [ref=e191] [box=1375,2546,299,180]:
+                - paragraph [ref=e192] [box=1375,2546,299,120]: Trust us with your vehicles - guaranteed no scratch, dent or damage. Competitive rates through container shipping with delivery to Ghana in approximately 6-8 months.
+                - button "Learn More" [ref=e193] [cursor=pointer] [box=1375,2690,120,36]
+            - generic [ref=e197] [box=1730,2454,347,276]:
+              - heading "Door to Door Delivery" [level=3] [ref=e198] [box=1754,2478,299,32]
+              - generic [ref=e199] [box=1754,2546,299,180]:
+                - paragraph [ref=e200] [box=1754,2546,299,120]: Nobody covers Ghana like we do. We deliver to any location across Ghana - North, East, West or South. Your packages reach your family/partners safely and on time.
+                - button "Learn More" [ref=e201] [cursor=pointer] [box=1754,2690,120,36]
+            - generic [ref=e205] [box=2109,2454,347,276]:
+              - heading "Export Shipping" [level=3] [ref=e206] [box=2133,2478,299,32]
+              - generic [ref=e207] [box=2133,2546,299,180]:
+                - paragraph [ref=e208] [box=2133,2546,299,120]: Hassle-free, reliable, and modest means to trade your items from Ghana to the USA and worldwide. Focus on your business while we handle the complexities of international trade.
+                - button "Learn More" [ref=e209] [cursor=pointer] [box=2133,2690,120,36]
+        - generic [ref=e210] [box=32,2511,1136,8]:
+          - button [disabled] [ref=e211] [box=564,2511,8,8]
+          - button [disabled] [ref=e212] [box=580,2511,8,8]
+          - button [disabled] [ref=e213] [box=596,2511,8,8]
+          - button [disabled] [ref=e214] [box=612,2511,8,8]
+          - button [disabled] [ref=e215] [box=628,2511,8,8]
+    - generic [ref=e216] [box=0,2567,1200,1010]:
+      - generic [ref=e217] [box=0,2619,1200,521]:
+        - heading "Your Shipping, Simplified" [level=2] [ref=e219] [box=13,2648,479,57]: Your Shipping, Simplified
+        - generic [ref=e223] [box=24,2847,1152,280]:
+          - generic [ref=e225] [box=24,2847,1152,280]:
+            - generic [ref=e228] [box=44,2877,330,280]:
+              - img [ref=e230] [box=76,2909,32,32]
+              - generic [ref=e235] [box=76,2961,266,80]:
+                - heading "Ship Now" [level=3] [ref=e236] [box=76,2961,266,26]
+                - paragraph [ref=e237] [box=76,2999,266,42]: Get access to powerful and time-saving features found in myHobort+
+              - button "Create a Login and Ship" [ref=e239] [cursor=pointer] [box=171,3108,171,16]:
+                - text: Create a Login and Ship
+                - img [ref=e240] [box=326,3108,16,16]
+            - generic [ref=e245] [box=414,2877,330,280]:
+              - img [ref=e247] [box=446,2909,32,32]
+              - generic [ref=e251] [box=446,2961,266,101]:
+                - heading "Save on Frequent Shipping" [level=3] [ref=e252] [box=446,2961,266,26]
+                - paragraph [ref=e253] [box=446,2999,266,63]: Get preferred rates, billing options, and other great benefits with our premium shipping program
+              - link "Open an Account" [ref=e255] [cursor=pointer] [box=579,3103,133,22]:
+                - /url: /register
+                - text: Open an Account
+                - img [ref=e256] [box=696,3106,16,16]
+            - generic [ref=e259] [box=784,2877,330,280]:
+              - img [ref=e261] [box=816,2909,32,32]
+              - generic [ref=e264] [box=816,2961,266,107]:
+                - heading "Customs Regulatory Updates" [level=3] [ref=e265] [box=816,2961,266,53]
+                - paragraph [ref=e266] [box=816,3025,266,42]: Stay in the know with the latest shipping guidelines and regulatory changes
+              - button "View More" [ref=e268] [cursor=pointer] [box=996,3108,86,16]:
+                - text: View More
+                - img [ref=e269] [box=1066,3108,16,16]
+            - generic [ref=e272] [box=1154,2877,330,280]:
+              - img [ref=e274] [box=1186,2909,32,32]
+              - generic [ref=e279] [box=1186,2961,266,80]:
+                - heading "Not Home? Change of Plans" [level=3] [ref=e280] [box=1186,2961,266,26]
+                - paragraph [ref=e281] [box=1186,2999,266,42]: Take control of your shipment delivery with our flexible delivery management
+              - button "Learn About Delivery Management" [ref=e283] [cursor=pointer] [box=1216,3108,236,16]:
+                - text: Learn About Delivery Management
+                - img [ref=e284] [box=1436,3108,16,16]
+            - generic [ref=e287] [box=1524,2877,330,280]:
+              - img [ref=e289] [box=1556,2909,32,32]
+              - generic [ref=e291] [box=1556,2961,266,101]:
+                - heading "Are Batteries Included?" [level=3] [ref=e292] [box=1556,2961,266,26]
+                - paragraph [ref=e293] [box=1556,2999,266,63]: Ensure you know the rules regarding Dangerous Goods and shipping regulated materials
+              - button "Understanding Dangerous Goods" [ref=e295] [cursor=pointer] [box=1593,3108,229,16]:
+                - text: Understanding Dangerous Goods
+                - img [ref=e296] [box=1806,3108,16,16]
+            - generic [ref=e299] [box=1894,2877,330,280]:
+              - img [ref=e301] [box=1926,2909,32,32]
+              - generic [ref=e304] [box=1926,2961,266,107]:
+                - heading "Flexibility For Whatever You Need" [level=3] [ref=e305] [box=1926,2961,266,53]
+                - paragraph [ref=e306] [box=1926,3025,266,42]: We offer flexible additional services that cater to a variety of shipment needs
+              - button "Learn About Optional Services" [ref=e308] [cursor=pointer] [box=1983,3108,209,16]:
+                - text: Learn About Optional Services
+                - img [ref=e309] [box=2176,3108,16,16]
+          - generic [box=24,2974,1152,26]:
+            - button [ref=e310] [cursor=pointer] [box=10,2974,26,26]:
+              - img [ref=e311] [box=15,2979,16,16]
+            - button [ref=e313] [cursor=pointer] [box=1178,2974,26,26]:
+              - img [ref=e314] [box=1183,2979,16,16]
+        - heading "Hear It From Happy Shippers" [level=2] [ref=e317] [box=15,3072,555,57]: Hear It From Happy Shippers
+      - generic [ref=e321] [box=0,3259,1200,284]:
+        - generic [ref=e323] [box=0,3259,1216,284]:
+          - figure "Afrilogic Solutions @afs" [ref=e326] [box=16,3309,357,260]:
+            - blockquote [ref=e327] [box=48,3341,293,72]:
+              - paragraph [ref=e328] [box=48,3341,293,72]: "\"The efficiency and reliability of Hobort Shipping are unmatched. Our goods always arrive on time and in perfect condition.\""
+            - generic [ref=e331] [box=104,3463,124,48]:
+              - generic [ref=e332] [box=104,3463,124,24]: Afrilogic Solutions
+              - generic [ref=e333] [box=104,3487,124,24]: "@afs"
+          - figure "Elliot Awe @elliawe" [ref=e336] [box=421,3309,357,260]:
+            - blockquote [ref=e337] [box=453,3341,293,72]:
+              - paragraph [ref=e338] [box=453,3341,293,72]: "\"Exceptional customer service and competitive pricing. I highly recommend Hobort Shipping for all your logistics needs.\""
+            - generic [ref=e341] [box=509,3463,65,48]:
+              - generic [ref=e342] [box=509,3463,65,24]: Elliot Awe
+              - generic [ref=e343] [box=509,3487,65,24]: "@elliawe"
+          - figure "Kojo Quiote @kojoque" [ref=e346] [box=827,3309,357,284]:
+            - blockquote [ref=e347] [box=859,3341,293,96]:
+              - paragraph [ref=e348] [box=859,3341,293,96]: "\"Hobort Shipping's global reach and timely delivery have greatly benefited our business operations. Truly a top-notch shipping partner.\""
+            - generic [ref=e351] [box=915,3487,78,48]:
+              - generic [ref=e352] [box=915,3487,78,24]: Kojo Quiote
+              - generic [ref=e353] [box=915,3511,78,24]: "@kojoque"
+          - figure "Bernard Wiafe @bengenius" [ref=e356] [box=1232,3309,357,260]:
+            - blockquote [ref=e357] [box=1264,3341,293,72]:
+              - paragraph [ref=e358] [box=1264,3341,293,72]: "\"I have been using Hobort Shipping services for years and have never faced any issues. Their professionalism is commendable.\""
+            - generic [ref=e361] [box=1320,3463,96,48]:
+              - generic [ref=e362] [box=1320,3463,96,24]: Bernard Wiafe
+              - generic [ref=e363] [box=1320,3487,96,24]: "@bengenius"
+          - figure "Ruth Skel @rusk" [ref=e366] [box=1637,3309,357,284]:
+            - blockquote [ref=e367] [box=1669,3341,293,96]:
+              - paragraph [ref=e368] [box=1669,3341,293,96]: "\"Hobort Shipping's innovative tracking system keeps us informed at every step of the shipping process. Excellent service all around.\""
+            - generic [ref=e371] [box=1725,3487,64,48]:
+              - generic [ref=e372] [box=1725,3487,64,24]: Ruth Skel
+              - generic [ref=e373] [box=1725,3511,64,24]: "@rusk"
+        - generic [box=0,3388,1200,26]:
+          - button [ref=e374] [cursor=pointer] [box=-14,3388,26,26]:
+            - img [ref=e375] [box=-9,3393,16,16]
+          - button [ref=e377] [cursor=pointer] [box=1202,3388,26,26]:
+            - img [ref=e378] [box=1207,3393,16,16]
+  - contentinfo [ref=e27] [box=0,3576,1200,358]:
+    - generic [ref=e28] [box=0,3577,1200,357]:
+      - generic [ref=e29] [box=32,3625,1136,160]:
+        - generic [ref=e30] [box=32,3625,260,160]:
+          - heading "USA Address" [level=3] [ref=e31] [box=32,3625,260,20]
+          - generic [ref=e32] [box=32,3661,260,124]:
+            - paragraph [ref=e33] [box=32,3661,260,20]: 815 Progress Ct Ste A
+            - paragraph [ref=e34] [box=32,3689,260,20]: HOBORT SHIPPING
+            - paragraph [ref=e35] [box=32,3717,260,20]: Lawrenceville, Georgia (GA) 30043
+            - paragraph [ref=e36] [box=32,3745,260,20]: United States
+            - link "+1 404-543-4422" [ref=e37] [cursor=pointer] [box=32,3767,118,17]:
+              - /url: tel:+1 404-543-4422
+        - generic [ref=e38] [box=324,3625,260,160]:
+          - heading "Ghana Address" [level=3] [ref=e39] [box=324,3625,260,20]
+          - generic [ref=e40] [box=324,3661,260,124]:
+            - paragraph [ref=e41] [box=324,3661,260,20]: JWVQ+9WR
+            - paragraph [ref=e42] [box=324,3689,260,20]: HOBORT SHIPPING
+            - paragraph [ref=e43] [box=324,3717,260,20]: Sakumono, Greater Accra
+            - paragraph [ref=e44] [box=324,3745,260,20]: Ghana
+            - link "+233 50 403 0404" [ref=e45] [cursor=pointer] [box=324,3767,124,17]:
+              - /url: tel:+233 50 403 0404
+        - generic [ref=e46] [box=616,3625,260,160]:
+          - heading "Quick Links" [level=3] [ref=e47] [box=616,3625,260,20]
+          - navigation [ref=e48] [box=616,3661,260,116]:
+            - link "About Us" [ref=e49] [cursor=pointer] [box=616,3661,260,20]:
+              - /url: /about
+            - link "FAQs" [ref=e50] [cursor=pointer] [box=616,3693,260,20]:
+              - /url: /help-support/faq
+            - link "Support" [ref=e51] [cursor=pointer] [box=616,3725,260,20]:
+              - /url: /help-support/contactcard
+            - link "Terms & Privacy" [ref=e52] [cursor=pointer] [box=616,3757,260,20]:
+              - /url: /terms-and-condition-privacy
+        - generic [ref=e53] [box=908,3625,260,160]:
+          - heading "Connect" [level=3] [ref=e54] [box=908,3625,260,20]
+          - generic [ref=e55] [box=908,3661,260,26]:
+            - link "Facebook" [ref=e56] [cursor=pointer] [box=908,3661,24,26]:
+              - /url: https://facebook.com/hobortshipping
+              - img [ref=e57] [box=908,3663,24,24]
+            - link "Twitter" [ref=e59] [cursor=pointer] [box=948,3661,24,26]:
+              - /url: https://twitter.com/hobortshipping
+              - img [ref=e60] [box=948,3663,24,24]
+            - link "Instagram" [ref=e62] [cursor=pointer] [box=988,3661,24,26]:
+              - /url: https://instagram.com/hobortshipping
+              - img [ref=e63] [box=988,3663,24,24]
+            - link "WhatsApp" [ref=e65] [cursor=pointer] [box=1028,3661,24,26]:
+              - /url: tel:+14045434422
+              - img [ref=e66] [box=1028,3663,24,24]
+      - paragraph [ref=e69] [box=32,3866,1136,20]: Copyright © 2026 Hobort Shipping. All rights reserved.

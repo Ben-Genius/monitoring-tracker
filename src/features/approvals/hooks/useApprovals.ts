@@ -134,9 +134,12 @@ export function useProcessApproval() {
             if (fetchError) throw fetchError;
 
             // Update the approval status
+            const updateData: Record<string, unknown> = { status };
+            if (comments !== undefined) updateData.comments = comments;
+
             const { data, error } = await supabase
                 .from('approvals')
-                .update({ status, comments })
+                .update(updateData)
                 .eq('id', id)
                 .select(`
                     *,

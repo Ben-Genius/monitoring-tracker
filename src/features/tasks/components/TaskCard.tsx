@@ -62,7 +62,7 @@ export default function TaskCard({ task, isDragging = false, onClick }: TaskCard
                 onClick?.();
             }}
             className={cn(
-                'group relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-200 cursor-grab active:cursor-grabbing select-none',
+                'card-lift group relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-200 cursor-grab active:cursor-grabbing select-none',
                 isDragging && 'opacity-40 scale-95 shadow-2xl ring-2 ring-primary/20',
                 isOverdue && 'border-red-200 dark:border-red-900/50 bg-red-50/30 dark:bg-red-900/10',
                 isDueToday && 'border-orange-200 dark:border-orange-900/50 bg-orange-50/30 dark:bg-orange-900/10'

@@ -18,7 +18,7 @@ export function useUsers(companyId?: string) {
                 .select('*')
                 .order('name');
 
-            if (companyId) {
+            if (companyId && companyId !== 'all') {
                 query = query.eq('company_id', companyId);
             }
 

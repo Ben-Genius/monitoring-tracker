@@ -1,13 +1,14 @@
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabaseLog } from '@/features/audit/utils/log';
 
 export interface Project {
     id: string;
     name: string;
     description: string | null;
     company_id: string;
-    lead_id: string | null;
-    status: 'planning' | 'active' | 'completed' | 'on_hold' | 'cancelled';
+    status: 'active' | 'completed' | 'on_hold';
+    service_type: string | null;
     contract_value: number;
     actual_cost: number;
     expected_handover: string;
@@ -18,7 +19,7 @@ export interface Project {
     company?: {
         name: string;
     };
-    lead?: {
+    creator?: {
         name: string;
         email: string;
     };
@@ -29,7 +30,7 @@ export interface CreateProjectInput {
     name: string;
     description?: string;
     company_id: string;
-    lead_id?: string;
+    service_type?: string;
     contract_value: number;
     expected_handover: string;
     start_date?: string;
@@ -46,7 +47,7 @@ export function useProjects(companyId?: string) {
                 .select(`
           *,
           company:companies(name),
-          lead:users!projects_created_by_fkey(name),
+          creator:users!projects_created_by_fkey(name),
           tasks!tasks_project_id_fkey(id, title, stage)
         `)
                 .order('created_at', { ascending: false });
@@ -72,7 +73,7 @@ export function useProject(id: string) {
                 .select(`
           *,
           company:companies(name),
-          lead:users!projects_created_by_fkey(name, email),
+          creator:users!projects_created_by_fkey(name, email),
           tasks!tasks_project_id_fkey(id, title, stage)
         `)
                 .eq('id', id)
@@ -118,6 +119,12 @@ export function useUpdateProject(id: string) {
 
     return useMutation({
         mutationFn: async (input: Partial<CreateProjectInput>) => {
+            const { data: existing } = await supabase
+                .from('projects')
+                .select('name, status, contract_value')
+                .eq('id', id)
+                .single();
+
             const { data, error } = await supabase
                 .from('projects')
                 .update(input)
@@ -126,6 +133,30 @@ export function useUpdateProject(id: string) {
                 .single();
 
             if (error) throw error;
+
+            if (input.status && existing && existing.status !== input.status) {
+                supabaseLog({
+                    entity_type: 'project',
+                    entity_id: id,
+                    action: 'status_changed',
+                    field: 'status',
+                    old_value: existing.status,
+                    new_value: input.status,
+                    summary: `Project "${existing.name || data.name}" status changed to ${input.status.replace('_', ' ')}`,
+                });
+            }
+            if (input.contract_value !== undefined && existing && Number(existing.contract_value) !== Number(input.contract_value)) {
+                supabaseLog({
+                    entity_type: 'project',
+                    entity_id: id,
+                    action: 'updated',
+                    field: 'contract_value',
+                    old_value: String(existing.contract_value),
+                    new_value: String(input.contract_value),
+                    summary: `Project "${existing.name || data.name}" budget changed from GHS ${Number(existing.contract_value).toLocaleString()} to GHS ${Number(input.contract_value).toLocaleString()}`,
+                });
+            }
+
             return data;
         },
         onSuccess: () => {

@@ -135,7 +135,7 @@ export default function TaskBoardPage() {
 
     if (isLoading) {
         return (
-            <div className="flex flex-col h-[calc(100vh-100px)] space-y-4">
+        <div className="animate-fade-in flex flex-col h-[calc(100vh-100px)] space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                         <Skeleton className="h-8 w-32 mb-2" />
@@ -159,7 +159,7 @@ export default function TaskBoardPage() {
                                 </div>
                                 <div className="space-y-1">
                                     {[1, 2, 3].map(row => (
-                                        <div key={row} className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-transparent bg-white dark:bg-slate-900">
+                                        <div key={row} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-transparent bg-white dark:bg-slate-900">
                                             <Skeleton className="h-5 w-5 rounded-full" />
                                             <div className="flex-1">
                                                 <Skeleton className="h-5 w-1/3" />
@@ -194,7 +194,7 @@ export default function TaskBoardPage() {
     }
 
     return (
-        <div className="flex flex-col h-[calc(100vh-100px)] space-y-4">
+        <div className="animate-fade-in flex flex-col h-[calc(100vh-100px)] space-y-4">
             {/* Page Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
@@ -360,7 +360,7 @@ function TaskColumn({ stage, tasks, onAddTask, stageId, onTaskClick, activeTheme
                 <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 hover:bg-white/80 dark:hover:bg-slate-800/80 rounded-md"
+                    className="h-8 w-8 hover:bg-white/80 dark:hover:bg-slate-800/80 rounded-xl"
                     onClick={onAddTask}
                 >
                     <Plus className="h-4 w-4 text-slate-500" />

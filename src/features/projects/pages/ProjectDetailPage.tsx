@@ -31,17 +31,24 @@ import {
     Share2,
     Download,
     BarChart2,
-    Shield
+    Shield,
+    Trash2,
+    Flag,
+    AlertCircle
 } from 'lucide-react';
 import { useProject } from '../hooks/useProjects';
+import { useProjectProgress } from '../hooks/useProjectProgress';
+import { useMilestones, useCreateMilestone, useUpdateMilestone, useDeleteMilestone } from '../hooks/useMilestones';
 import { useTasks } from '@/features/tasks/hooks/useTasks';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
+import { ProgressBar } from '@/components/ui/progress';
 import { formatCurrency, calculateProfitability, cn, getCompanyTheme } from '@/lib/utils';
 import { useProjectComments, useCreateProjectComment, useProjectAttachments } from '../hooks/useProjectDetails';
 import { toast } from 'react-hot-toast';
 import CreateTaskModal from '@/features/tasks/components/CreateTaskModal';
 import TaskDrawer from '@/features/tasks/components/TaskDrawer';
 import { Task } from '@/features/tasks/hooks/useTasks';
+import { AuditFeed } from '@/features/audit/components/AuditFeed';
 
 export default function ProjectDetailPage() {
     const { id } = useParams();
@@ -54,6 +61,12 @@ export default function ProjectDetailPage() {
 
     const createApproval = useCreateApproval();
     const createComment = useCreateProjectComment();
+
+    const { progress, taskProgress, milestoneProgress, totalTasks, completedTasks, milestoneCount, completedMilestones } = useProjectProgress(id || '');
+    const { data: milestones = [] } = useMilestones(id || '');
+    const createMilestone = useCreateMilestone();
+    const updateMilestone = useUpdateMilestone();
+    const deleteMilestone = useDeleteMilestone();
 
     const [commentText, setCommentText] = useState('');
     const [activeTab, setActiveTab] = useState('overview');
@@ -119,7 +132,7 @@ export default function ProjectDetailPage() {
 
 
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="space-y-8 animate-fade-in">
             {/* Header / Action Bar */}
             <div className="flex items-center justify-between">
                 <Button variant="ghost" onClick={() => navigate('/projects')} className="group font-bold text-slate-500 hover:text-slate-900">
@@ -167,6 +180,11 @@ export default function ProjectDetailPage() {
                             <Badge variant="outline" className="px-2.5 py-0.5 bg-slate-100 border-slate-200 text-slate-600 rounded-md uppercase tracking-wider text-[10px] font-bold">
                                 {project.status?.replace('_', ' ') || 'Planning'}
                             </Badge>
+                            {project.service_type && (
+                                <Badge variant="secondary" className="px-2.5 py-0.5 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 rounded-md uppercase tracking-wider text-[10px] font-bold">
+                                    {project.service_type}
+                                </Badge>
+                            )}
                         </div>
                     </div>
 
@@ -241,7 +259,11 @@ export default function ProjectDetailPage() {
                                     <span>Timeline</span>
                                 </div>
                                 <p className="text-sm font-bold text-slate-900 h-8 flex items-center">
-                                    Q1 2024 - Q4 2025
+                                    {project.start_date && project.expected_handover
+                                        ? `${new Date(project.start_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} – ${new Date(project.expected_handover).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`
+                                        : project.expected_handover
+                                            ? `Due ${new Date(project.expected_handover).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`
+                                            : 'No timeline set'}
                                 </p>
                             </div>
 
@@ -253,10 +275,10 @@ export default function ProjectDetailPage() {
                                 </div>
                                 <div className="flex items-center gap-2 h-8">
                                     <div className="h-6 w-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-                                        {project.lead?.name?.[0] || 'JD'}
+                                        {project.creator?.name?.[0] || 'JD'}
                                     </div>
                                     <span className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                                        {project.lead?.name || 'John Doe'}
+                                        {project.creator?.name || 'John Doe'}
                                     </span>
                                 </div>
                             </div>
@@ -267,11 +289,15 @@ export default function ProjectDetailPage() {
                                     <BarChart2 className="h-3.5 w-3.5" />
                                     <span>Completion</span>
                                 </div>
-                                <div className="flex items-center gap-2 h-8">
-                                    <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden max-w-[100px]">
-                                        <div className="h-full bg-slate-900 rounded-full" style={{ width: '0%', backgroundColor: theme.primary }} />
-                                    </div>
-                                    <span className="text-sm font-bold text-slate-900">0%</span>
+                                <div className="flex items-center gap-3 h-8">
+                                    <ProgressBar
+                                        value={progress}
+                                        size="md"
+                                        variant={progress >= 80 ? 'success' : progress >= 30 ? 'warning' : 'default'}
+                                        barClassName={progress >= 80 ? 'bg-green-500' : progress >= 30 ? 'bg-amber-500' : ''}
+                                        className="max-w-[120px]"
+                                    />
+                                    <span className="text-sm font-bold text-slate-900 tabular-nums">{progress}%</span>
                                 </div>
                             </div>
                         </div>
@@ -287,6 +313,7 @@ export default function ProjectDetailPage() {
                             { id: 'overview', label: 'Overview', icon: BarChart2 },
                             { id: 'tasks', label: 'Tasks', icon: CheckCircle2 },
                             { id: 'comments', label: 'Discussion', icon: MessageSquare },
+                            { id: 'activity', label: 'Activity', icon: Clock },
                             { id: 'attachments', label: 'Vault', icon: FileText }
                         ].map(tab => (
                             <TabsTrigger
@@ -323,6 +350,10 @@ export default function ProjectDetailPage() {
                         currentStage={project.status}
                         theme={theme}
                         onRequestTransition={handleRequestTransition}
+                        taskProgress={taskProgress}
+                        totalTasks={totalTasks}
+                        completedTasks={completedTasks}
+                        milestoneProgress={milestoneProgress}
                     />
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -342,12 +373,29 @@ export default function ProjectDetailPage() {
                                 </div>
 
                                 <div className="mt-10 pt-8 border-t border-slate-100">
-                                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6">Strategic Milestones</h4>
+                                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Strategic Milestones</h4>
+
+                                    {/* Milestone progress summary */}
+                                    <div className="flex items-center gap-4 mb-6 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+                                        <div className="flex items-center gap-2">
+                                            <Flag className="h-4 w-4 text-slate-400" />
+                                            <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">{milestoneCount} total</span>
+                                        </div>
+                                        <div className="w-px h-4 bg-slate-200 dark:bg-slate-700" />
+                                        <div className="flex items-center gap-2">
+                                            <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                            <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">{completedMilestones} done</span>
+                                        </div>
+                                        <div className="flex-1 max-w-[120px]">
+                                            <ProgressBar value={milestoneProgress} size="sm" variant={milestoneProgress >= 80 ? 'success' : 'warning'} showLabel />
+                                        </div>
+                                    </div>
+
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <InfoStrip icon={Calendar} label="Kickoff Date" value={project.start_date ? new Date(project.start_date).toLocaleDateString() : 'Pending'} />
                                         <InfoStrip icon={Clock} label="Expected Handover" value={project.expected_handover ? new Date(project.expected_handover).toLocaleDateString() : 'Pending'} />
-                                        <InfoStrip icon={Shield} label="Lead Monitor" value={project.lead?.name || 'Unassigned'} />
-                                        <InfoStrip icon={Users} label="Team Composition" value="8 Verified Operators" />
+                                        <InfoStrip icon={Shield} label="Creator" value={project.creator?.name || 'Unassigned'} />
+                                        <InfoStrip icon={Users} label="Task Completion" value={`${completedTasks}/${totalTasks} tasks`} />
                                     </div>
                                 </div>
                             </CardContent>
@@ -371,6 +419,153 @@ export default function ProjectDetailPage() {
                                 </CardContent>
                             </Card>
                         </div>
+                    </div>
+
+                    {/* --- Milestones Section --- */}
+                    <div className="space-y-4 pt-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="h-9 w-9 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center">
+                                    <Flag className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50 tracking-tight">Milestones</h3>
+                                    <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                                        {completedMilestones}/{milestoneCount} completed · {milestoneProgress}%
+                                    </p>
+                                </div>
+                            </div>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="rounded-xl border-slate-200 dark:border-slate-800 text-xs font-bold"
+                                onClick={() => {
+                                    const name = prompt('Milestone name:');
+                                    if (name) {
+                                        const description = prompt('Description (optional):') || undefined;
+                                        const due_date = prompt('Due date (YYYY-MM-DD, optional):') || undefined;
+                                        createMilestone.mutate({ project_id: id!, name, description, due_date }, {
+                                            onSuccess: () => toast.success('Milestone created'),
+                                            onError: () => toast.error('Failed to create milestone'),
+                                        });
+                                    }
+                                }}
+                            >
+                                <Plus className="h-3.5 w-3.5 mr-1.5" /> Add Milestone
+                            </Button>
+                        </div>
+
+                        {milestones.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {milestones.map((milestone) => {
+                                    const isCompleted = milestone.status === 'completed';
+                                    const isOverdue = milestone.status === 'overdue';
+
+                                    return (
+                                        <div
+                                            key={milestone.id}
+                                            className={cn(
+                                                "flex items-start gap-4 p-4 rounded-xl border transition-all group",
+                                                isCompleted
+                                                    ? "bg-green-50/50 dark:bg-green-900/10 border-green-200 dark:border-green-800/50"
+                                                    : isOverdue
+                                                        ? "bg-red-50/50 dark:bg-red-900/10 border-red-200 dark:border-red-800/50"
+                                                        : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
+                                            )}
+                                        >
+                                            <button
+                                                onClick={() => {
+                                                    updateMilestone.mutate({
+                                                        id: milestone.id,
+                                                        status: isCompleted ? 'in_progress' : 'completed',
+                                                        completed_date: isCompleted ? null : new Date().toISOString().split('T')[0],
+                                                    });
+                                                }}
+                                                className={cn(
+                                                    "h-6 w-6 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all",
+                                                    isCompleted
+                                                        ? "bg-green-500 border-green-500 text-white"
+                                                        : "border-slate-300 dark:border-slate-600 hover:border-green-400"
+                                                )}
+                                            >
+                                                {isCompleted && <CheckCircle2 className="h-3.5 w-3.5" />}
+                                            </button>
+
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div>
+                                                        <p className={cn(
+                                                            "text-sm font-semibold leading-tight",
+                                                            isCompleted
+                                                                ? "text-green-700 dark:text-green-400 line-through decoration-green-400"
+                                                                : "text-slate-900 dark:text-slate-50"
+                                                        )}>
+                                                            {milestone.name}
+                                                        </p>
+                                                        {milestone.description && (
+                                                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
+                                                                {milestone.description}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                    <button
+                                                        onClick={() => {
+                                                            if (confirm('Delete this milestone?')) {
+                                                                deleteMilestone.mutate({ id: milestone.id, project_id: id! });
+                                                            }
+                                                        }}
+                                                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-red-50 text-slate-400 hover:text-red-500"
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </button>
+                                                </div>
+
+                                                <div className="flex items-center gap-3 mt-2">
+                                                    {milestone.due_date && (
+                                                        <span className={cn(
+                                                            "text-[10px] font-semibold flex items-center gap-1",
+                                                            isOverdue ? "text-red-500" : "text-slate-400"
+                                                        )}>
+                                                            {isOverdue && <AlertCircle className="h-3 w-3" />}
+                                                            Due {new Date(milestone.due_date).toLocaleDateString()}
+                                                        </span>
+                                                    )}
+                                                    {milestone.completed_date && (
+                                                        <span className="text-[10px] font-semibold text-green-500 flex items-center gap-1">
+                                                            <CheckCircle2 className="h-3 w-3" />
+                                                            Completed {new Date(milestone.completed_date).toLocaleDateString()}
+                                                        </span>
+                                                    )}
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={cn(
+                                                            "text-[9px] px-1.5 py-0 font-bold uppercase tracking-wider",
+                                                            isCompleted
+                                                                ? "border-green-200 text-green-600 bg-green-50"
+                                                                : isOverdue
+                                                                    ? "border-red-200 text-red-600 bg-red-50"
+                                                                    : "border-slate-200 text-slate-500 bg-slate-50"
+                                                        )}
+                                                    >
+                                                        {milestone.status.replace('_', ' ')}
+                                                    </Badge>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <Card className="rounded-xl border-dashed border-2 border-slate-200 dark:border-slate-800 p-8 text-center bg-slate-50/50 dark:bg-slate-900/50">
+                                <div className="flex flex-col items-center gap-3">
+                                    <div className="p-3 rounded-full bg-slate-100 dark:bg-slate-800">
+                                        <Flag className="h-5 w-5 text-slate-400" />
+                                    </div>
+                                    <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">No milestones defined</p>
+                                    <p className="text-xs text-slate-400 dark:text-slate-500 max-w-sm">Track key delivery dates and phase completion targets for this project.</p>
+                                </div>
+                            </Card>
+                        )}
                     </div>
                 </TabsContent>
 
@@ -588,6 +783,19 @@ export default function ProjectDetailPage() {
                                 </section>
                             </div>
                         </div>
+                    </Card>
+                </TabsContent>
+
+                {/* --- ACTIVITY TAB --- */}
+                <TabsContent value="activity" className="mt-0 outline-none animate-in fade-in duration-300">
+                    <Card className="rounded-2xl border-slate-200 dark:border-slate-800 shadow-none bg-white dark:bg-slate-900">
+                        <CardHeader className="p-6 pb-2">
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50 tracking-tight">Change History</h3>
+                            <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-0.5">Audit Trail for this Project</p>
+                        </CardHeader>
+                        <CardContent className="p-6">
+                            <AuditFeed entityType="project" entityId={id!} />
+                        </CardContent>
                     </Card>
                 </TabsContent>
 

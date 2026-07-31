@@ -11,11 +11,11 @@ export default function SettingsPage() {
     const isAdmin = user?.role === 'admin';
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-fade-in">
             {/* Page Header */}
             <div>
-                <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-                <p className="text-gray-500 mt-1">
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-50">Settings</h1>
+                <p className="text-gray-500 dark:text-slate-400 mt-1">
                     Manage system configuration and preferences
                 </p>
             </div>
@@ -65,7 +65,7 @@ export default function SettingsPage() {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="font-medium">Idle Task Alerts</p>
-                                <p className="text-sm text-gray-500">
+                                <p className="text-sm text-gray-500 dark:text-slate-400">
                                     Notify when tasks are idle for 48+ hours
                                 </p>
                             </div>
@@ -74,7 +74,7 @@ export default function SettingsPage() {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="font-medium">Project Profitability Alerts</p>
-                                <p className="text-sm text-gray-500">
+                                <p className="text-sm text-gray-500 dark:text-slate-400">
                                     Alert when profit margin drops below 5%
                                 </p>
                             </div>
@@ -83,7 +83,7 @@ export default function SettingsPage() {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="font-medium">Task Assignments</p>
-                                <p className="text-sm text-gray-500">
+                                <p className="text-sm text-gray-500 dark:text-slate-400">
                                     Notify when assigned new tasks
                                 </p>
                             </div>
@@ -109,14 +109,14 @@ export default function SettingsPage() {
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="font-medium">Connection Status</p>
-                                    <p className="text-sm text-gray-500">Supabase PostgreSQL</p>
+                                    <p className="text-sm text-gray-500 dark:text-slate-400">Supabase PostgreSQL</p>
                                 </div>
                                 <Badge variant="success">Connected</Badge>
                             </div>
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="font-medium">Last Backup</p>
-                                    <p className="text-sm text-gray-500">2026-01-30 00:00 UTC</p>
+                                    <p className="text-sm text-gray-500 dark:text-slate-400">2026-01-30 00:00 UTC</p>
                                 </div>
                                 <Button variant="outline" size="sm">
                                     Backup Now
@@ -125,7 +125,7 @@ export default function SettingsPage() {
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="font-medium">Storage Used</p>
-                                    <p className="text-sm text-gray-500">245 MB / 500 MB</p>
+                                    <p className="text-sm text-gray-500 dark:text-slate-400">245 MB / 500 MB</p>
                                 </div>
                                 <div className="w-32 bg-gray-200 rounded-full h-2">
                                     <div

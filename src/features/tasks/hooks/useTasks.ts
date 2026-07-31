@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabaseLog } from '@/features/audit/utils/log';
 
 // Types
 export interface Subtask {
@@ -100,7 +101,7 @@ export function useTasks(filters?: {
           *,
           project:projects(name, company_id, company:companies(name)),
           assignee:users!tasks_assignee_id_fkey(name, email),
-          comments:task_comments(id)
+          comments:task_comments(count)
         `)
                 .order('created_at', { ascending: false });
 
@@ -120,7 +121,14 @@ export function useTasks(filters?: {
 
             const { data, error } = await query;
             if (error) throw error;
-            return data as Task[];
+
+            return (data || []).map((task: any) => ({
+                ...task,
+                _count: {
+                    comments: task.comments?.[0]?.count ?? 0,
+                    subtasks: task.subtasks?.length ?? 0,
+                },
+            })) as Task[];
         },
     });
 }
@@ -160,7 +168,6 @@ export function useCreateTask() {
             // Separate assignee_ids from the rest of the task data
             const { assignee_ids, ...taskData } = input;
 
-            // 1. Create the task
             const { data: task, error: taskError } = await supabase
                 .from('tasks')
                 .insert({
@@ -172,7 +179,25 @@ export function useCreateTask() {
 
             if (taskError) throw taskError;
 
+            // Write assignee_ids to task_assignees table
+            if (assignee_ids && assignee_ids.length > 0) {
+                const { error: assignError } = await supabase
+                    .from('task_assignees')
+                    .insert(
+                        assignee_ids.map(assignee_id => ({
+                            task_id: task.id,
+                            user_id: assignee_id,
+                        }))
+                    );
+                if (assignError) console.error('Failed to assign users:', assignError);
+            }
 
+            supabaseLog({
+                entity_type: 'task',
+                entity_id: task.id,
+                action: 'created',
+                summary: `Task "${task.title}" created`,
+            });
 
             return task;
         },
@@ -194,6 +219,12 @@ export function useUpdateTask(id: string) {
                 updateData.assignee_id = assignee_ids[0] || null;
             }
 
+            const { data: existing } = await supabase
+                .from('tasks')
+                .select('title, stage, priority')
+                .eq('id', id)
+                .single();
+
             const { data, error } = await supabase
                 .from('tasks')
                 .update(updateData)
@@ -202,6 +233,30 @@ export function useUpdateTask(id: string) {
                 .single();
 
             if (error) throw error;
+
+            // Update task_assignees
+            if (assignee_ids) {
+                await supabase.from('task_assignees').delete().eq('task_id', id);
+                if (assignee_ids.length > 0) {
+                    const { error: assignError } = await supabase
+                        .from('task_assignees')
+                        .insert(assignee_ids.map(user_id => ({ task_id: id, user_id })));
+                    if (assignError) console.error('Failed to update assignees:', assignError);
+                }
+            }
+
+            if (input.stage && existing && existing.stage !== input.stage) {
+                supabaseLog({
+                    entity_type: 'task',
+                    entity_id: id,
+                    action: 'stage_changed',
+                    field: 'stage',
+                    old_value: existing.stage,
+                    new_value: input.stage,
+                    summary: `Task "${existing.title || data.title}" moved from ${existing.stage.replace('_', ' ')} to ${input.stage.replace('_', ' ')}`,
+                });
+            }
+
             return data;
         },
         onSuccess: () => {
@@ -217,6 +272,12 @@ export function useUpdateTaskStage() {
 
     return useMutation({
         mutationFn: async ({ id, stage }: { id: string; stage: Task['stage'] }) => {
+            const { data: existing } = await supabase
+                .from('tasks')
+                .select('title, stage')
+                .eq('id', id)
+                .single();
+
             const { data, error } = await supabase
                 .from('tasks')
                 .update({ stage })
@@ -225,6 +286,19 @@ export function useUpdateTaskStage() {
                 .single();
 
             if (error) throw error;
+
+            if (existing && existing.stage !== stage) {
+                supabaseLog({
+                    entity_type: 'task',
+                    entity_id: id,
+                    action: 'stage_changed',
+                    field: 'stage',
+                    old_value: existing.stage,
+                    new_value: stage,
+                    summary: `Task "${existing.title || data.title}" moved from ${existing.stage.replace('_', ' ')} to ${stage.replace('_', ' ')}`,
+                });
+            }
+
             return data;
         },
         onSuccess: () => {
