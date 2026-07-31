@@ -17,9 +17,9 @@ export interface ProjectComment {
 export interface ProjectAttachment {
     id: string;
     project_id: string;
-    name: string;
-    type: string;
-    size: number;
+    file_name: string;
+    file_type: string;
+    file_size: number;
     url: string;
     uploaded_by: string;
     created_at: string;

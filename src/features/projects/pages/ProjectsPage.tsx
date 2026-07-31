@@ -94,7 +94,7 @@ export default function ProjectsPage() {
 
         // Then filter by tab/status
         if (activeTab === 'all') return true;
-        if (activeTab === 'upcoming') return project.status === 'planning';
+        if (activeTab === 'upcoming') return false;
         if (activeTab === 'active') return project.status === 'active';
         if (activeTab === 'completed') return project.status === 'completed';
         if (activeTab === 'backlogs') return project.status === 'on_hold';
@@ -104,7 +104,7 @@ export default function ProjectsPage() {
     const stats = {
         total: projects?.length || 0,
         active: projects?.filter(p => p.status === 'active').length || 0,
-        upcoming: projects?.filter(p => p.status === 'planning').length || 0,
+        upcoming: 0,
         completed: projects?.filter(p => p.status === 'completed').length || 0,
         backlogs: projects?.filter(p => p.status === 'on_hold').length || 0,
     };
@@ -210,9 +210,9 @@ export default function ProjectsPage() {
                                         <Badge
                                             variant={
                                                 project.status === 'active' ? 'default' :
-                                                    project.status === 'planning' ? 'secondary' :
+                                                    project.status === 'on_hold' ? 'warning' :
                                                         project.status === 'completed' ? 'success' :
-                                                            'warning'
+                                                            'secondary'
                                             }
                                             className="capitalize shadow-sm"
                                             style={project.status === 'active' ? { backgroundColor: projectTheme.primary } : {}}
@@ -237,6 +237,11 @@ export default function ProjectsPage() {
                                                 {project.name}
                                             </span>
                                         </CardTitle>
+                                        {project.service_type && (
+                                            <Badge variant="secondary" className="mt-1 text-[9px] uppercase tracking-wider font-bold bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700">
+                                                {project.service_type}
+                                            </Badge>
+                                        )}
                                     </div>
                                 </CardHeader>
                                 <CardContent className="space-y-6">
@@ -244,7 +249,7 @@ export default function ProjectsPage() {
                                     <div className="grid grid-cols-2 gap-4 py-3 border-y border-slate-100 dark:border-slate-800">
                                         <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                                             <User className="h-3.5 w-3.5" />
-                                            <span className="truncate font-medium">Lead: {project.lead?.name || 'Unassigned'}</span>
+                                            <span className="truncate font-medium">Creator: {project.creator?.name || 'Unassigned'}</span>
                                         </div>
                                         <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                                             <Calendar className="h-3.5 w-3.5" />

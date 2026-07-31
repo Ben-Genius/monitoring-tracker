@@ -6,8 +6,8 @@ export interface Project {
     name: string;
     description: string | null;
     company_id: string;
-    lead_id: string | null;
-    status: 'planning' | 'active' | 'completed' | 'on_hold' | 'cancelled';
+    status: 'active' | 'completed' | 'on_hold';
+    service_type: string | null;
     contract_value: number;
     actual_cost: number;
     expected_handover: string;
@@ -18,7 +18,7 @@ export interface Project {
     company?: {
         name: string;
     };
-    lead?: {
+    creator?: {
         name: string;
         email: string;
     };
@@ -29,7 +29,7 @@ export interface CreateProjectInput {
     name: string;
     description?: string;
     company_id: string;
-    lead_id?: string;
+    service_type?: string;
     contract_value: number;
     expected_handover: string;
     start_date?: string;
@@ -46,7 +46,7 @@ export function useProjects(companyId?: string) {
                 .select(`
           *,
           company:companies(name),
-          lead:users!projects_created_by_fkey(name),
+          creator:users!projects_created_by_fkey(name),
           tasks!tasks_project_id_fkey(id, title, stage)
         `)
                 .order('created_at', { ascending: false });
@@ -72,7 +72,7 @@ export function useProject(id: string) {
                 .select(`
           *,
           company:companies(name),
-          lead:users!projects_created_by_fkey(name, email),
+          creator:users!projects_created_by_fkey(name, email),
           tasks!tasks_project_id_fkey(id, title, stage)
         `)
                 .eq('id', id)

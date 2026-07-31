@@ -95,7 +95,7 @@ export function useTopPerformers() {
                 .from('users')
                 .select(`
                     name,
-                    tasks!tasks_assignee_id_fkey(stage, completed_at, expected_handover)
+                    tasks!tasks_assignee_id_fkey(stage, completed_at, due_date)
                 `);
 
             if (error) throw error;
@@ -106,8 +106,8 @@ export function useTopPerformers() {
 
                 let onTimeCount = 0;
                 completedTasks.forEach((t: any) => {
-                    if (t.completed_at && t.expected_handover) {
-                        if (new Date(t.completed_at) <= new Date(t.expected_handover)) {
+                    if (t.completed_at && t.due_date) {
+                        if (new Date(t.completed_at) <= new Date(t.due_date)) {
                             onTimeCount++;
                         }
                     }

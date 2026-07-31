@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { X, Briefcase, User, Calendar, DollarSign, Layout } from 'lucide-react';
+import { X, Briefcase, Calendar, DollarSign, Layout } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useCreateProject, useCompanies, useLeads } from '../hooks/useProjects';
+import { useCreateProject, useCompanies } from '../hooks/useProjects';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { cn } from '@/lib/utils';
 
@@ -13,7 +13,6 @@ const projectSchema = z.object({
     name: z.string().min(1, 'Project name is required'),
     description: z.string().optional(),
     company_id: z.string().min(1, 'Company is required'),
-    lead_id: z.string().optional(),
     contract_value: z.number().min(0, 'Contract value must be positive'),
     expected_handover: z.string().min(1, 'Expected handover date is required'),
     start_date: z.string().optional(),
@@ -35,10 +34,6 @@ export default function CreateProjectModal({
     const isAdmin = user?.role === 'admin';
 
     const { data: companies } = useCompanies();
-    const [selectedCompanyId, setSelectedCompanyId] = useState<string | undefined>(
-        isAdmin ? undefined : user?.company_id
-    );
-    const { data: leads } = useLeads(selectedCompanyId);
 
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -47,7 +42,6 @@ export default function CreateProjectModal({
         handleSubmit,
         formState: { errors },
         reset,
-        setValue,
     } = useForm<ProjectFormData>({
         resolver: zodResolver(projectSchema),
         defaultValues: {
@@ -58,10 +52,8 @@ export default function CreateProjectModal({
 
     const onSubmit = async (data: ProjectFormData) => {
         setIsSubmitting(true);
-        // Sanitize data: replace empty strings with null for UUID and optional fields
         const sanitizedData = {
             ...data,
-            lead_id: data.lead_id || null,
             description: data.description || null,
             start_date: data.start_date || null,
         };
@@ -148,11 +140,6 @@ export default function CreateProjectModal({
                                     "w-full h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:bg-white dark:focus:bg-slate-900 dark:text-slate-50 transition-all appearance-none",
                                     !isAdmin && "opacity-60 cursor-not-allowed"
                                 )}
-                                onChange={(e) => {
-                                    const cid = e.target.value;
-                                    setSelectedCompanyId(cid);
-                                    setValue('company_id', cid);
-                                }}
                             >
                                 <option value="">Select Company</option>
                                 {companies?.map((c) => (
@@ -162,23 +149,6 @@ export default function CreateProjectModal({
                             {errors.company_id && (
                                 <p className="text-error text-xs font-medium mt-1">{errors.company_id.message}</p>
                             )}
-                        </div>
-
-                        {/* Lead */}
-                        <div className="space-y-2">
-                            <label className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-                                <User className="h-3.5 w-3.5" />
-                                Project Lead
-                            </label>
-                            <select
-                                {...register('lead_id')}
-                                className="w-full h-12 px-4 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:bg-white transition-all appearance-none"
-                            >
-                                <option value="">Assign a Lead (Optional)</option>
-                                {leads?.map((l) => (
-                                    <option key={l.id} value={l.id}>{l.name}</option>
-                                ))}
-                            </select>
                         </div>
 
                         {/* Contract Value */}

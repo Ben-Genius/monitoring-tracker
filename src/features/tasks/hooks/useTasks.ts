@@ -100,7 +100,7 @@ export function useTasks(filters?: {
           *,
           project:projects(name, company_id, company:companies(name)),
           assignee:users!tasks_assignee_id_fkey(name, email),
-          comments:task_comments(id)
+          comments:task_comments(count)
         `)
                 .order('created_at', { ascending: false });
 
@@ -120,7 +120,14 @@ export function useTasks(filters?: {
 
             const { data, error } = await query;
             if (error) throw error;
-            return data as Task[];
+
+            return (data || []).map((task: any) => ({
+                ...task,
+                _count: {
+                    comments: task.comments?.[0]?.count ?? 0,
+                    subtasks: task.subtasks?.length ?? 0,
+                },
+            })) as Task[];
         },
     });
 }
@@ -160,7 +167,6 @@ export function useCreateTask() {
             // Separate assignee_ids from the rest of the task data
             const { assignee_ids, ...taskData } = input;
 
-            // 1. Create the task
             const { data: task, error: taskError } = await supabase
                 .from('tasks')
                 .insert({
@@ -172,7 +178,18 @@ export function useCreateTask() {
 
             if (taskError) throw taskError;
 
-
+            // Write assignee_ids to task_assignees table
+            if (assignee_ids && assignee_ids.length > 0) {
+                const { error: assignError } = await supabase
+                    .from('task_assignees')
+                    .insert(
+                        assignee_ids.map(assignee_id => ({
+                            task_id: task.id,
+                            user_id: assignee_id,
+                        }))
+                    );
+                if (assignError) console.error('Failed to assign users:', assignError);
+            }
 
             return task;
         },
@@ -202,6 +219,18 @@ export function useUpdateTask(id: string) {
                 .single();
 
             if (error) throw error;
+
+            // Update task_assignees
+            if (assignee_ids) {
+                await supabase.from('task_assignees').delete().eq('task_id', id);
+                if (assignee_ids.length > 0) {
+                    const { error: assignError } = await supabase
+                        .from('task_assignees')
+                        .insert(assignee_ids.map(user_id => ({ task_id: id, user_id })));
+                    if (assignError) console.error('Failed to update assignees:', assignError);
+                }
+            }
+
             return data;
         },
         onSuccess: () => {

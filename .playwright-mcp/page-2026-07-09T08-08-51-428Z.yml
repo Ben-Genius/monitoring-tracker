@@ -1,0 +1,70 @@
+- generic [ref=f6e3]:
+  - generic [ref=f6e5]:
+    - generic [ref=f6e7]:
+      - img [ref=f6e9]
+      - generic [ref=f6e12]:
+        - heading "Monitoring Tracker" [level=1] [ref=f6e13]
+        - paragraph [ref=f6e14]: Project & Productivity Management
+    - paragraph [ref=f6e16]:
+      - text: First time? See
+      - strong [ref=f6e17]: LOGIN_CREDENTIALS.md
+      - text: for setup instructions.
+    - generic [ref=f6e18]:
+      - generic [ref=f6e19]:
+        - generic [ref=f6e20]: Email Address
+        - generic [ref=f6e21]:
+          - img [ref=f6e22]
+          - textbox "you@company.com" [ref=f6e25]
+      - generic [ref=f6e26]:
+        - generic [ref=f6e27]: Password
+        - generic [ref=f6e28]:
+          - img [ref=f6e29]
+          - textbox "••••••••" [ref=f6e32]
+      - button "Sign In" [ref=f6e33] [cursor=pointer]:
+        - generic [ref=f6e34]:
+          - text: Sign In
+          - img [ref=f6e35]
+    - generic [ref=f6e37]:
+      - generic [ref=f6e38]:
+        - img [ref=f6e39]
+        - generic [ref=f6e42]: 10,000+
+        - generic [ref=f6e43]: Tasks Completed
+      - generic [ref=f6e44]:
+        - img [ref=f6e45]
+        - generic [ref=f6e48]: 98%
+        - generic [ref=f6e49]: On-Time Delivery
+      - generic [ref=f6e50]:
+        - img [ref=f6e51]
+        - generic [ref=f6e56]: 500+
+        - generic [ref=f6e57]: Happy Teams
+  - generic [ref=f6e60]:
+    - generic [ref=f6e62]:
+      - img "Kwame Mensah" [ref=f6e63]
+      - generic [ref=f6e64]:
+        - generic [ref=f6e65]:
+          - heading "Kwame Mensah" [level=4] [ref=f6e66]
+          - generic [ref=f6e67]:
+            - img [ref=f6e68]
+            - text: Verified
+        - paragraph [ref=f6e71]: Project Manager, MacWest Construction
+        - paragraph [ref=f6e72]: "\"Monitoring Tracker transformed how we manage construction projects across Accra. Task visibility increased by 300% and we eliminated idle time completely.\""
+    - generic [ref=f6e74]:
+      - img "Ama Osei" [ref=f6e75]
+      - generic [ref=f6e76]:
+        - generic [ref=f6e77]:
+          - heading "Ama Osei" [level=4] [ref=f6e78]
+          - generic [ref=f6e79]:
+            - img [ref=f6e80]
+            - text: Verified
+        - paragraph [ref=f6e83]: Lead Engineer, CypressEnergy
+        - paragraph [ref=f6e84]: "\"The profitability tracking is a game changer for our energy infrastructure projects. We can now see project margins in real-time and make data-driven decisions.\""
+    - generic [ref=f6e86]:
+      - img "Kofi Asante" [ref=f6e87]
+      - generic [ref=f6e88]:
+        - generic [ref=f6e89]:
+          - heading "Kofi Asante" [level=4] [ref=f6e90]
+          - generic [ref=f6e91]:
+            - img [ref=f6e92]
+            - text: Verified
+        - paragraph [ref=f6e95]: Site Supervisor, Northbrook LRD
+        - paragraph [ref=f6e96]: "\"Best project management tool for Ghanaian construction teams. The idle task alerts alone saved us thousands of cedis in lost productivity.\""
