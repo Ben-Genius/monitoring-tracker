@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     Plus,
+    Upload,
     TrendingUp,
     TrendingDown,
     Calendar,
@@ -21,6 +22,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CreateProjectModal from '@/features/projects/components/CreateProjectModal';
+import { useFilters, FilterBar } from '@/features/filters/components';
+import { ImportModal } from '@/features/import/components';
 
 import { useCompanyStore } from '@/hooks/useCompanyStore';
 
@@ -32,6 +35,7 @@ export default function ProjectsPage() {
     const { data: companies = [] } = useCompanies();
     const [activeTab, setActiveTab] = useState('all');
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
     const isAdmin = user?.role === 'admin';
     const isLead = user?.role === 'lead';
@@ -43,6 +47,38 @@ export default function ProjectsPage() {
     }, [selectedCompanyId, companies]);
 
     const theme = getCompanyTheme(currentCompanyName);
+
+    const projectFilterDefs = useMemo(() => [
+        { field: 'status', label: 'Status', type: 'select' as const, options: [
+            { label: 'Active', value: 'active' },
+            { label: 'Completed', value: 'completed' },
+            { label: 'On Hold', value: 'on_hold' },
+        ]},
+        { field: 'service_type', label: 'Service', type: 'select' as const, options: [
+            { label: 'Construction', value: 'construction' },
+            { label: 'Logistics', value: 'logistics' },
+            { label: 'Technical', value: 'technical' },
+            { label: 'Manpower', value: 'manpower' },
+            { label: 'Energy', value: 'energy' },
+            { label: 'Mining', value: 'mining' },
+        ]},
+        { field: 'contract_value', label: 'Contract Value', type: 'number' as const },
+    ], []);
+
+    const filteredByTab = useMemo(() => {
+        if (!projects) return [];
+        return projects.filter(project => {
+            if (!isAdmin && project.company_id !== user?.company_id) return false;
+            if (activeTab === 'all') return true;
+            if (activeTab === 'upcoming') return false;
+            if (activeTab === 'active') return project.status === 'active';
+            if (activeTab === 'completed') return project.status === 'completed';
+            if (activeTab === 'backlogs') return project.status === 'on_hold';
+            return true;
+        }) || [];
+    }, [projects, activeTab, isAdmin, user?.company_id]);
+
+    const projectFilters = useFilters(filteredByTab, projectFilterDefs, { field: 'contract_value', direction: 'desc' });
 
     if (isLoading) {
         return (
@@ -88,19 +124,6 @@ export default function ProjectsPage() {
         );
     }
 
-    const filteredProjects = projects?.filter(project => {
-        // First filter by company for Lead
-        if (!isAdmin && project.company_id !== user?.company_id) return false;
-
-        // Then filter by tab/status
-        if (activeTab === 'all') return true;
-        if (activeTab === 'upcoming') return false;
-        if (activeTab === 'active') return project.status === 'active';
-        if (activeTab === 'completed') return project.status === 'completed';
-        if (activeTab === 'backlogs') return project.status === 'on_hold';
-        return true;
-    }) || [];
-
     const stats = {
         total: projects?.length || 0,
         active: projects?.filter(p => p.status === 'active').length || 0,
@@ -119,19 +142,29 @@ export default function ProjectsPage() {
                         Comprehensive tracking of project lifecycles and performance.
                     </p>
                 </div>
-                {canCreateProject && (
+                <div className="flex items-center gap-3">
                     <Button
-                        onClick={() => setIsCreateModalOpen(true)}
-                        className="shadow-lg transition-transform hover:scale-105"
-                        style={{
-                            backgroundColor: theme.primary,
-                            boxShadow: `0 10px 15px -3px ${theme.primary}30`
-                        }}
+                        variant="outline"
+                        onClick={() => setIsImportModalOpen(true)}
+                        className="rounded-xl border-slate-200 dark:border-slate-800 text-xs font-bold"
                     >
-                        <Plus className="h-4 w-4 mr-2" />
-                        New Project
+                        <Upload className="h-4 w-4 mr-2" />
+                        Import
                     </Button>
-                )}
+                    {canCreateProject && (
+                        <Button
+                            onClick={() => setIsCreateModalOpen(true)}
+                            className="shadow-lg transition-transform hover:scale-105"
+                            style={{
+                                backgroundColor: theme.primary,
+                                boxShadow: `0 10px 15px -3px ${theme.primary}30`
+                            }}
+                        >
+                            <Plus className="h-4 w-4 mr-2" />
+                            New Project
+                        </Button>
+                    )}
+                </div>
             </div>
 
             {/* Lifecycle Tabs */}
@@ -196,8 +229,20 @@ export default function ProjectsPage() {
                     </TabsList>
                 </div>
 
+                <FilterBar
+                    filters={projectFilters}
+                    sortOptions={[
+                        { label: 'Contract Value', field: 'contract_value' },
+                        { label: 'Name', field: 'name' },
+                        { label: 'Status', field: 'status' },
+                        { label: 'Created', field: 'created_at' },
+                    ]}
+                    searchPlaceholder="Search projects..."
+                    className="mb-6"
+                />
+
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {filteredProjects.map((project) => {
+                    {projectFilters.filtered.map((project) => {
                         const contractValue = project.contract_value || 0;
                         const actualCost = project.actual_cost || 0;
                         const profitability = calculateProfitability(contractValue, actualCost);
@@ -330,7 +375,7 @@ export default function ProjectsPage() {
                     })}
                 </div>
 
-                {filteredProjects.length === 0 && (
+                {projectFilters.filtered.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-32 bg-slate-50/50 dark:bg-slate-900/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800">
                         <LayoutGrid className="h-12 w-12 text-slate-200 dark:text-slate-700 mb-4" />
                         <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50">No {activeTab} projects found</h3>
@@ -350,6 +395,16 @@ export default function ProjectsPage() {
                 )}
             </Tabs>
 
+            <ImportModal
+                open={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                onComplete={(r) => {
+                    if (r.success > 0) {
+                        // refetch projects
+                        window.location.reload();
+                    }
+                }}
+            />
             <CreateProjectModal
                 open={isCreateModalOpen}
                 onClose={() => setIsCreateModalOpen(false)}

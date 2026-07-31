@@ -48,6 +48,7 @@ import { toast } from 'react-hot-toast';
 import CreateTaskModal from '@/features/tasks/components/CreateTaskModal';
 import TaskDrawer from '@/features/tasks/components/TaskDrawer';
 import { Task } from '@/features/tasks/hooks/useTasks';
+import { AuditFeed } from '@/features/audit/components/AuditFeed';
 
 export default function ProjectDetailPage() {
     const { id } = useParams();
@@ -312,6 +313,7 @@ export default function ProjectDetailPage() {
                             { id: 'overview', label: 'Overview', icon: BarChart2 },
                             { id: 'tasks', label: 'Tasks', icon: CheckCircle2 },
                             { id: 'comments', label: 'Discussion', icon: MessageSquare },
+                            { id: 'activity', label: 'Activity', icon: Clock },
                             { id: 'attachments', label: 'Vault', icon: FileText }
                         ].map(tab => (
                             <TabsTrigger
@@ -781,6 +783,19 @@ export default function ProjectDetailPage() {
                                 </section>
                             </div>
                         </div>
+                    </Card>
+                </TabsContent>
+
+                {/* --- ACTIVITY TAB --- */}
+                <TabsContent value="activity" className="mt-0 outline-none animate-in fade-in duration-300">
+                    <Card className="rounded-2xl border-slate-200 dark:border-slate-800 shadow-none bg-white dark:bg-slate-900">
+                        <CardHeader className="p-6 pb-2">
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50 tracking-tight">Change History</h3>
+                            <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-0.5">Audit Trail for this Project</p>
+                        </CardHeader>
+                        <CardContent className="p-6">
+                            <AuditFeed entityType="project" entityId={id!} />
+                        </CardContent>
                     </Card>
                 </TabsContent>
 

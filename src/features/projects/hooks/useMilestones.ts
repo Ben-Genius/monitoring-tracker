@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabaseLog } from '@/features/audit/utils/log';
 
 export interface Milestone {
     id: string;
@@ -63,6 +64,12 @@ export function useCreateMilestone() {
                 .single();
 
             if (error) throw error;
+            supabaseLog({
+                entity_type: 'milestone',
+                entity_id: data.id,
+                action: 'created',
+                summary: `Milestone "${data.name}" created`,
+            });
             return data;
         },
         onSuccess: (_, variables) => {
@@ -83,6 +90,12 @@ export function useUpdateMilestone() {
             status?: Milestone['status'];
             completed_date?: string | null;
         }) => {
+            const { data: existing } = await supabase
+                .from('milestones')
+                .select('name, status')
+                .eq('id', id)
+                .single();
+
             const { data, error } = await supabase
                 .from('milestones')
                 .update(updates)
@@ -91,6 +104,19 @@ export function useUpdateMilestone() {
                 .single();
 
             if (error) throw error;
+
+            if (updates.status && existing && existing.status !== updates.status) {
+                supabaseLog({
+                    entity_type: 'milestone',
+                    entity_id: id,
+                    action: 'status_changed',
+                    field: 'status',
+                    old_value: existing.status,
+                    new_value: updates.status,
+                    summary: `Milestone "${existing.name || data.name}" ${updates.status === 'completed' ? 'completed' : 'moved to ' + updates.status}`,
+                });
+            }
+
             return data;
         },
         onSuccess: () => {
@@ -103,7 +129,15 @@ export function useDeleteMilestone() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ id, project_id }: { id: string; project_id: string }) => {
+        mutationFn: async ({ id, project_id, name }: { id: string; project_id: string; name?: string }) => {
+            if (name) {
+                supabaseLog({
+                    entity_type: 'milestone',
+                    entity_id: id,
+                    action: 'deleted',
+                    summary: `Milestone "${name}" deleted`,
+                });
+            }
             const { error } = await supabase
                 .from('milestones')
                 .delete()

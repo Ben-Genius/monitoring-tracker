@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabaseLog } from '@/features/audit/utils/log';
 
 export interface Project {
     id: string;
@@ -118,6 +119,12 @@ export function useUpdateProject(id: string) {
 
     return useMutation({
         mutationFn: async (input: Partial<CreateProjectInput>) => {
+            const { data: existing } = await supabase
+                .from('projects')
+                .select('name, status, contract_value')
+                .eq('id', id)
+                .single();
+
             const { data, error } = await supabase
                 .from('projects')
                 .update(input)
@@ -126,6 +133,30 @@ export function useUpdateProject(id: string) {
                 .single();
 
             if (error) throw error;
+
+            if (input.status && existing && existing.status !== input.status) {
+                supabaseLog({
+                    entity_type: 'project',
+                    entity_id: id,
+                    action: 'status_changed',
+                    field: 'status',
+                    old_value: existing.status,
+                    new_value: input.status,
+                    summary: `Project "${existing.name || data.name}" status changed to ${input.status.replace('_', ' ')}`,
+                });
+            }
+            if (input.contract_value !== undefined && existing && Number(existing.contract_value) !== Number(input.contract_value)) {
+                supabaseLog({
+                    entity_type: 'project',
+                    entity_id: id,
+                    action: 'updated',
+                    field: 'contract_value',
+                    old_value: String(existing.contract_value),
+                    new_value: String(input.contract_value),
+                    summary: `Project "${existing.name || data.name}" budget changed from GHS ${Number(existing.contract_value).toLocaleString()} to GHS ${Number(input.contract_value).toLocaleString()}`,
+                });
+            }
+
             return data;
         },
         onSuccess: () => {
