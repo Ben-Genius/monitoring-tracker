@@ -57,7 +57,7 @@ export default function TaskBoardPage() {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [view, setView] = useState<'list' | 'board'>('list');
+    const [view, setView] = useState<'list' | 'board'>('board');
     const searchQuery = searchTerm.toLowerCase();
 
     const currentCompanyName = useMemo(() => {
@@ -135,7 +135,7 @@ export default function TaskBoardPage() {
 
     if (isLoading) {
         return (
-        <div className="animate-fade-in flex flex-col h-[calc(100vh-100px)] space-y-4">
+            <div className="animate-fade-in flex flex-col h-[calc(100vh-100px)] space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                         <Skeleton className="h-8 w-32 mb-2" />
