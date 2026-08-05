@@ -1,4 +1,4 @@
-import { linkedId, type BaserowRow } from './baserow';
+import { linkedId, type BaserowRow } from './baserow.js';
 
 /**
  * Maps a Baserow "Phases" row (table 1044515) onto the Supabase milestones

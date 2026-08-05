@@ -1,18 +1,18 @@
 import { randomUUID } from 'node:crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { listAllRows } from '../_lib/baserow';
-import { supabaseAdmin } from '../_lib/supabaseAdmin';
+import { listAllRows } from '../_lib/baserow.js';
+import { supabaseAdmin } from '../_lib/supabaseAdmin.js';
 import {
     mapEngineer,
     DEFAULT_ROLE,
     ENGINEER_COMPANY_ID,
     type MappedEngineer,
-} from '../_lib/mapEngineer';
+} from '../_lib/mapEngineer.js';
 import {
     authorizeSync,
     isAllowedMethod,
     isDryRun,
-} from '../_lib/authorizeSync';
+} from '../_lib/authorizeSync.js';
 
 /**
  * Mirrors the Baserow "Engineers" table into Supabase users.

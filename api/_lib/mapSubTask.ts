@@ -1,4 +1,4 @@
-import { linkedId, type BaserowRow } from './baserow';
+import { linkedId, type BaserowRow } from './baserow.js';
 
 /**
  * Maps a Baserow "Sub Tasks" row (table 1045541) onto the Supabase subtasks

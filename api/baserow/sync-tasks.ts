@@ -1,17 +1,17 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { listAllRows } from '../_lib/baserow';
-import { supabaseAdmin } from '../_lib/supabaseAdmin';
+import { listAllRows } from '../_lib/baserow.js';
+import { supabaseAdmin } from '../_lib/supabaseAdmin.js';
 import {
     mapTask,
     COMPARED_FIELDS,
     TRACKER_ONLY_STAGES,
     type MappedTask,
-} from '../_lib/mapTask';
+} from '../_lib/mapTask.js';
 import {
     authorizeSync,
     isAllowedMethod,
     isDryRun,
-} from '../_lib/authorizeSync';
+} from '../_lib/authorizeSync.js';
 
 /**
  * Mirrors the Baserow "Tasks" table into Supabase.

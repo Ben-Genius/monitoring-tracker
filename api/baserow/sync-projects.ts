@@ -1,12 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { listAllRows } from '../_lib/baserow';
-import { supabaseAdmin } from '../_lib/supabaseAdmin';
-import { mapProject, COMPARED_FIELDS, type MappedProject } from '../_lib/mapProject';
+import { listAllRows } from '../_lib/baserow.js';
+import { supabaseAdmin } from '../_lib/supabaseAdmin.js';
+import { mapProject, COMPARED_FIELDS, type MappedProject } from '../_lib/mapProject.js';
 import {
     authorizeSync,
     isAllowedMethod,
     isDryRun,
-} from '../_lib/authorizeSync';
+} from '../_lib/authorizeSync.js';
 
 /**
  * Mirrors the Baserow "Projects" table into Supabase.

@@ -1,5 +1,5 @@
-import type { BaserowRow } from './baserow';
-import { MACWEST_COMPANY_ID } from './mapProject';
+import type { BaserowRow } from './baserow.js';
+import { MACWEST_COMPANY_ID } from './mapProject.js';
 
 /**
  * Maps a Baserow "Engineers" row (table 1044018) onto the Supabase users table.

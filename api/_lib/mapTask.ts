@@ -1,5 +1,5 @@
-import { linkedId, type BaserowRow } from './baserow';
-import { MACWEST_COMPANY_ID } from './mapProject';
+import { linkedId, type BaserowRow } from './baserow.js';
+import { MACWEST_COMPANY_ID } from './mapProject.js';
 
 /**
  * Maps a Baserow "Tasks" row (table 1044512) onto the Supabase tasks table.

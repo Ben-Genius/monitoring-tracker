@@ -1,4 +1,4 @@
-import { linkedId, type BaserowRow } from './baserow';
+import { linkedId, type BaserowRow } from './baserow.js';
 
 /**
  * Maps a Baserow "Projects" row (table 1044048) onto the Supabase projects

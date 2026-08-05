@@ -1,12 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { listAllRows } from '../_lib/baserow';
-import { supabaseAdmin } from '../_lib/supabaseAdmin';
-import { mapPhase, COMPARED_FIELDS, type MappedPhase } from '../_lib/mapPhase';
+import { listAllRows } from '../_lib/baserow.js';
+import { supabaseAdmin } from '../_lib/supabaseAdmin.js';
+import { mapPhase, COMPARED_FIELDS, type MappedPhase } from '../_lib/mapPhase.js';
 import {
     authorizeSync,
     isAllowedMethod,
     isDryRun,
-} from '../_lib/authorizeSync';
+} from '../_lib/authorizeSync.js';
 
 /**
  * Mirrors the Baserow "Phases" table into Supabase milestones.
