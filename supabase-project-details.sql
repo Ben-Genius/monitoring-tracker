@@ -33,11 +33,98 @@ CREATE TABLE IF NOT EXISTS project_attachments (
 -- Enable RLS for project_attachments
 ALTER TABLE project_attachments ENABLE ROW LEVEL SECURITY;
 
--- 4. Basic RLS Policies (Adjust as needed based on your specific security model)
+-- 4. RLS Policies scoped by company
 -- For project_comments
-CREATE POLICY "Allow authenticated users to read project_comments" ON project_comments FOR SELECT USING (auth.role() = 'authenticated');
-CREATE POLICY "Allow users to insert their own comments" ON project_comments FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Company members can read project_comments" ON project_comments
+  FOR SELECT TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = project_comments.project_id
+        AND p.company_id = (SELECT company_id FROM users WHERE id = auth.uid())
+    )
+  );
+
+CREATE POLICY "Users can insert their own comments" ON project_comments
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    auth.uid() = user_id
+    AND EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = project_comments.project_id
+        AND p.company_id = (SELECT company_id FROM users WHERE id = auth.uid())
+    )
+  );
+
+CREATE POLICY "Users can update their own comments" ON project_comments
+  FOR UPDATE TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own comments" ON project_comments
+  FOR DELETE TO authenticated
+  USING (auth.uid() = user_id);
 
 -- For project_attachments
-CREATE POLICY "Allow authenticated users to read project_attachments" ON project_attachments FOR SELECT USING (auth.role() = 'authenticated');
-CREATE POLICY "Allow authenticated users to insert attachments" ON project_attachments FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Company members can read project_attachments" ON project_attachments
+  FOR SELECT TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = project_attachments.project_id
+        AND p.company_id = (SELECT company_id FROM users WHERE id = auth.uid())
+    )
+  );
+
+CREATE POLICY "Users can insert attachments in their company" ON project_attachments
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    uploaded_by = auth.uid()
+    AND EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = project_attachments.project_id
+        AND p.company_id = (SELECT company_id FROM users WHERE id = auth.uid())
+    )
+  );
+
+CREATE POLICY "Users can update attachments in their company" ON project_attachments
+  FOR UPDATE TO authenticated
+  USING (
+    uploaded_by = auth.uid()
+    OR EXISTS (
+      SELECT 1 FROM users u
+      WHERE u.id = auth.uid() AND u.role = 'admin'
+      AND EXISTS (
+        SELECT 1 FROM projects p
+        WHERE p.id = project_attachments.project_id
+          AND p.company_id = u.company_id
+      )
+    )
+  )
+  WITH CHECK (
+    uploaded_by = auth.uid()
+    OR EXISTS (
+      SELECT 1 FROM users u
+      WHERE u.id = auth.uid() AND u.role = 'admin'
+      AND EXISTS (
+        SELECT 1 FROM projects p
+        WHERE p.id = project_attachments.project_id
+          AND p.company_id = u.company_id
+      )
+    )
+  );
+
+CREATE POLICY "Users can delete attachments in their company" ON project_attachments
+  FOR DELETE TO authenticated
+  USING (
+    uploaded_by = auth.uid()
+    OR EXISTS (
+      SELECT 1 FROM users u
+      WHERE u.id = auth.uid() AND u.role = 'admin'
+      AND EXISTS (
+        SELECT 1 FROM projects p
+        WHERE p.id = project_attachments.project_id
+          AND p.company_id = u.company_id
+      )
+    )
+  );

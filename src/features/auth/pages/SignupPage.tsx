@@ -6,6 +6,16 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Loader2, UserPlus, Mail, Lock, ArrowLeft } from 'lucide-react';
 
+/** Shape returned by the get_invite(p_token) database function. */
+interface Invite {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+    company_id: string;
+    company_name: string;
+}
+
 export default function SignupPage() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
@@ -14,7 +24,7 @@ export default function SignupPage() {
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [inviteData, setInviteData] = useState<any>(null);
+    const [inviteData, setInviteData] = useState<Invite | null>(null);
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');
 
@@ -28,21 +38,23 @@ export default function SignupPage() {
 
     async function checkToken() {
         try {
+            // Read through get_invite() rather than the table: pending_invites
+            // is closed to anon so that invites cannot be enumerated. The
+            // function returns only the row matching this exact token.
             const { data, error } = await supabase
-                .from('pending_invites')
-                .select('*, company:companies(name)')
-                .eq('token', token)
-                .eq('used', false)
-                .single();
+                .rpc('get_invite', { p_token: token })
+                .maybeSingle();
 
-            if (error || !data) {
+            const invite = data as Invite | null;
+
+            if (error || !invite) {
                 setError('Invalid or expired invitation link.');
                 setLoading(false);
                 return;
             }
 
-            setInviteData(data);
-            setName(data.name || '');
+            setInviteData(invite);
+            setName(invite.name || '');
             setLoading(false);
         } catch (err) {
             setError('Failed to validate invitation.');
@@ -52,6 +64,7 @@ export default function SignupPage() {
 
     async function handleSignup(e: React.FormEvent) {
         e.preventDefault();
+        if (!inviteData) return;
         setSubmitting(true);
         setError(null);
 
@@ -67,25 +80,26 @@ export default function SignupPage() {
             if (authError) throw authError;
             if (!authData.user) throw new Error("Signup failed");
 
-            const { error: profileError } = await supabase
-                .from('users')
-                .insert({
-                    id: authData.user.id,
-                    email: inviteData.email,
-                    name: name,
-                    role: inviteData.role,
-                    company_id: inviteData.company_id
-                });
+            // One server-side call claims-or-creates the profile and consumes
+            // the invite together.
+            //
+            // Claiming matters for engineers mirrored from Baserow: they
+            // already have a users row keyed by a placeholder uuid, so a plain
+            // insert would collide on users_email_key. accept_invite repoints
+            // that row at the new auth id, and the foreign keys cascade so
+            // their existing task assignments follow.
+            //
+            // Role and company come from the invite inside the function rather
+            // than from this form, so the browser cannot choose its own role.
+            const { error: profileError } = await supabase.rpc('accept_invite', {
+                p_token: token,
+                p_name: name,
+            });
 
             if (profileError) {
-                console.error("Profile creation failed", profileError);
-                throw new Error("Failed to create user profile: " + profileError.message);
+                console.error('Profile creation failed', profileError);
+                throw new Error(profileError.message);
             }
-
-            await supabase
-                .from('pending_invites')
-                .update({ used: true })
-                .eq('id', inviteData.id);
 
             setTimeout(() => {
                 navigate('/dashboard');
@@ -128,6 +142,9 @@ export default function SignupPage() {
         </div>
     );
 
+    // Neither loading nor errored, but no invite resolved — nothing to render.
+    if (!inviteData) return null;
+
     return (
         <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-950 p-4">
             <div className="w-full max-w-md animate-spring-up">
@@ -138,7 +155,7 @@ export default function SignupPage() {
                         </div>
                         <CardTitle className="text-2xl font-bold text-center tracking-tight">Accept Invitation</CardTitle>
                         <p className="text-center text-sm text-gray-500 dark:text-slate-400">
-                            Join <strong>{inviteData.company?.name || 'the team'}</strong> as a <strong className="capitalize">{inviteData.role}</strong>
+                            Join <strong>{inviteData.company_name || 'the team'}</strong> as a <strong className="capitalize">{inviteData.role}</strong>
                         </p>
                     </CardHeader>
                     <CardContent>
