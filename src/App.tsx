@@ -46,12 +46,30 @@ const queryClient = new QueryClient({
     },
 });
 
+/**
+ * Keeps signed-in people off the login screen. Without it, a logged-in user
+ * opening "/" sees the sign-in form again even though their session is valid.
+ */
+function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
+    const user = useAuthStore((state) => state.user);
+    const initialized = useAuthStore((state) => state.initialized);
+
+    if (initialized && user) return <Navigate to="/dashboard" replace />;
+    return <>{children}</>;
+}
+
 function App() {
     const checkSession = useAuthStore((state) => state.checkSession);
+    const subscribe = useAuthStore((state) => state.subscribe);
 
     useEffect(() => {
         checkSession();
-    }, [checkSession]);
+        // Supabase rotates the access token in the background and can sign the
+        // session out (expiry, password change, sign-out in another tab).
+        // Without this listener the store keeps a stale user and the app only
+        // notices on a full reload.
+        return subscribe();
+    }, [checkSession, subscribe]);
 
     return (
         <ThemeProvider>
@@ -60,7 +78,14 @@ function App() {
                     <Suspense fallback={<RouteFallback />}>
                         <Routes>
                             {/* Public routes */}
-                            <Route path="/" element={<LoginPage />} />
+                            <Route
+                                path="/"
+                                element={
+                                    <PublicOnlyRoute>
+                                        <LoginPage />
+                                    </PublicOnlyRoute>
+                                }
+                            />
                             <Route path="/signup" element={<SignupPage />} />
                             <Route path="/login" element={<Navigate to="/" replace />} />
 

@@ -13,15 +13,26 @@ interface AuthState {
     user: User | null;
     loading: boolean;
     initialized: boolean;
+    /**
+     * Set when Supabase authenticated the person but no matching row exists in
+     * public.users. Without this the app looked signed-out while the session
+     * was alive, so ProtectedRoute bounced to /login, App re-checked the
+     * session, and the loop repeated. Surfacing it lets the UI say what is
+     * actually wrong.
+     */
+    missingProfile: boolean;
     signIn: (email: string, password: string) => Promise<void>;
     signOut: () => Promise<void>;
     checkSession: () => Promise<void>;
+    /** Subscribes to Supabase auth events. Returns an unsubscribe function. */
+    subscribe: () => () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
     user: null,
     loading: true,
     initialized: false,
+    missingProfile: false,
 
     checkSession: async () => {
         try {
@@ -35,14 +46,48 @@ export const useAuthStore = create<AuthState>((set) => ({
                     .single();
 
                 if (profile) {
-                    set({ user: profile as User, loading: false, initialized: true });
+                    set({
+                        user: profile as User,
+                        loading: false,
+                        initialized: true,
+                        missingProfile: false,
+                    });
                     return;
                 }
+
+                // Authenticated, but no profile row: a real state, not a
+                // signed-out one. Redirecting to /login here would loop.
+                set({
+                    user: null,
+                    loading: false,
+                    initialized: true,
+                    missingProfile: true,
+                });
+                return;
             }
         } catch (error) {
             console.error('Session check failed:', error);
         }
-        set({ user: null, loading: false, initialized: true });
+        set({ user: null, loading: false, initialized: true, missingProfile: false });
+    },
+
+    subscribe: () => {
+        const { data } = supabase.auth.onAuthStateChange((event, session) => {
+            // Supabase warns against awaiting inside this callback — it runs on
+            // the internal lock and can deadlock. Defer any async work.
+            if (event === 'SIGNED_OUT' || !session) {
+                set({ user: null, loading: false, initialized: true, missingProfile: false });
+                return;
+            }
+
+            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+                setTimeout(() => {
+                    void useAuthStore.getState().checkSession();
+                }, 0);
+            }
+        });
+
+        return () => data.subscription.unsubscribe();
     },
 
     signIn: async (email: string, password: string) => {
@@ -63,9 +108,15 @@ export const useAuthStore = create<AuthState>((set) => ({
                     .single();
 
                 if (profile) {
-                    set({ user: profile as User, loading: false });
+                    set({ user: profile as User, loading: false, missingProfile: false });
                 } else {
-                    set({ loading: false }); // User authenticated but no profile
+                    // Signed in with no profile row. Reported explicitly rather
+                    // than leaving the caller on a login screen that appears to
+                    // have silently failed.
+                    set({ loading: false, missingProfile: true });
+                    throw new Error(
+                        'Your account exists but has no profile in this workspace. Ask an admin to invite you.',
+                    );
                 }
             }
         } catch (error) {
@@ -77,7 +128,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     signOut: async () => {
         set({ loading: true });
         await supabase.auth.signOut();
-        set({ user: null, loading: false });
+        set({ user: null, loading: false, missingProfile: false });
     },
 }));
 
