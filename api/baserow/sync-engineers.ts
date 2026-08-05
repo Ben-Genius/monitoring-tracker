@@ -4,7 +4,6 @@ import { listAllRows } from '../_lib/baserow.js';
 import { supabaseAdmin } from '../_lib/supabaseAdmin.js';
 import {
     mapEngineer,
-    isPlaceholderEmail,
     DEFAULT_ROLE,
     ENGINEER_COMPANY_ID,
     type MappedEngineer,
@@ -58,6 +57,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         };
         const existing = (users ?? []) as unknown as ExistingUser[];
 
+        // Which profiles are backed by a real auth account. An email is only
+        // untouchable once it is a login credential — before that it is just a
+        // mirrored attribute and Baserow owns it.
+        const authIds = new Set<string>();
+        {
+            let page = 1;
+            for (;;) {
+                const { data, error } = await db.auth.admin.listUsers({
+                    page,
+                    perPage: 200,
+                });
+                if (error) throw new Error(`Auth listUsers failed: ${error.message}`);
+                data.users.forEach((u) => authIds.add(u.id));
+                if (data.users.length < 200) break;
+                page++;
+            }
+        }
+
         const byBaserowId = new Map(
             existing.filter((u) => u.baserow_id !== null).map((u) => [u.baserow_id!, u]),
         );
@@ -70,6 +87,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             upgradeEmail: boolean;
         }[] = [];
         let alreadyLinked = 0;
+        /** Emails Baserow wanted to change but that now back a login. */
+        const frozenEmails: string[] = [];
 
         for (const eng of mapped) {
             const prev =
@@ -92,16 +111,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 continue;
             }
 
-            // An engineer synced without an email holds a @placeholder.invalid
-            // address and cannot be invited, because accept_invite() matches
-            // the invite against the signer's own verified email. Once Baserow
-            // gains a real address, promote it.
+            // Email follows Baserow in BOTH directions — but only while the
+            // profile has no auth account. That covers adding an address,
+            // correcting a typo, and clearing one again.
             //
-            // Only placeholder -> real is allowed. Overwriting one real address
-            // with another would silently redirect an existing account's
-            // identity, so that case is deliberately left alone.
-            const upgradeEmail =
-                isPlaceholderEmail(prev.email) && !eng.placeholderEmail;
+            // Once the person can log in, their email is their identity:
+            // rewriting it here would either lock them out or hand their access
+            // to whoever owns the new address. accept_invite() also matches on
+            // the signer's verified email. From that point a change has to go
+            // through Supabase Auth, with re-verification.
+            const hasAuthAccount = authIds.has(prev.id);
+            const emailDiffers =
+                prev.email.toLowerCase() !== eng.email.toLowerCase();
+            const upgradeEmail = emailDiffers && !hasAuthAccount;
+
+            if (emailDiffers && hasAuthAccount) {
+                frozenEmails.push(prev.email);
+            }
 
             if (
                 prev.baserow_id === eng.baserow_id &&
@@ -124,7 +150,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 wouldLinkExisting: toLink.length,
                 alreadyLinked,
                 placeholderEmails: placeholders,
-                wouldUpgradeEmail: toLink.filter((l) => l.upgradeEmail).length,
+                wouldUpdateEmail: toLink.filter((l) => l.upgradeEmail).length,
+                emailsFrozenByLogin: frozenEmails,
                 linkTargets: toLink.map((l) => l.engineer.email),
             });
         }
@@ -137,7 +164,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Linking updates only Baserow-owned fields. id, role and company_id
         // are never touched on rows that already existed, so a sync cannot
         // demote an admin or move someone between companies. Email is included
-        // only when upgrading away from a placeholder.
+        // only for profiles with no auth account behind them.
         for (const { id, engineer, upgradeEmail } of toLink) {
             const patch: Record<string, unknown> = {
                 baserow_id: engineer.baserow_id,
@@ -154,7 +181,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             baserowRows: mapped.length,
             created: toInsert.length,
             linkedExisting: toLink.length,
-            emailsUpgraded: toLink.filter((l) => l.upgradeEmail).length,
+            emailsUpdated: toLink.filter((l) => l.upgradeEmail).length,
+            emailsFrozenByLogin: frozenEmails.length,
             alreadyLinked,
             placeholderEmails: placeholders,
         });
