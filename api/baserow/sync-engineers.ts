@@ -4,6 +4,7 @@ import { listAllRows } from '../_lib/baserow.js';
 import { supabaseAdmin } from '../_lib/supabaseAdmin.js';
 import {
     mapEngineer,
+    isPlaceholderEmail,
     DEFAULT_ROLE,
     ENGINEER_COMPANY_ID,
     type MappedEngineer,
@@ -63,7 +64,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const byEmail = new Map(existing.map((u) => [u.email.toLowerCase(), u]));
 
         const toInsert: Record<string, unknown>[] = [];
-        const toLink: { id: string; engineer: MappedEngineer }[] = [];
+        const toLink: {
+            id: string;
+            engineer: MappedEngineer;
+            upgradeEmail: boolean;
+        }[] = [];
         let alreadyLinked = 0;
 
         for (const eng of mapped) {
@@ -87,11 +92,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 continue;
             }
 
-            if (prev.baserow_id === eng.baserow_id && prev.phone === eng.phone) {
+            // An engineer synced without an email holds a @placeholder.invalid
+            // address and cannot be invited, because accept_invite() matches
+            // the invite against the signer's own verified email. Once Baserow
+            // gains a real address, promote it.
+            //
+            // Only placeholder -> real is allowed. Overwriting one real address
+            // with another would silently redirect an existing account's
+            // identity, so that case is deliberately left alone.
+            const upgradeEmail =
+                isPlaceholderEmail(prev.email) && !eng.placeholderEmail;
+
+            if (
+                prev.baserow_id === eng.baserow_id &&
+                prev.phone === eng.phone &&
+                !upgradeEmail
+            ) {
                 alreadyLinked++;
                 continue;
             }
-            toLink.push({ id: prev.id, engineer: eng });
+            toLink.push({ id: prev.id, engineer: eng, upgradeEmail });
         }
 
         const placeholders = mapped.filter((e) => e.placeholderEmail).length;
@@ -104,6 +124,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 wouldLinkExisting: toLink.length,
                 alreadyLinked,
                 placeholderEmails: placeholders,
+                wouldUpgradeEmail: toLink.filter((l) => l.upgradeEmail).length,
                 linkTargets: toLink.map((l) => l.engineer.email),
             });
         }
@@ -113,13 +134,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (error) throw new Error(`Supabase insert failed: ${error.message}`);
         }
 
-        // Linking updates only the Baserow-owned fields. id, role, email and
-        // company_id are deliberately untouched on rows that already existed.
-        for (const { id, engineer } of toLink) {
-            const { error } = await db
-                .from('users')
-                .update({ baserow_id: engineer.baserow_id, phone: engineer.phone })
-                .eq('id', id);
+        // Linking updates only Baserow-owned fields. id, role and company_id
+        // are never touched on rows that already existed, so a sync cannot
+        // demote an admin or move someone between companies. Email is included
+        // only when upgrading away from a placeholder.
+        for (const { id, engineer, upgradeEmail } of toLink) {
+            const patch: Record<string, unknown> = {
+                baserow_id: engineer.baserow_id,
+                phone: engineer.phone,
+            };
+            if (upgradeEmail) patch.email = engineer.email;
+
+            const { error } = await db.from('users').update(patch).eq('id', id);
             if (error) throw new Error(`Supabase link failed: ${error.message}`);
         }
 
@@ -128,6 +154,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             baserowRows: mapped.length,
             created: toInsert.length,
             linkedExisting: toLink.length,
+            emailsUpgraded: toLink.filter((l) => l.upgradeEmail).length,
             alreadyLinked,
             placeholderEmails: placeholders,
         });
