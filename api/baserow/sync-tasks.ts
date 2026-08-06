@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { listAllRows } from '../_lib/baserow.js';
 import { supabaseAdmin } from '../_lib/supabaseAdmin.js';
+import { reconcileArchived } from '../_lib/reconcileArchived.js';
 import {
     mapTask,
     COMPARED_FIELDS,
@@ -177,6 +178,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             .upsert(toWrite, { onConflict: 'baserow_id' });
         if (upsertErr) throw new Error(`Supabase upsert failed: ${upsertErr.message}`);
 
+        // Rows deleted in Baserow are archived rather than removed.
+        const reconciled = await reconcileArchived(
+            db,
+            'tasks',
+            toWrite.map((r) => r.baserow_id),
+        );
+
         if (auditEntries.length > 0) {
             const { error: auditErr } = await db.from('audit_log').insert(auditEntries);
             if (auditErr) {
@@ -193,6 +201,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         return res.status(200).json({
             ok: true,
+            archived: reconciled.archived,
+            restored: reconciled.restored,
             baserowRows: toWrite.length,
             created: created.length,
             updated: updated.length,

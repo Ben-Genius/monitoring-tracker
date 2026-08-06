@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { listAllRows } from '../_lib/baserow.js';
 import { supabaseAdmin } from '../_lib/supabaseAdmin.js';
+import { reconcileArchived } from '../_lib/reconcileArchived.js';
 import { mapSubTask, COMPARED_FIELDS, type MappedSubTask } from '../_lib/mapSubTask.js';
 import {
     authorizeSync,
@@ -103,8 +104,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             .upsert(mapped, { onConflict: 'baserow_id' });
         if (upsertErr) throw new Error(`Supabase upsert failed: ${upsertErr.message}`);
 
+        // Rows deleted in Baserow are archived rather than removed.
+        //
+        // Uses allMapped, not mapped: `mapped` drops sub tasks whose parent
+        // task is not mirrored. Those still exist in Baserow, so the filtered
+        // list would archive them for being unresolvable rather than deleted.
+        const reconciled = await reconcileArchived(
+            db,
+            'subtasks',
+            allMapped.map((r) => r.baserow_id),
+        );
+
         return res.status(200).json({
             ok: true,
+            archived: reconciled.archived,
+            restored: reconciled.restored,
             baserowRows: allMapped.length,
             created,
             updated,

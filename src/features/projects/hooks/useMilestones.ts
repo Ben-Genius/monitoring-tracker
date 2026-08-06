@@ -22,15 +22,22 @@ export interface CreateMilestoneInput {
     due_date?: string;
 }
 
-export function useMilestones(projectId: string) {
+/** @param includeArchived see useProjects. */
+export function useMilestones(projectId: string, includeArchived = false) {
     return useQuery({
-        queryKey: ['milestones', projectId],
+        queryKey: ['milestones', projectId, includeArchived],
         queryFn: async () => {
-            const { data, error } = await supabase
+            let query = supabase
                 .from('milestones')
                 .select('*')
                 .eq('project_id', projectId)
                 .order('due_date', { ascending: true, nullsFirst: false });
+
+            if (!includeArchived) {
+                query = query.is('archived_at', null);
+            }
+
+            const { data, error } = await query;
 
             if (error) throw error;
 

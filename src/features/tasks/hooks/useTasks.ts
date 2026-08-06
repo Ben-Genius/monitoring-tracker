@@ -103,6 +103,7 @@ export function useTasks(filters?: {
           assignee:users!tasks_assignee_id_fkey(name, email),
           comments:task_comments(count)
         `)
+                .is('archived_at', null)
                 .order('created_at', { ascending: false });
 
             if (filters?.project_id) {
@@ -316,6 +317,7 @@ export function useSubtasks(taskId: string) {
             const { data, error } = await supabase
                 .from('subtasks')
                 .select('*')
+                .is('archived_at', null)
                 .eq('task_id', taskId)
                 .order('created_at', { ascending: true });
 

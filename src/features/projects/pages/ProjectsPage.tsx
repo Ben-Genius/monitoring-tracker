@@ -13,7 +13,8 @@ import {
     CheckCircle2,
     AlertCircle,
     LayoutGrid,
-    Play
+    Play,
+    Archive
 } from 'lucide-react';
 import { formatCurrency, calculateProfitability, cn, getCompanyTheme } from '@/lib/utils';
 import { useProjects, useCompanies } from '@/features/projects/hooks/useProjects';
@@ -31,7 +32,11 @@ export default function ProjectsPage() {
     const { user } = useAuth();
     const navigate = useNavigate();
     const { selectedCompanyId } = useCompanyStore();
-    const { data: projects, isLoading } = useProjects(selectedCompanyId === 'all' ? undefined : selectedCompanyId);
+    const [showArchived, setShowArchived] = useState(false);
+    const { data: projects, isLoading } = useProjects(
+        selectedCompanyId === 'all' ? undefined : selectedCompanyId,
+        showArchived,
+    );
     const { data: companies = [] } = useCompanies();
     const [activeTab, setActiveTab] = useState('all');
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -143,6 +148,21 @@ export default function ProjectsPage() {
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
+                    {/* Projects whose Baserow row was deleted are archived, not
+                        removed. This is how they stay reviewable. */}
+                    <Button
+                        variant={showArchived ? 'default' : 'outline'}
+                        onClick={() => setShowArchived((v) => !v)}
+                        className="rounded-xl border-slate-200 dark:border-slate-800 text-xs font-bold"
+                        title={
+                            showArchived
+                                ? 'Showing projects deleted in Baserow'
+                                : 'Show projects deleted in Baserow'
+                        }
+                    >
+                        <Archive className="h-4 w-4 mr-2" />
+                        Archived
+                    </Button>
                     <Button
                         variant="outline"
                         onClick={() => setIsImportModalOpen(true)}

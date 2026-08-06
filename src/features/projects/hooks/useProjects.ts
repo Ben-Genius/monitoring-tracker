@@ -37,10 +37,13 @@ export interface CreateProjectInput {
     status?: Project['status'];
 }
 
-// Fetch all projects
-export function useProjects(companyId?: string) {
+/**
+ * @param includeArchived show rows whose Baserow source was deleted. Off by
+ *        default; the archived view is for reviewing or restoring them.
+ */
+export function useProjects(companyId?: string, includeArchived = false) {
     return useQuery({
-        queryKey: ['projects', companyId],
+        queryKey: ['projects', companyId, includeArchived],
         queryFn: async () => {
             let query = supabase
                 .from('projects')
@@ -51,6 +54,15 @@ export function useProjects(companyId?: string) {
           tasks!tasks_project_id_fkey(id, title, stage)
         `)
                 .order('created_at', { ascending: false });
+
+            if (!includeArchived) {
+                query = query
+                    .is('archived_at', null)
+                    // The embedded tasks need their own filter: a top-level
+                    // condition does not touch embedded rows, so progress
+                    // counts would keep counting deleted tasks.
+                    .is('tasks.archived_at', null);
+            }
 
             if (companyId) {
                 query = query.eq('company_id', companyId);

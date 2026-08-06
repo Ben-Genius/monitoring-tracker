@@ -58,6 +58,7 @@ export function useMonthlyTrend() {
             const { data: tasks, error } = await supabase
                 .from('tasks')
                 .select('created_at, stage, project:projects(contract_value)')
+                .is('archived_at', null)
                 .eq('stage', 'completed');
 
             if (error) throw error;

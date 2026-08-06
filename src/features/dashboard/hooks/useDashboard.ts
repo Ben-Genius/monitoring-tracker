@@ -59,7 +59,8 @@ export function useDashboardStats(companyId?: string) {
             // Get total projects
             let projectsQuery = supabase
                 .from('projects')
-                .select('*', { count: 'exact', head: true });
+                .select('*', { count: 'exact', head: true })
+                .is('archived_at', null);
 
             if (companyId && companyId !== 'all') {
                 projectsQuery = projectsQuery.eq('company_id', companyId);
@@ -70,7 +71,8 @@ export function useDashboardStats(companyId?: string) {
             let tasksQuery = supabase
                 .from('tasks')
                 .select('*, project:projects!inner(company_id)', { count: 'exact', head: true })
-                .neq('stage', 'completed');
+                .neq('stage', 'completed')
+                .is('archived_at', null);
 
             if (companyId && companyId !== 'all') {
                 tasksQuery = tasksQuery.eq('project.company_id', companyId);
@@ -90,7 +92,8 @@ export function useDashboardStats(companyId?: string) {
             // Get total revenue
             let revenueQuery = supabase
                 .from('projects')
-                .select('contract_value');
+                .select('contract_value')
+                .is('archived_at', null);
 
             if (companyId && companyId !== 'all') {
                 revenueQuery = revenueQuery.eq('company_id', companyId);
@@ -123,7 +126,8 @@ export function useTaskDistribution(companyId?: string) {
         queryFn: async () => {
             let query = supabase
                 .from('tasks')
-                .select('stage, project:projects!inner(company_id)');
+                .select('stage, project:projects!inner(company_id)')
+                .is('archived_at', null);
 
             if (companyId && companyId !== 'all') {
                 query = query.eq('project.company_id', companyId);
@@ -164,7 +168,8 @@ export function usePerformanceTrend(companyId?: string) {
             let query = supabase
                 .from('tasks')
                 .select('created_at, project:projects!inner(company_id)')
-                .order('created_at', { ascending: true });
+                .order('created_at', { ascending: true })
+                .is('archived_at', null);
 
             if (companyId && companyId !== 'all') {
                 query = query.eq('project.company_id', companyId);
@@ -202,7 +207,8 @@ export function useIdleTasks(companyId?: string) {
           project:projects!inner(company_id)
         `)
                 .lt('updated_at', twoDaysAgo.toISOString())
-                .not('stage', 'in', '(completed,talking_stage)');
+                .not('stage', 'in', '(completed,talking_stage)')
+                .is('archived_at', null);
 
             if (companyId && companyId !== 'all') {
                 query = query.eq('project.company_id', companyId);
@@ -242,7 +248,8 @@ export function useRecentProjects(limit = 3, companyId?: string) {
           actual_cost,
           expected_handover,
           company:companies(name)
-        `);
+        `)
+                .is('archived_at', null);
 
             if (companyId && companyId !== 'all') {
                 query = query.eq('company_id', companyId);
@@ -291,7 +298,8 @@ export function useRecentTasks(limit = 5, companyId?: string) {
           created_at,
           project:projects!inner(name, company:companies(name)),
           assignee:users!tasks_assignee_id_fkey(name)
-        `);
+        `)
+                .is('archived_at', null);
 
             if (companyId && companyId !== 'all') {
                 query = query.eq('project.company_id', companyId);
