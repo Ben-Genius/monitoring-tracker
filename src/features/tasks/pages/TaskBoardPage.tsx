@@ -203,7 +203,7 @@ export default function TaskBoardPage() {
                         Manage and track all your tasks
                     </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
                     {/* View Switcher */}
                     <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
                         <button
@@ -232,7 +232,7 @@ export default function TaskBoardPage() {
                         </button>
                     </div>
 
-                    <div className="relative w-64">
+                    <div className="relative order-3 w-full sm:order-none sm:w-64">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
                         <Input
                             placeholder="Search tasks..."
