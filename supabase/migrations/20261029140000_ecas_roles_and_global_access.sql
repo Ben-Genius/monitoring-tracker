@@ -12,7 +12,21 @@
 
 BEGIN;
 
-ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+-- Drop whatever the existing role CHECK is called. Naming it outright risks
+-- leaving an older constraint in place that still rejects the two new roles.
+DO $$
+DECLARE c RECORD;
+BEGIN
+  FOR c IN
+    SELECT conname FROM pg_constraint
+    WHERE conrelid = 'public.users'::regclass
+      AND contype = 'c'
+      AND pg_get_constraintdef(oid) ILIKE '%role%'
+  LOOP
+    EXECUTE format('ALTER TABLE public.users DROP CONSTRAINT %I', c.conname);
+  END LOOP;
+END $$;
+
 ALTER TABLE users ADD CONSTRAINT users_role_check
   CHECK (role IN ('admin', 'executive', 'pa', 'lead', 'employee'));
 
@@ -34,25 +48,32 @@ grant execute on function private.has_global_access() to authenticated;
 
 -- Permissive SELECT policies are OR'd with the existing ones, so these widen
 -- read access for the three global roles and touch nothing else.
+DROP POLICY IF EXISTS "Global roles can view all companies" ON companies;
 CREATE POLICY "Global roles can view all companies" ON companies
   FOR SELECT TO authenticated USING (private.has_global_access());
 
+DROP POLICY IF EXISTS "Global roles can view all users" ON users;
 CREATE POLICY "Global roles can view all users" ON users
   FOR SELECT TO authenticated USING (private.has_global_access());
 
+DROP POLICY IF EXISTS "Global roles can view all projects" ON projects;
 CREATE POLICY "Global roles can view all projects" ON projects
   FOR SELECT TO authenticated USING (private.has_global_access());
 
+DROP POLICY IF EXISTS "Global roles can view all tasks" ON tasks;
 CREATE POLICY "Global roles can view all tasks" ON tasks
   FOR SELECT TO authenticated USING (private.has_global_access());
 
+DROP POLICY IF EXISTS "Global roles can view all task comments" ON task_comments;
 CREATE POLICY "Global roles can view all task comments" ON task_comments
   FOR SELECT TO authenticated USING (private.has_global_access());
 
+DROP POLICY IF EXISTS "Global roles can view all pipeline projects" ON pipeline_projects;
 CREATE POLICY "Global roles can view all pipeline projects" ON pipeline_projects
   FOR SELECT TO authenticated USING (private.has_global_access());
 
 -- The PA creates commitments for people in any company; the executive does not.
+DROP POLICY IF EXISTS "PA and admin can create tasks in any company" ON tasks;
 CREATE POLICY "PA and admin can create tasks in any company" ON tasks
   FOR INSERT TO authenticated
   WITH CHECK (
