@@ -4,11 +4,12 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Save, Bell, Shield, Database } from 'lucide-react';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { canAdminister } from '@/lib/permissions';
 
 
 export default function SettingsPage() {
     const { user } = useAuth();
-    const isAdmin = user?.role === 'admin';
+    const canAdmin = canAdminister(user);
 
     return (
         <div className="space-y-6 animate-fade-in">
@@ -33,18 +34,18 @@ export default function SettingsPage() {
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
                             <label className="text-sm font-medium">Company Name</label>
-                            <Input defaultValue="Macwest" disabled={!isAdmin} />
+                            <Input defaultValue="Macwest" disabled={!canAdmin} />
                         </div>
                         <div className="space-y-2">
                             <label className="text-sm font-medium">Time Zone</label>
-                            <select className="w-full h-10 px-3 rounded-md border border-input bg-background" disabled={!isAdmin}>
+                            <select className="w-full h-10 px-3 rounded-md border border-input bg-background" disabled={!canAdmin}>
                                 <option>UTC-5 (Eastern Time)</option>
                                 <option>UTC-6 (Central Time)</option>
                                 <option>UTC-7 (Mountain Time)</option>
                                 <option>UTC-8 (Pacific Time)</option>
                             </select>
                         </div>
-                        {isAdmin && (
+                        {canAdmin && (
                             <Button>
                                 <Save className="h-4 w-4 mr-2" />
                                 Save Changes
@@ -97,7 +98,7 @@ export default function SettingsPage() {
                 </Card>
 
                 {/* Database Settings - Admin Only */}
-                {isAdmin && (
+                {canAdmin && (
                     <Card>
                         <CardHeader>
                             <div className="flex items-center space-x-2">
@@ -139,7 +140,7 @@ export default function SettingsPage() {
                 )}
 
                 {/* Company Management - Admin Only */}
-                {isAdmin && (
+                {canAdmin && (
                     <Card>
                         <CardHeader>
                             <CardTitle>Company Management</CardTitle>

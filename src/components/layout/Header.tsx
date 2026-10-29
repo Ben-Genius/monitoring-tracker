@@ -6,6 +6,7 @@ import { useCompanies } from '@/features/projects/hooks/useProjects';
 import { useCompanyStore } from '@/hooks/useCompanyStore';
 import { useEffect } from 'react';
 import { getCompanyTheme } from '@/lib/utils';
+import { canViewAllCompanies } from '@/lib/permissions';
 
 interface HeaderProps {
     onMenuClick: () => void;
@@ -17,12 +18,12 @@ export default function Header({ onMenuClick }: HeaderProps) {
     const { selectedCompanyId, setSelectedCompanyId } = useCompanyStore();
 
     useEffect(() => {
-        if (user && user.role !== 'admin' && selectedCompanyId !== user.company_id) {
+        if (user && !canViewAllCompanies(user) && selectedCompanyId !== user.company_id) {
             setSelectedCompanyId(user.company_id);
         }
     }, [user, selectedCompanyId, setSelectedCompanyId]);
 
-    const isAdmin = user?.role === 'admin';
+    const canSwitchCompany = canViewAllCompanies(user);
     const currentCompany = selectedCompanyId === 'all'
         ? { name: 'Global View', id: 'all' }
         : companies.find(c => c.id === selectedCompanyId) || { name: 'Loading...', id: selectedCompanyId };
@@ -42,7 +43,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 </button>
                 <div className="flex min-w-0 items-center space-x-2">
                     <Building2 className="h-5 w-5 text-gray-500 dark:text-slate-400" />
-                    {isAdmin ? (
+                    {canSwitchCompany ? (
                         <select
                             value={selectedCompanyId}
                             onChange={(e) => setSelectedCompanyId(e.target.value)}

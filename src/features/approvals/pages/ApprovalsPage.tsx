@@ -18,6 +18,7 @@ import { toast } from 'react-hot-toast';
 
 import { useCompanyStore } from '@/hooks/useCompanyStore';
 import { useCompanies } from '@/features/projects/hooks/useProjects';
+import { canAdminister } from '@/lib/permissions';
 
 export default function ApprovalsPage() {
     const { user } = useAuth();
@@ -28,7 +29,7 @@ export default function ApprovalsPage() {
     const [selectedApproval, setSelectedApproval] = useState<string | null>(null);
     const [adminNotes, setAdminNotes] = useState('');
 
-    const isAdmin = user?.role === 'admin';
+    const canDecide = canAdminister(user);
 
     const currentCompanyName = useMemo(() => {
         if (selectedCompanyId === 'all') return 'Global View';
@@ -186,7 +187,7 @@ export default function ApprovalsPage() {
                                     </div>
 
                                     {/* Admin Actions */}
-                                    {isAdmin && (
+                                    {canDecide && (
                                         <div className="space-y-4 pt-4 border-t border-slate-200">
                                             {selectedApproval === approval.id ? (
                                                 <div className="space-y-4">

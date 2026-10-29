@@ -10,6 +10,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import { cn, getCompanyTheme } from '@/lib/utils';
 import { useCompanyStore } from '@/hooks/useCompanyStore';
 import { useCompanies } from '@/features/projects/hooks/useProjects';
+import { canAdminister } from '@/lib/permissions';
 
 interface User {
     id: string;
@@ -44,7 +45,7 @@ export default function UserManagementPage() {
     const { user: currentUser } = useAuth();
     const { selectedCompanyId } = useCompanyStore();
     const { data: companiesFromStore = [] } = useCompanies();
-    const isAdmin = currentUser?.role === 'admin';
+    const isAdmin = canAdminister(currentUser);
 
     const [users, setUsers] = useState<User[]>([]);
     const [companies, setCompanies] = useState<Company[]>([]);

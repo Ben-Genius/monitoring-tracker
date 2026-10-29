@@ -27,6 +27,7 @@ import { useFilters, FilterBar } from '@/features/filters/components';
 import { ImportModal } from '@/features/import/components';
 
 import { useCompanyStore } from '@/hooks/useCompanyStore';
+import { canAdminister, canViewAllCompanies } from '@/lib/permissions';
 
 export default function ProjectsPage() {
     const { user } = useAuth();
@@ -42,9 +43,9 @@ export default function ProjectsPage() {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
-    const isAdmin = user?.role === 'admin';
+    const canSeeAllCompanies = canViewAllCompanies(user);
     const isLead = user?.role === 'lead';
-    const canCreateProject = isAdmin || isLead;
+    const canCreateProject = canAdminister(user) || isLead;
 
     const currentCompanyName = useMemo(() => {
         if (selectedCompanyId === 'all') return 'Global View';
@@ -73,7 +74,7 @@ export default function ProjectsPage() {
     const filteredByTab = useMemo(() => {
         if (!projects) return [];
         return projects.filter(project => {
-            if (!isAdmin && project.company_id !== user?.company_id) return false;
+            if (!canSeeAllCompanies && project.company_id !== user?.company_id) return false;
             if (activeTab === 'all') return true;
             if (activeTab === 'upcoming') return false;
             if (activeTab === 'active') return project.status === 'active';
@@ -81,7 +82,7 @@ export default function ProjectsPage() {
             if (activeTab === 'backlogs') return project.status === 'on_hold';
             return true;
         }) || [];
-    }, [projects, activeTab, isAdmin, user?.company_id]);
+    }, [projects, activeTab, canSeeAllCompanies, user?.company_id]);
 
     const projectFilters = useFilters(filteredByTab, projectFilterDefs, { field: 'contract_value', direction: 'desc' });
 

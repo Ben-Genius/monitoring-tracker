@@ -33,6 +33,7 @@ import { cn, getCompanyTheme } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { useCompanyStore } from '@/hooks/useCompanyStore';
 import { useCompanies } from '@/features/projects/hooks/useProjects';
+import { canCoordinate } from '@/lib/permissions';
 
 const baseStages = [
     { id: 'talking_stage', name: 'Talking Stage', color: 'bg-blue-500', icon: MessageSquare, tint: 'bg-blue-50/50' },
@@ -44,7 +45,7 @@ const baseStages = [
 
 export default function TaskBoardPage() {
     const { user } = useAuth();
-    const isAdmin = user?.role === 'admin';
+    const canCreateTask = canCoordinate(user);
     const isLead = user?.role === 'lead';
 
     const { selectedCompanyId } = useCompanyStore();
@@ -245,7 +246,7 @@ export default function TaskBoardPage() {
                         <Filter className="h-4 w-4 mr-2" />
                         Filter
                     </Button>
-                    {(isAdmin || isLead) && (
+                    {(canCreateTask || isLead) && (
                         <Button
                             size="sm"
                             className="h-9 transition-transform hover:scale-105"
