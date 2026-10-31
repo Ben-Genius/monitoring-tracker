@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth, useAuthStore } from '../hooks/useAuth';
+import { homePath } from '@/lib/permissions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Lock, Mail, CheckCircle2, TrendingUp, Users, ArrowRight } from 'lucide-react';
@@ -46,7 +47,7 @@ export default function LoginPage() {
         setLoading(true);
         try {
             await signIn(email, password);
-            navigate('/dashboard');
+            navigate(homePath(useAuthStore.getState().user));
         } catch (err: any) {
             setError(err.message || 'Invalid email or password');
         } finally {

@@ -1,205 +1,116 @@
 import { useDraggable } from '@dnd-kit/core';
-import { GripVertical, Calendar, CheckSquare, MessageSquare } from 'lucide-react';
-import { cn, getCompanyTheme } from '@/lib/utils';
+import { Calendar, MessageSquare, AlertTriangle, Clock, UserCheck, ListChecks } from 'lucide-react';
+import { cn, getCompanyTheme, formatDate } from '@/lib/utils';
 import { Task } from '../hooks/useTasks';
-import { formatDate } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
-import { useMemo } from 'react';
+import { MoveMenu } from './TaskMover';
+import { taskProgress, isStale, daysSinceMovement, awaitingAcceptance, isUpdateOverdue } from '../utils/accountability';
+import { stageDef } from '../utils/stages';
 
 interface TaskCardProps {
     task: Task;
     isDragging?: boolean;
     onClick?: () => void;
+    /** Offer "Update status" (and dragging). Omit for read-only viewers. */
+    onMove?: (stage: Task['stage']) => void;
+    onUpdate?: () => void;
+    /** Briefly marks a card that has just been moved, so the person sees where it landed. */
+    justMoved?: boolean;
+    showCompany?: boolean;
 }
 
-export default function TaskCard({ task, isDragging = false, onClick }: TaskCardProps) {
-    const { attributes, listeners, setNodeRef, transform } = useDraggable({
-        id: task.id,
-    });
+const initials = (name: string) => name.split(/\s+/).map(n => n[0]).join('').slice(0, 2).toUpperCase();
 
-    const theme = useMemo(() => {
-        const companyName = task.project?.company?.name || 'Global View';
-        return getCompanyTheme(companyName);
-    }, [task.project?.company?.name]);
+export default function TaskCard({ task, isDragging = false, onClick, onMove, onUpdate, justMoved, showCompany }: TaskCardProps) {
+    const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: task.id, disabled: !onMove });
 
-    const style = transform
-        ? {
-            transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-            zIndex: 50,
-        }
-        : undefined;
-
-    const getPriorityConfig = (priority: string) => {
-        const configs: Record<string, { color: string; bg: string; text: string }> = {
-            low: { color: 'bg-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-700 dark:text-blue-300' },
-            medium: { color: 'bg-green-500', bg: 'bg-green-50 dark:bg-green-900/20', text: 'text-green-700 dark:text-green-300' },
-            high: { color: 'bg-orange-500', bg: 'bg-orange-50 dark:bg-orange-900/20', text: 'text-orange-700 dark:text-orange-300' },
-            critical: { color: 'bg-red-500', bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-700 dark:text-red-300' },
-        };
-        return configs[priority] || configs.low;
-    };
-
-    const priority = getPriorityConfig(task.priority);
-    const subtasksCount = task.subtasks?.length || 0;
-    const completedSubtasks = task.subtasks?.filter(s => s.is_completed).length || 0;
-    const progress = task.stage === 'completed' ? 100 : (subtasksCount > 0 ? Math.round((completedSubtasks / subtasksCount) * 100) : 0);
-    const commentsCount = task.comments?.length || 0;
-
-    const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.stage !== 'completed';
-    const isDueToday =
-        task.due_date &&
-        new Date(task.due_date).toDateString() === new Date().toDateString() &&
-        task.stage !== 'completed';
+    const company = task.project?.company?.name ?? '';
+    const rail = task.is_urgent && task.stage !== 'completed' ? '#B83A24' : getCompanyTheme(company).primary;
+    const stage = stageDef(task.stage);
+    const steps = task.subtasks?.length ?? 0;
+    const stepsDone = task.subtasks?.filter(s => s.is_completed).length ?? 0;
+    const progress = taskProgress(task, steps ? Math.round((stepsDone / steps) * 100) : 0);
+    // The board asks for comments:task_comments(count); _count holds the number.
+    const comments = task._count?.comments ?? 0;
+    const open = task.stage !== 'completed';
+    const overdue = open && !!task.due_date && new Date(task.due_date) < new Date();
+    const stale = isStale(task);
+    const unaccepted = awaitingAcceptance(task);
+    const updateLate = isUpdateOverdue(task);
+    const owner = task.assignee?.name;
+    const style = {
+        ...(transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, zIndex: 50 } : {}),
+        ...(justMoved ? { '--tw-ring-color': stage.accent } : {}),
+    } as React.CSSProperties;
 
     return (
-        <div
+        <article
             ref={setNodeRef}
             style={style}
             {...attributes}
             {...listeners}
-            onClick={() => {
-                // Don't trigger click if we were dragging
-                onClick?.();
-            }}
+            onClick={onClick}
             className={cn(
-                'card-lift group relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-200 cursor-grab active:cursor-grabbing select-none',
-                isDragging && 'opacity-40 scale-95 shadow-2xl ring-2 ring-primary/20',
-                isOverdue && 'border-red-200 dark:border-red-900/50 bg-red-50/30 dark:bg-red-900/10',
-                isDueToday && 'border-orange-200 dark:border-orange-900/50 bg-orange-50/30 dark:bg-orange-900/10'
+                'group relative overflow-hidden rounded-[10px] border bg-surface pl-4 pr-3 py-3 text-left select-none touch-manipulation transition-[border-color,box-shadow]',
+                onMove ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
+                justMoved ? 'border-transparent ring-2' : 'border-line hover:border-line-strong hover:shadow-lift',
+                isDragging && 'shadow-pop rotate-[1.5deg]'
             )}
         >
-            {/* Grab Handle (Visible on group hover) */}
-            <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                <GripVertical className="h-4 w-4 text-slate-400 dark:text-slate-500" />
-            </div>
+            <span aria-hidden className="absolute left-0 top-0 h-full w-[3px]" style={{ backgroundColor: rail }} />
 
-            {/* Project & Priority Header */}
-            <div className="flex items-center gap-2 mb-3">
-                <div className={cn('h-1.5 w-1.5 rounded-full', priority.color)} />
-                <span className={cn('text-[10px] font-bold uppercase tracking-wider', priority.text)}>
-                    {task.priority}
+            {justMoved && (
+                <p className="mb-1.5 text-[12px] font-semibold" style={{ color: stage.accent }}>Moved to {stage.label} just now</p>
+            )}
+
+            <div className="flex items-center gap-2 text-[12px] text-ink-muted">
+                <span className="min-w-0 flex-1 truncate">
+                    {task.project?.name ?? 'No project'}{showCompany && company ? <span className="text-ink-faint">, {company}</span> : null}
                 </span>
-
-                {task.project && (
-                    <Badge
-                        variant="outline"
-                        className="text-[10px] font-bold px-1.5 py-0 h-5 border rounded-md capitalize"
-                        style={{
-                            color: theme.primary,
-                            borderColor: `${theme.primary}20`,
-                            backgroundColor: `${theme.primary}05`
-                        }}
-                    >
-                        {task.project.name}
-                    </Badge>
+                {task.due_date && (
+                    <span className={cn('inline-flex shrink-0 items-center gap-1 tabular-nums', overdue && 'font-semibold text-blocked')}>
+                        <Calendar className="h-3.5 w-3.5" /> {formatDate(task.due_date)}
+                    </span>
                 )}
             </div>
 
-            {/* Task Title */}
-            <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-50 mb-1.5 line-clamp-2 leading-snug">
-                {task.title}
-            </h3>
+            <h3 className="mt-1 text-[15px] font-semibold leading-snug text-ink line-clamp-2">{task.title}</h3>
 
-            {/* Description */}
-            {task.description && (
-                <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 line-clamp-2 leading-relaxed">
-                    {task.description}
+            {open && (task.is_urgent || stale || unaccepted || updateLate) && (
+                <ul className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[12px]">
+                    {task.is_urgent && <li className="inline-flex items-center gap-1 font-semibold text-blocked"><AlertTriangle className="h-3.5 w-3.5" /> Urgent</li>}
+                    {stale && <li className="inline-flex items-center gap-1 font-medium text-orange-700"><Clock className="h-3.5 w-3.5" /> No movement for {daysSinceMovement(task)} days</li>}
+                    {updateLate && !stale && <li className="inline-flex items-center gap-1 font-medium text-orange-700"><Clock className="h-3.5 w-3.5" /> Update overdue</li>}
+                    {unaccepted && <li className="inline-flex items-center gap-1 text-amber-700"><UserCheck className="h-3.5 w-3.5" /> Not accepted</li>}
+                </ul>
+            )}
+
+            {task.stage === 'blockers' && (
+                <p className="mt-2 rounded-[7px] bg-red-50 px-2.5 py-1.5 text-[12px] leading-snug text-red-900">
+                    {task.blocker?.name ? <span className="font-semibold">Waiting on {task.blocker.name}. </span> : null}
+                    {task.blocker_description || 'No reason given.'}
                 </p>
             )}
 
-            {/* Subtask / Progress */}
-            <div className="mb-4">
-                <div className="flex items-center justify-between text-[10px] font-medium text-slate-400 dark:text-slate-500 mb-1">
-                    <span>Progress</span>
-                    <span>{progress}%</span>
+            <div className="mt-2.5 flex items-center gap-2">
+                <div className="h-1 flex-1 overflow-hidden rounded-full bg-paper">
+                    <div className="h-full rounded-full" style={{ width: `${progress}%`, backgroundColor: stage.accent }} />
                 </div>
-                <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                    <div
-                        className={cn("h-full rounded-full transition-all duration-500", task.stage === 'completed' ? 'bg-success' : '')}
-                        style={{
-                            width: `${progress}%`,
-                            backgroundColor: task.stage !== 'completed' ? theme.primary : undefined
-                        }}
-                    />
-                </div>
+                <span className="text-[12px] font-semibold tabular-nums text-ink-muted">{progress}%</span>
+                {steps > 0 && <span className="inline-flex items-center gap-1 text-[12px] text-ink-faint tabular-nums" title={`${stepsDone} of ${steps} steps done`}><ListChecks className="h-3.5 w-3.5" />{stepsDone}/{steps}</span>}
+                {comments > 0 && <span className="inline-flex items-center gap-1 text-[12px] text-ink-faint tabular-nums" title={`${comments} updates`}><MessageSquare className="h-3.5 w-3.5" />{comments}</span>}
             </div>
 
-            <div className="flex items-center justify-between pt-1">
-                {/* Due Date & Indicators */}
-                <div className="flex items-center gap-3">
-                    {task.due_date && (
-                        <div className={cn(
-                            "flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-md",
-                            isOverdue ? "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20" :
-                                isDueToday ? "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20" :
-                                    "text-slate-500 dark:text-slate-400"
-                        )}>
-                            <Calendar className="h-3 w-3" />
-                            <span>{formatDate(task.due_date)}</span>
-                        </div>
-                    )}
-
-                    <div className="flex items-center gap-2 text-slate-400 dark:text-slate-500">
-                        {subtasksCount > 0 && (
-                            <div className="flex items-center gap-0.5 text-[10px]" title="Subtasks">
-                                <CheckSquare className="h-3 w-3" />
-                                <span>{completedSubtasks}/{subtasksCount}</span>
-                            </div>
-                        )}
-                        {commentsCount > 0 && (
-                            <div className="flex items-center gap-0.5 text-[10px]" title="Comments">
-                                <MessageSquare className="h-3 w-3" />
-                                <span>{commentsCount}</span>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Assignee Avatars */}
-                <div className="flex -space-x-2 overflow-hidden pl-1 py-1">
-                    {task.assignees && task.assignees.length > 0 ? (
-                        <>
-                            {task.assignees.slice(0, 3).map(({ user }) => (
-                                <div
-                                    key={user.id}
-                                    title={user.name}
-                                    className="h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-white dark:border-slate-900 ring-1 ring-slate-200 dark:ring-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-700 dark:text-slate-300 overflow-hidden shadow-sm hover:z-10 hover:ring-opacity-50 transition-all cursor-help relative"
-                                    style={{ '--tw-ring-color': theme.primary } as any}
-                                >
-                                    {user.name
-                                        .split(' ')
-                                        .map((n) => n[0])
-                                        .join('')
-                                        .toUpperCase()}
-                                </div>
-                            ))}
-                            {task.assignees.length > 3 && (
-                                <div
-                                    className="h-7 w-7 rounded-full bg-slate-50 dark:bg-slate-800 border-2 border-white dark:border-slate-900 ring-1 ring-slate-200 dark:ring-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-500 dark:text-slate-400 shadow-sm relative z-0"
-                                >
-                                    +{task.assignees.length - 3}
-                                </div>
-                            )}
-                        </>
-                    ) : task.assignee ? (
-                        <div
-                            title={task.assignee.name}
-                            className="h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-white dark:border-slate-900 ring-1 ring-slate-200 dark:ring-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-700 dark:text-slate-300 overflow-hidden shadow-sm hover:ring-opacity-50 transition-all cursor-help relative z-0"
-                            style={{ '--tw-ring-color': theme.primary } as any}
-                        >
-                            {task.assignee.name
-                                .split(' ')
-                                .map((n) => n[0])
-                                .join('')
-                                .toUpperCase()}
-                        </div>
-                    ) : (
-                        <div className="h-7 w-7 rounded-full bg-slate-50 dark:bg-slate-800 border-2 border-white dark:border-slate-900 border-dashed flex items-center justify-center">
-                            <span className="text-slate-300 dark:text-slate-600 text-[10px]">?</span>
-                        </div>
-                    )}
-                </div>
+            <div className="mt-2.5 flex items-center gap-2">
+                {owner ? (
+                    <span className="flex min-w-0 flex-1 items-center gap-1.5 text-[12px] text-ink-muted" title={owner}>
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-paper text-[10px] font-bold text-ink">{initials(owner)}</span>
+                        <span className="truncate">{owner}</span>
+                    </span>
+                ) : (
+                    <span className="flex-1 text-[12px] text-amber-700">No owner</span>
+                )}
+                {onMove && <div className="shrink-0"><MoveMenu current={task.stage} onMove={onMove} onUpdate={onUpdate} /></div>}
             </div>
-        </div>
+        </article>
     );
 }

@@ -73,7 +73,12 @@ export default function CreateTaskModal({
                 description: data.description,
                 project_id: data.project_id || undefined,
                 priority: data.priority,
-                due_date: data.due_date,
+                due_date: data.due_date || undefined,
+                // A General task has no project to inherit a company from.
+                // Without one it is invisible to its own assignee, so it takes
+                // the primary assignee's company (or the creator's).
+                company_id: data.project_id ? undefined
+                    : companyUsers?.find(u => u.id === data.assignee_ids[0])?.company_id ?? user?.company_id ?? undefined,
                 assignee_ids: data.assignee_ids,
                 assignee_id: data.assignee_ids[0], // Primary assignee is the first selected
             };

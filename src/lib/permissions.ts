@@ -37,3 +37,8 @@ export function canApprove(user: Actor): boolean {
 export function canReadBrief(user: Actor): boolean {
     return !!user && GLOBAL_VIEW.includes(user.role);
 }
+
+/** Where a user lands after signing in: the executive and PA start on the brief. */
+export function homePath(user: Actor): string {
+    return user?.role === 'executive' || user?.role === 'pa' ? '/brief' : '/dashboard';
+}

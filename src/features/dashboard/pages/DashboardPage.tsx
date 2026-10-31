@@ -1,454 +1,252 @@
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-    Activity,
-    ArrowUpRight,
-    FolderKanban,
-    CheckCircle2,
-    Clock,
-    ClipboardCheck,
-    ShieldCheck,
-    TrendingUp,
-    Users
-} from 'lucide-react';
-import { useDashboardStats, useIdleTasks, useRecentProjects, useTaskDistribution, usePerformanceTrend, useRecentTasks, useRecentApprovals } from '../hooks/useDashboard';
-import { useCompanies } from '@/features/projects/hooks/useProjects';
+import { useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { AlertTriangle, ArrowUpRight, Ban, CalendarX, Clock, Sunrise } from 'lucide-react';
+import { cn, formatCurrencyCompact, formatDate, formatRelativeTime, getCompanyTheme } from '@/lib/utils';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useCompanyStore } from '@/hooks/useCompanyStore';
+import { useCompanies, useProjects } from '@/features/projects/hooks/useProjects';
+import { useTasks, type Task } from '@/features/tasks/hooks/useTasks';
+import { useDashboardStats, useRecentApprovals } from '../hooks/useDashboard';
+import { useRecentAuditLogs } from '@/features/audit/hooks/useAuditLog';
+import { useBrief, companyOf, type BriefSection, type BriefTask } from '@/features/brief/hooks/useBrief';
+import { STAGES } from '@/features/tasks/utils/stages';
+import { canApprove, canReadBrief } from '@/lib/permissions';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatCurrency, cn, getCompanyTheme } from '@/lib/utils';
-import { useNavigate } from 'react-router-dom';
-import {
-    AreaChart,
-    Area,
-    XAxis,
-    CartesianGrid,
-    Tooltip,
-    ResponsiveContainer,
-    PieChart,
-    Pie,
-    Cell
-} from 'recharts';
+
+const ATTENTION: { key: BriefSection; label: string; icon: typeof AlertTriangle; color: string }[] = [
+    { key: 'urgent', label: 'Urgent', icon: AlertTriangle, color: '#B83A24' },
+    { key: 'blocked', label: 'Blocked', icon: Ban, color: '#B83A24' },
+    { key: 'stuck', label: 'No movement for 2+ days', icon: Clock, color: '#C2410C' },
+    { key: 'overdue', label: 'Overdue', icon: CalendarX, color: '#B45309' },
+];
 
 export default function DashboardPage() {
+    const { user } = useAuth();
     const navigate = useNavigate();
     const { selectedCompanyId } = useCompanyStore();
-    const { data: stats, isLoading: statsLoading } = useDashboardStats(selectedCompanyId);
-    const { data: idleTasks } = useIdleTasks(selectedCompanyId);
-    const { data: recentProjects = [] } = useRecentProjects(3, selectedCompanyId);
-    const { data: taskDistribution = [] } = useTaskDistribution(selectedCompanyId);
-    const { data: performanceTrend = [] } = usePerformanceTrend(selectedCompanyId);
-    const { data: recentTasks } = useRecentTasks(5, selectedCompanyId);
+    const scopeId = selectedCompanyId === 'all' ? undefined : selectedCompanyId;
     const { data: companies = [] } = useCompanies();
-    const { data: recentApprovals } = useRecentApprovals(5, selectedCompanyId);
+    const { data: stats } = useDashboardStats(selectedCompanyId);
+    const { data: tasks = [], isLoading } = useTasks({ company_id: scopeId });
+    const { data: projects = [] } = useProjects(scopeId);
+    const { data: brief } = useBrief(selectedCompanyId);
+    const { data: activity = [] } = useRecentAuditLogs(8);
+    const { data: approvals = [] } = useRecentApprovals(5, selectedCompanyId);
 
-    const currentCompanyName = selectedCompanyId === 'all'
-        ? 'Global View'
-        : companies.find(c => c.id === selectedCompanyId)?.name || '';
-    const theme = getCompanyTheme(currentCompanyName);
+    const isStaff = user?.role === 'employee';
+    const scopeName = scopeId ? companies.find(c => c.id === scopeId)?.name ?? '' : 'All companies';
 
-    if (statsLoading) {
-        return (
-            <div className="space-y-8 p-1 animate-fade-in">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <Skeleton className="h-8 w-48 mb-2" />
-                        <Skeleton className="h-4 w-64" />
-                    </div>
-                </div>
+    const byStage = useMemo(() => {
+        const m: Record<string, number> = {};
+        tasks.forEach((t: Task) => { m[t.stage] = (m[t.stage] ?? 0) + 1; });
+        return m;
+    }, [tasks]);
+    const total = tasks.length || 1;
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {[1, 2, 3, 4].map((i) => (
-                        <Card key={i} className="rounded-xl">
-                            <CardContent className="p-6">
-                                <div className="flex justify-between items-start mb-4">
-                                    <div className="w-full space-y-2">
-                                        <Skeleton className="h-4 w-1/2" />
-                                        <Skeleton className="h-8 w-3/4" />
-                                    </div>
-                                </div>
-                                <Skeleton className="h-1.5 w-full mt-4" />
-                            </CardContent>
-                        </Card>
-                    ))}
-                </div>
+    const attention = useMemo(() => {
+        if (!brief) return [] as { t: BriefTask; key: BriefSection }[];
+        return ATTENTION.flatMap(a => brief.sections[a.key].map(t => ({ t, key: a.key })));
+    }, [brief]);
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <Card className="lg:col-span-2 rounded-xl">
-                        <CardContent className="p-6 h-[400px]">
-                            <Skeleton className="h-full w-full" />
-                        </CardContent>
-                    </Card>
-                    <Card className="rounded-xl">
-                        <CardContent className="p-6 h-[400px]">
-                            <Skeleton className="h-full w-full" />
-                        </CardContent>
-                    </Card>
-                </div>
-            </div>
-        );
-    }
+    const projectRows = useMemo(() => {
+        return projects.map(p => {
+            const list = p.tasks ?? [];
+            const done = list.filter(t => t.stage === 'completed').length;
+            const blocked = list.filter(t => t.stage === 'blockers').length;
+            return { p, open: list.length - done, done, blocked, total: list.length };
+        }).sort((a, b) => b.blocked - a.blocked || b.open - a.open).slice(0, 10);
+    }, [projects]);
 
-    const statsCards = [
-        {
-            title: 'Total Projects',
-            value: stats?.totalProjects.toString() || '0',
-            change: stats?.projectChange || 0,
-            icon: FolderKanban,
-            color: 'bg-blue-500',
-        },
-        {
-            title: 'Active Tasks',
-            value: stats?.activeTasks.toString() || '0',
-            change: stats?.taskChange || 0,
-            icon: Activity,
-            color: 'bg-orange-500',
-        },
-        {
-            title: 'Team Members',
-            value: stats?.teamMembers.toString() || '0',
-            change: stats?.memberChange || 0,
-            icon: Users,
-            color: 'bg-green-500',
-        },
-        {
-            title: 'Total Revenue',
-            value: formatCurrency(stats?.totalRevenue || 0),
-            change: stats?.revenueChange || 0,
-            icon: TrendingUp,
-            color: 'bg-indigo-500',
-        },
-    ];
+    const companyName = (id?: string | null) => companies.find(c => c.id === id)?.name ?? '';
 
     return (
-        <div className="space-y-8 p-1 animate-fade-in">
-            {/* Header */}
-            <div className="flex items-center justify-between">
+        <div className="w-full space-y-5 pb-12">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-50 tracking-tight">Dashboard</h1>
-                    <p className="text-gray-500 dark:text-slate-400 text-sm mt-1">Overview of project performance</p>
+                    <h1 className="text-[26px] font-bold tracking-tight text-ink">Dashboard</h1>
+                    <p className="mt-0.5 text-sm text-ink-muted">
+                        {scopeName}, {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
+                    </p>
+                </div>
+                <div className="flex gap-2">
+                    {canReadBrief(user) && (
+                        <Link to="/brief" className="inline-flex h-10 items-center gap-2 rounded-[8px] border border-line bg-surface px-3.5 text-sm font-semibold text-ink hover:border-ink/30">
+                            <Sunrise className="h-4 w-4" /> Morning brief
+                        </Link>
+                    )}
+                    <Link to="/tasks" className="inline-flex h-10 items-center rounded-[8px] bg-ink px-3.5 text-sm font-semibold text-white hover:bg-ink/90">Open task board</Link>
                 </div>
             </div>
 
-            {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {statsCards.map((stat, i) => (
-                    <Card
-                        key={stat.title}
-                        className="rounded-xl border-gray-200/60 dark:border-slate-700/60 card-lift hover:shadow-lg"
-                        style={{
-                            animation: `spring-up 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) ${i * 0.08}s both`,
-                        }}
-                    >
-                        <CardContent className="p-6">
-                            <div className="flex justify-between items-start mb-4">
-                                <div className="space-y-1">
-                                    <p className="text-sm font-medium text-gray-500 dark:text-slate-400">{stat.title}</p>
-                                    <h3 className="text-3xl font-bold text-gray-900 dark:text-slate-50 tracking-tight">{stat.value}</h3>
+            {/* Where the work is */}
+            <section className="rounded-[12px] border border-line bg-surface" aria-labelledby="work-heading">
+                <div className="grid lg:grid-cols-[minmax(0,1fr)_auto]">
+                    <div className="p-5">
+                        <h2 id="work-heading" className="text-[15px] font-semibold text-ink">Where the work is</h2>
+                        {isLoading ? <Skeleton className="mt-4 h-3 w-full" /> : (
+                            <>
+                                <div className="mt-4 flex h-3 overflow-hidden rounded-full bg-paper" role="img"
+                                    aria-label={STAGES.map(s => `${s.label}: ${byStage[s.id] ?? 0}`).join(', ')}>
+                                    {STAGES.map(s => (byStage[s.id] ?? 0) > 0 && (
+                                        <span key={s.id} style={{ width: `${((byStage[s.id] ?? 0) / total) * 100}%`, backgroundColor: s.accent }} />
+                                    ))}
                                 </div>
-                                {stat.change !== 0 && (
-                                    <Badge variant="secondary" className="bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0 flex items-center gap-1 text-xs font-semibold">
-                                        <ArrowUpRight className="w-3 h-3" />
-                                        {stat.change}%
-                                    </Badge>
-                                )}
-                            </div>
-                            <div className="h-1.5 w-full bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden mt-4">
-                                <div
-                                    className="h-full rounded-full transition-all duration-1000 ease-apple"
-                                    style={{
-                                        width: `${Math.min(Math.abs(stat.change || 70), 100)}%`,
-                                        backgroundColor: selectedCompanyId !== 'all' ? theme.primary : '#3b82f6'
-                                    }}
-                                />
-                            </div>
-                        </CardContent>
-                    </Card>
-                ))}
+                                <ul className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+                                    {STAGES.filter(s => s.id !== 'talking_stage' || byStage[s.id]).map(s => (
+                                        <li key={s.id}>
+                                            <Link to="/tasks" className="group block">
+                                                <span className="flex items-center gap-1.5 text-[13px] text-ink-muted">
+                                                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: s.accent }} /> {s.label}
+                                                </span>
+                                                <span className="text-[28px] font-bold leading-tight tabular-nums text-ink group-hover:underline">{byStage[s.id] ?? 0}</span>
+                                            </Link>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </>
+                        )}
+                    </div>
+                    <dl className="grid grid-cols-3 lg:grid-cols-1 border-t lg:border-t-0 lg:border-l border-line lg:w-56">
+                        <Figure label="Active projects" value={String(stats?.totalProjects ?? '–')} />
+                        <Figure label="People" value={String(stats?.teamMembers ?? '–')} />
+                        {!isStaff && <Figure label="Contract value" value={stats ? formatCurrencyCompact(stats.totalRevenue || 0) : '–'} />}
+                    </dl>
+                </div>
+            </section>
+
+            <div className="grid gap-5 xl:grid-cols-3 items-start">
+                {/* Needs attention */}
+                <section className="xl:col-span-2 rounded-[12px] border border-line bg-surface" aria-labelledby="attention-heading">
+                    <header className="flex items-center justify-between gap-3 border-b border-line px-5 py-3.5">
+                        <h2 id="attention-heading" className="text-[15px] font-semibold text-ink">
+                            Needs attention <span className="ml-1 font-semibold text-ink-faint tabular-nums">{attention.length}</span>
+                        </h2>
+                        <Link to={canReadBrief(user) ? '/brief' : '/tasks'} className="inline-flex items-center gap-1 text-[13px] font-semibold text-progress hover:underline">
+                            {canReadBrief(user) ? 'Open the brief' : 'Open tasks'} <ArrowUpRight className="h-3.5 w-3.5" />
+                        </Link>
+                    </header>
+                    {attention.length === 0 ? (
+                        <p className="px-5 py-10 text-center text-sm text-ink-muted">Nothing is urgent, blocked, stuck or overdue.</p>
+                    ) : (
+                        <ul className="divide-y divide-line">
+                            {attention.slice(0, 8).map(({ t, key }) => {
+                                const a = ATTENTION.find(x => x.key === key)!;
+                                return (
+                                    <li key={t.id}>
+                                        <button onClick={() => navigate(`/tasks?task=${t.id}`)} className="flex w-full items-start gap-3 px-5 py-3 text-left hover:bg-paper/60">
+                                            <a.icon className="mt-0.5 h-4 w-4 shrink-0" style={{ color: a.color }} />
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block truncate text-sm font-semibold text-ink">{t.title}</span>
+                                                <span className="block text-[13px] text-ink-muted">
+                                                    <span style={{ color: a.color }}>{a.label}</span>
+                                                    {t.owner?.name ? `, ${t.owner.name}` : ', no owner'}
+                                                    {t.project?.name ? `, ${t.project.name}` : ''}
+                                                </span>
+                                            </span>
+                                            {!scopeId && <span className="hidden sm:inline text-[12px] text-ink-faint">{companyName(companyOf(t))}</span>}
+                                        </button>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
+                    {attention.length > 8 && (
+                        <p className="border-t border-line px-5 py-2.5 text-[13px] text-ink-muted">{attention.length - 8} more in the {canReadBrief(user) ? 'brief' : 'task board'}.</p>
+                    )}
+                </section>
+
+                <div className="space-y-5">
+                    {canApprove(user) && (
+                        <section className="rounded-[12px] border border-line bg-surface" aria-labelledby="approvals-heading">
+                            <header className="flex items-center justify-between border-b border-line px-5 py-3.5">
+                                <h2 id="approvals-heading" className="text-[15px] font-semibold text-ink">Approvals</h2>
+                                <Link to="/approvals" className="text-[13px] font-semibold text-progress hover:underline">See all</Link>
+                            </header>
+                            {approvals.filter(a => a.status === 'pending').length === 0
+                                ? <p className="px-5 py-5 text-sm text-ink-muted">Nothing waiting for a decision.</p>
+                                : <ul className="divide-y divide-line">{approvals.filter(a => a.status === 'pending').map(a => (
+                                    <li key={a.id} className="px-5 py-3">
+                                        <p className="truncate text-sm font-semibold text-ink">{a.title}</p>
+                                        <p className="text-[13px] text-ink-muted">Requested by {a.requester_name}, {formatRelativeTime(a.created_at)}</p>
+                                    </li>
+                                ))}</ul>}
+                        </section>
+                    )}
+                    <section className="rounded-[12px] border border-line bg-surface" aria-labelledby="activity-heading">
+                        <header className="border-b border-line px-5 py-3.5">
+                            <h2 id="activity-heading" className="text-[15px] font-semibold text-ink">Recent activity</h2>
+                        </header>
+                        {activity.length === 0 ? <p className="px-5 py-5 text-sm text-ink-muted">No activity recorded yet.</p> : (
+                            <ol className="divide-y divide-line">
+                                {activity.map(a => (
+                                    <li key={a.id} className="px-5 py-3">
+                                        <p className="text-[13px] leading-snug text-ink">{a.summary}</p>
+                                        <p className="mt-0.5 text-[12px] text-ink-faint">{a.user?.name ?? 'System'}, {formatRelativeTime(a.created_at)}</p>
+                                    </li>
+                                ))}
+                            </ol>
+                        )}
+                    </section>
+                </div>
             </div>
 
-            {/* Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Performance Trend */}
-                <Card className="lg:col-span-2 rounded-xl border-gray-200/60 dark:border-slate-700/60 card-lift">
-                    <CardContent className="p-6">
-                        <div className="flex items-center justify-between mb-6">
-                            <div>
-                                <h3 className="text-lg font-bold text-gray-900 dark:text-slate-50 tracking-tight">Performance Trend</h3>
-                                <p className="text-sm text-gray-500 dark:text-slate-400">Project velocity over time</p>
-                            </div>
-                            <Button variant="outline" size="sm" className="text-xs rounded-pill">
-                                Export
-                            </Button>
-                        </div>
-                        <div className="h-[300px] w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={performanceTrend}>
-                                    <defs>
-                                        <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor={selectedCompanyId !== 'all' ? theme.primary : "#3b82f6"} stopOpacity={0.3} />
-                                            <stop offset="95%" stopColor={selectedCompanyId !== 'all' ? theme.primary : "#3b82f6"} stopOpacity={0} />
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6B7280' }} dy={10} />
-                                    <Tooltip
-                                        contentStyle={{
-                                            backgroundColor: 'rgba(255,255,255,0.9)',
-                                            backdropFilter: 'blur(20px)',
-                                            borderRadius: '12px',
-                                            border: '1px solid rgba(0,0,0,0.06)',
-                                            boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
-                                        }}
-                                    />
-                                    <Area
-                                        type="monotone"
-                                        dataKey="value"
-                                        stroke={selectedCompanyId !== 'all' ? theme.primary : "#3b82f6"}
-                                        strokeWidth={3}
-                                        fillOpacity={1}
-                                        fill="url(#colorValue)"
-                                    />
-                                </AreaChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {/* Task Distribution */}
-                <Card className="rounded-xl border-gray-200/60 dark:border-slate-700/60 card-lift">
-                    <CardContent className="p-6">
-                        <div className="mb-6">
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-slate-50 tracking-tight">Task Distribution</h3>
-                            <p className="text-sm text-gray-500 dark:text-slate-400">Current breakdown by status</p>
-                        </div>
-                        <div className="h-[200px] w-full flex items-center justify-center relative">
-                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                <span className="text-3xl font-bold text-gray-900 dark:text-slate-50">{stats?.activeTasks || 0}</span>
-                                <span className="text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wider">Active</span>
-                            </div>
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={taskDistribution}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={60}
-                                        outerRadius={80}
-                                        paddingAngle={5}
-                                        dataKey="value"
-                                    >
-                                        {taskDistribution.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.color} strokeWidth={0} />
-                                        ))}
-                                    </Pie>
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4 mt-6">
-                            {taskDistribution.map((item, i) => (
-                                <div key={item.name} className="flex items-center text-sm animate-fade-in" style={{ animationDelay: `${i * 0.05}s` }}>
-                                    <div className="w-2.5 h-2.5 rounded-full mr-2.5 flex-shrink-0" style={{ backgroundColor: item.color }} />
-                                    <span className="text-gray-600 dark:text-slate-300 truncate">{item.name}</span>
-                                    <span className="ml-auto font-semibold text-gray-900 dark:text-slate-50 tabular-nums">
-                                        {Math.round((item.value / (taskDistribution.reduce((acc, curr) => acc + curr.value, 0) || 1)) * 100)}%
-                                    </span>
-                                </div>
+            {/* Projects */}
+            <section className="rounded-[12px] border border-line bg-surface" aria-labelledby="projects-heading">
+                <header className="flex items-center justify-between border-b border-line px-5 py-3.5">
+                    <h2 id="projects-heading" className="text-[15px] font-semibold text-ink">Projects with the most open work</h2>
+                    <Link to="/projects" className="text-[13px] font-semibold text-progress hover:underline">All projects</Link>
+                </header>
+                <div className="overflow-x-auto">
+                    <table className="w-full min-w-[640px] text-sm">
+                        <thead>
+                            <tr className="text-left text-[12px] text-ink-muted">
+                                <th className="px-5 py-2.5 font-medium">Project</th>
+                                {!scopeId && <th className="px-3 py-2.5 font-medium">Company</th>}
+                                <th className="px-3 py-2.5 font-medium text-right">Open</th>
+                                <th className="px-3 py-2.5 font-medium text-right">Blocked</th>
+                                <th className="px-3 py-2.5 font-medium w-48">Tasks done</th>
+                                <th className="px-5 py-2.5 font-medium">Handover</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-line">
+                            {projectRows.map(({ p, open, done, blocked, total: n }) => (
+                                <tr key={p.id} onClick={() => navigate(`/projects/${p.id}`)} className="cursor-pointer hover:bg-paper/60">
+                                    <td className="px-5 py-3">
+                                        <span className="flex items-center gap-2.5">
+                                            <span className="h-5 w-1 rounded-full" style={{ backgroundColor: getCompanyTheme(p.company?.name ?? '').primary }} />
+                                            <span className="font-semibold text-ink">{p.name}</span>
+                                        </span>
+                                    </td>
+                                    {!scopeId && <td className="px-3 py-3 text-ink-muted">{p.company?.name}</td>}
+                                    <td className="px-3 py-3 text-right tabular-nums text-ink">{open}</td>
+                                    <td className={cn('px-3 py-3 text-right tabular-nums', blocked ? 'font-semibold text-blocked' : 'text-ink-faint')}>{blocked}</td>
+                                    <td className="px-3 py-3">
+                                        <span className="flex items-center gap-2">
+                                            <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-paper">
+                                                <span className="block h-full rounded-full bg-done" style={{ width: `${n ? (done / n) * 100 : 0}%` }} />
+                                            </span>
+                                            <span className="w-12 text-right text-[12px] tabular-nums text-ink-muted">{done}/{n}</span>
+                                        </span>
+                                    </td>
+                                    <td className="px-5 py-3 text-ink-muted">{p.expected_handover ? formatDate(p.expected_handover) : 'Not set'}</td>
+                                </tr>
                             ))}
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Activities & Projects */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Recent Projects */}
-                <Card className="lg:col-span-2 rounded-xl border-gray-200/60 dark:border-slate-700/60 card-lift">
-                    <CardContent className="p-6">
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-slate-50 tracking-tight">Recent Projects</h3>
-                            <Button variant="outline" size="sm" onClick={() => navigate('/projects')} className="font-semibold rounded-pill">
-                                View All
-                            </Button>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {recentProjects?.map((project, i) => (
-                                <div
-                                    key={project.id}
-                                    className="flex items-center justify-between p-4 border border-gray-100/80 dark:border-slate-700/80 rounded-2xl hover:bg-gray-50/50 dark:hover:bg-slate-800/50 transition-all duration-200 bg-white dark:bg-slate-900 group card-lift"
-                                    style={{ animation: `slide-up 0.5s cubic-bezier(0.25, 0.1, 0.25, 1) ${i * 0.08}s both` }}
-                                >
-                                    <div className="flex items-center gap-4">
-                                        <div className={cn(
-                                            "w-10 h-10 rounded-xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110",
-                                            project.status === 'healthy' ? 'bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400' :
-                                                project.status === 'at_risk' ? 'bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400' :
-                                                    'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400'
-                                        )}>
-                                            <FolderKanban className="w-5 h-5" />
-                                        </div>
-                                        <div>
-                                            <p className="font-semibold text-gray-900 dark:text-slate-50 text-sm">{project.name}</p>
-                                            <p className="text-[10px] text-gray-500 dark:text-slate-400 font-medium uppercase tracking-wider">{project.company_name}</p>
-                                        </div>
-                                    </div>
-                                    <div className="text-right space-y-1">
-                                        <p className="text-[10px] text-gray-400 dark:text-slate-500 font-semibold tabular-nums">{formatCurrency(project.contract_value)}</p>
-                                        <Badge variant={project.status as any} className="capitalize text-[9px] h-5 px-1.5">
-                                            {project.status.replace('_', ' ')}
-                                        </Badge>
-                                    </div>
-                                </div>
-                            ))}
-                            {(!recentProjects || recentProjects.length === 0) && (
-                                <p className="col-span-2 text-center text-gray-500 dark:text-slate-400 py-4 text-sm">No recent projects found.</p>
+                            {projectRows.length === 0 && (
+                                <tr><td colSpan={6} className="px-5 py-8 text-center text-ink-muted">No projects yet.</td></tr>
                             )}
-                        </div>
-                    </CardContent>
-                </Card>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    );
+}
 
-                {/* Idle Tasks */}
-                <Card className="rounded-xl border-gray-200/60 dark:border-slate-700/60 card-lift">
-                    <CardContent className="p-6">
-                        <div className="mb-6 flex items-center justify-between">
-                            <div>
-                                <h3 className="text-lg font-bold text-gray-900 dark:text-slate-50 tracking-tight">Idle Tasks</h3>
-                                <p className="text-[10px] text-gray-500 dark:text-slate-400 font-medium uppercase">Not updated in 48+h</p>
-                            </div>
-                            <Button variant="ghost" size="icon" className="rounded-full h-8 w-8 text-primary hover:bg-primary/5 active:scale-90">
-                                <Activity className="w-4 h-4" />
-                            </Button>
-                        </div>
-                        <div className="space-y-3">
-                            {idleTasks?.map((task, i) => (
-                                <div
-                                    key={task.id}
-                                    className="p-3.5 bg-red-50/30 dark:bg-red-900/20 border border-red-100/80 dark:border-red-800/30 rounded-2xl hover:bg-red-50/50 dark:hover:bg-red-900/30 transition-all duration-200"
-                                    style={{ animation: `slide-up 0.4s cubic-bezier(0.25, 0.1, 0.25, 1) ${i * 0.06}s both` }}
-                                >
-                                    <p className="text-sm font-semibold text-gray-900 dark:text-slate-50 truncate">{task.title}</p>
-                                    <div className="flex justify-between items-center mt-2.5">
-                                        <p className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">{task.assignee_name}</p>
-                                        <Badge variant="destructive" className="text-[9px] h-5 px-1.5 font-semibold uppercase">
-                                            {task.days_idle}D Idle
-                                        </Badge>
-                                    </div>
-                                </div>
-                            ))}
-                            {(!idleTasks || idleTasks.length === 0) && (
-                                <div className="flex flex-col items-center justify-center py-10 text-center bg-green-50/30 dark:bg-green-900/20 rounded-2xl border border-dashed border-green-200/80 dark:border-green-800/30">
-                                    <CheckCircle2 className="w-8 h-8 text-green-500 mb-2" />
-                                    <p className="text-xs text-green-700 dark:text-green-400 font-semibold uppercase tracking-wider">All tasks tracked!</p>
-                                </div>
-                            )}
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Recent Items Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-12">
-                {/* Recent Tasks */}
-                <Card className="rounded-xl border-gray-200/60 dark:border-slate-700/60 card-lift hover:shadow-lg">
-                    <CardContent className="p-6">
-                        <div className="flex items-center justify-between mb-6">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2.5 bg-blue-50 dark:bg-blue-900/30 rounded-xl">
-                                    <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                                </div>
-                                <h3 className="text-lg font-bold text-gray-900 dark:text-slate-50 tracking-tight">Recent Tasks</h3>
-                            </div>
-                            <Button variant="ghost" size="sm" onClick={() => navigate('/tasks')} className="text-primary hover:text-primary hover:bg-primary/5 font-semibold rounded-pill">
-                                View Board
-                            </Button>
-                        </div>
-                        <div className="space-y-2">
-                            {recentTasks?.map((task, i) => (
-                                <div
-                                    key={task.id}
-                                    className="flex items-center justify-between p-3.5 border border-gray-100/80 dark:border-slate-700/80 rounded-2xl hover:border-blue-200/80 dark:hover:border-blue-500/50 transition-all duration-200 bg-white dark:bg-slate-900 group card-lift"
-                                    style={{ animation: `slide-up 0.4s cubic-bezier(0.25, 0.1, 0.25, 1) ${i * 0.05}s both` }}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className={cn(
-                                            "w-2.5 h-2.5 rounded-full flex-shrink-0 transition-transform duration-200 group-hover:scale-125",
-                                            task.stage === 'completed' ? 'bg-success' :
-                                                task.stage === 'in_progress' ? 'bg-primary' :
-                                                    task.stage === 'blockers' ? 'bg-error' : 'bg-slate-300 dark:bg-slate-600'
-                                        )} />
-                                        <div>
-                                            <p className="text-sm font-semibold text-gray-900 dark:text-slate-50 truncate max-w-[200px] group-hover:text-primary transition-colors">
-                                                {task.title}
-                                            </p>
-                                            <p className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">
-                                                {task.project_name} &bull; {task.assignee_name}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <Badge variant="outline" className="text-[9px] bg-slate-50/50 dark:bg-slate-800/50 border-slate-200/60 dark:border-slate-700/60 text-slate-600 dark:text-slate-400 font-semibold capitalize h-6">
-                                        {task.stage.replace('_', ' ')}
-                                    </Badge>
-                                </div>
-                            ))}
-                            {(!recentTasks || recentTasks.length === 0) && (
-                                <p className="text-center text-gray-500 dark:text-slate-400 py-8 text-sm">No recent tasks found.</p>
-                            )}
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {/* Recent Approvals */}
-                <Card className="rounded-xl border-gray-200/60 dark:border-slate-700/60 card-lift hover:shadow-lg">
-                    <CardContent className="p-6">
-                        <div className="flex items-center justify-between mb-6">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2.5 bg-purple-50 dark:bg-purple-900/30 rounded-xl">
-                                    <ShieldCheck className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                                </div>
-                                <h3 className="text-lg font-bold text-gray-900 dark:text-slate-50 tracking-tight">Pending Approvals</h3>
-                            </div>
-                            <Button variant="ghost" size="sm" onClick={() => navigate('/approvals')} className="text-primary hover:text-primary hover:bg-primary/5 font-semibold rounded-pill">
-                                View All
-                            </Button>
-                        </div>
-                        <div className="space-y-2">
-                            {recentApprovals?.map((approval, i) => (
-                                <div
-                                    key={approval.id}
-                                    className="flex items-center justify-between p-3.5 border border-gray-100/80 dark:border-slate-700/80 rounded-2xl hover:border-purple-200/80 dark:hover:border-purple-500/50 transition-all duration-200 bg-white dark:bg-slate-900 group card-lift"
-                                    style={{ animation: `slide-up 0.4s cubic-bezier(0.25, 0.1, 0.25, 1) ${i * 0.05}s both` }}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded-xl group-hover:bg-purple-50 dark:group-hover:bg-purple-900/30 transition-colors duration-200">
-                                            <ClipboardCheck className="w-4 h-4 text-slate-500 dark:text-slate-400 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors" />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-semibold text-gray-900 dark:text-slate-50 truncate max-w-[180px] group-hover:text-purple-700 dark:group-hover:text-purple-400 transition-colors">
-                                                {approval.title}
-                                            </p>
-                                            <p className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">
-                                                {approval.company_name} &bull; By {approval.requester_name}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <Badge
-                                        variant={
-                                            approval.status === 'approved' ? 'success' :
-                                                approval.status === 'pending' ? 'warning' : 'destructive'
-                                        }
-                                        className="text-[9px] font-semibold capitalize h-6"
-                                    >
-                                        {approval.status}
-                                    </Badge>
-                                </div>
-                            ))}
-                            {(!recentApprovals || recentApprovals.length === 0) && (
-                                <p className="text-center text-gray-500 dark:text-slate-400 py-8 text-sm">No pending approvals found.</p>
-                            )}
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
+function Figure({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="px-5 py-4 border-l first:border-l-0 lg:border-l-0 lg:border-t lg:first:border-t-0 border-line">
+            <dt className="text-[13px] text-ink-muted">{label}</dt>
+            <dd className="text-[22px] font-bold leading-tight tabular-nums text-ink">{value}</dd>
         </div>
     );
 }

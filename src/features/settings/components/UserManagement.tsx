@@ -154,6 +154,8 @@ export function UserManagement() {
                                                 <option value="lead">Lead</option>
                                                 <option value="employee">Employee</option>
                                                 <option value="admin">Admin</option>
+                                                <option value="executive">Executive</option>
+                                                <option value="pa">Executive PA</option>
                                             </select>
                                         </div>
                                     </div>

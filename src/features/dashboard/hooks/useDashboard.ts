@@ -330,7 +330,7 @@ export function useRecentApprovals(limit = 5, companyId?: string) {
         queryKey: ['recent-approvals', limit, companyId],
         queryFn: async () => {
             // Looking at approvals table structure from previous edits
-            let query = supabase
+            const query = supabase
                 .from('approvals')
                 .select(`
           id,
@@ -339,20 +339,20 @@ export function useRecentApprovals(limit = 5, companyId?: string) {
           status,
           created_at,
           requester:users!approvals_requester_id_fkey(name),
-          project:projects!approvals_project_id_fkey(name, company:companies(name))
+          project:projects!approvals_project_id_fkey(name, company_id, company:companies(name))
         `);
-
-            if (companyId && companyId !== 'all') {
-                query = query.eq('project.company_id', companyId);
-            }
 
             const { data, error } = await query
                 .order('created_at', { ascending: false })
-                .limit(limit);
+                .limit(companyId && companyId !== 'all' ? 200 : limit);
 
             if (error) throw error;
 
-            return data?.map((approval: any) => ({
+            // Filter here: .eq('project.company_id') on a non-inner embed never removed rows.
+            const rows = companyId && companyId !== 'all'
+                ? (data ?? []).filter((a: any) => a.project?.company_id === companyId).slice(0, limit)
+                : (data ?? []);
+            return rows.map((approval: any) => ({
                 id: approval.id,
                 type: approval.type,
                 title: approval.content || approval.type, // Use content as title fallback

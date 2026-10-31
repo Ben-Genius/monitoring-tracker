@@ -1,10 +1,10 @@
-import { Bell, Search, Building2, Menu } from 'lucide-react';
-import { Input } from '../ui/input';
-import { Badge } from '../ui/badge';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Menu, ChevronDown } from 'lucide-react';
+import NotificationsBell from '@/features/notifications/components/NotificationsBell';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useCompanies } from '@/features/projects/hooks/useProjects';
 import { useCompanyStore } from '@/hooks/useCompanyStore';
-import { useEffect } from 'react';
 import { getCompanyTheme } from '@/lib/utils';
 import { canViewAllCompanies } from '@/lib/permissions';
 
@@ -14,8 +14,10 @@ interface HeaderProps {
 
 export default function Header({ onMenuClick }: HeaderProps) {
     const { user } = useAuth();
-    const { data: companies = [], isLoading } = useCompanies();
+    const navigate = useNavigate();
+    const { data: companies = [] } = useCompanies();
     const { selectedCompanyId, setSelectedCompanyId } = useCompanyStore();
+    const [q, setQ] = useState('');
 
     useEffect(() => {
         if (user && !canViewAllCompanies(user) && selectedCompanyId !== user.company_id) {
@@ -23,76 +25,56 @@ export default function Header({ onMenuClick }: HeaderProps) {
         }
     }, [user, selectedCompanyId, setSelectedCompanyId]);
 
-    const canSwitchCompany = canViewAllCompanies(user);
-    const currentCompany = selectedCompanyId === 'all'
-        ? { name: 'Global View', id: 'all' }
-        : companies.find(c => c.id === selectedCompanyId) || { name: 'Loading...', id: selectedCompanyId };
+    const canSwitch = canViewAllCompanies(user);
+    const current = selectedCompanyId === 'all' ? null : companies.find(c => c.id === selectedCompanyId);
+    const dot = current ? getCompanyTheme(current.name).primary : '#7FA3C7';
 
-    const theme = getCompanyTheme(currentCompany?.name || '');
+    const search = (e: React.FormEvent) => {
+        e.preventDefault();
+        const term = q.trim();
+        navigate(term ? `/tasks?q=${encodeURIComponent(term)}` : '/tasks');
+    };
 
     return (
-        <header className="h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-gray-200/60 dark:border-slate-700/60 flex items-center justify-between gap-3 px-4 sm:px-6 sticky top-0 z-50 transition-colors duration-300">
-            <div className="flex min-w-0 items-center gap-2 sm:gap-4">
-                <button
-                    type="button"
-                    onClick={onMenuClick}
-                    className="icon-btn -ml-2 md:hidden"
-                    aria-label="Open navigation menu"
-                >
-                    <Menu className="h-5 w-5 text-gray-600 dark:text-slate-300" />
-                </button>
-                <div className="flex min-w-0 items-center space-x-2">
-                    <Building2 className="h-5 w-5 text-gray-500 dark:text-slate-400" />
-                    {canSwitchCompany ? (
+        <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-line bg-surface px-3 sm:px-5">
+            <button type="button" onClick={onMenuClick} className="flex h-10 w-10 items-center justify-center rounded-[8px] text-ink md:hidden" aria-label="Open navigation menu">
+                <Menu className="h-5 w-5" />
+            </button>
+
+            <label className="relative flex min-w-0 items-center gap-2 rounded-[8px] pl-1 pr-1">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: dot }} aria-hidden />
+                {canSwitch ? (
+                    <>
+                        <span className="sr-only">Company</span>
                         <select
                             value={selectedCompanyId}
                             onChange={(e) => setSelectedCompanyId(e.target.value)}
-                            className="min-w-0 max-w-[10rem] sm:max-w-xs border-none bg-transparent text-base sm:text-lg font-semibold text-gray-900 dark:text-slate-50 focus:outline-none focus:ring-0 cursor-pointer"
+                            className="min-w-0 max-w-[11rem] sm:max-w-xs cursor-pointer appearance-none bg-transparent pr-6 text-[15px] font-semibold text-ink outline-none"
                         >
-                            <option value="all">Global View</option>
-                            {companies.map((company) => (
-                                <option key={company.id} value={company.id}>
-                                    {company.name}
-                                </option>
-                            ))}
+                            <option value="all">All companies</option>
+                            {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
-                    ) : (
-                        <span className="truncate text-base sm:text-lg font-semibold text-gray-900 dark:text-slate-50">
-                            {currentCompany?.name || 'Loading...'}
-                        </span>
-                    )}
-                </div>
-                {!isLoading && (
-                    <Badge
-                        className="hidden lg:inline-flex"
-                        variant="outline"
-                        style={selectedCompanyId !== 'all' ? {
-                            color: theme.primary,
-                            backgroundColor: `${theme.primary}10`,
-                            borderColor: `${theme.primary}20`,
-                            fontWeight: 'bold'
-                        } : {}}
-                    >
-                        {currentCompany?.name}
-                    </Badge>
+                        <ChevronDown className="pointer-events-none absolute right-1 h-4 w-4 text-ink-faint" />
+                    </>
+                ) : (
+                    <span className="truncate text-[15px] font-semibold text-ink">{current?.name ?? ''}</span>
                 )}
-            </div>
+            </label>
 
-            <div className="flex shrink-0 items-center gap-1 sm:gap-4">
-                <div className="relative hidden lg:block lg:w-64">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                        type="search"
-                        placeholder="Search tasks, projects..."
-                        className="pl-10 bg-gray-50/50 dark:bg-slate-800/50 border-gray-200/60 dark:border-slate-700/60"
-                    />
-                </div>
+            <div className="flex-1" />
 
-                <button className="relative icon-btn">
-                    <Bell className="h-5 w-5 text-gray-600 dark:text-slate-400" />
-                    <span className="absolute top-1 right-1 h-2 w-2 bg-error rounded-full"></span>
-                </button>
-            </div>
+            <form onSubmit={search} role="search" className="relative hidden lg:block w-72">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" />
+                <input
+                    type="search"
+                    value={q}
+                    onChange={e => setQ(e.target.value)}
+                    placeholder="Search tasks and people"
+                    aria-label="Search tasks"
+                    className="h-9 w-full rounded-[8px] border border-line bg-paper pl-9 pr-3 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-progress focus:bg-surface"
+                />
+            </form>
+            <NotificationsBell />
         </header>
     );
 }

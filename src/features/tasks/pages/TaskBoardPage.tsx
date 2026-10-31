@@ -1,262 +1,223 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
     DndContext,
     DragEndEvent,
     DragOverlay,
     DragStartEvent,
-    PointerSensor,
+    KeyboardSensor,
+    MouseSensor,
+    TouchSensor,
     useSensor,
     useSensors,
     useDroppable,
 } from '@dnd-kit/core';
 import { Button } from '@/components/ui/button';
-import {
-    Plus,
-    MessageSquare,
-    Circle,
-    PlayCircle,
-    AlertCircle,
-    CheckCircle2,
-    Search,
-    Filter,
-    List,
-    LayoutGrid
-} from 'lucide-react';
-import { useTasks, useUpdateTaskStage, Task } from '../hooks/useTasks';
+import { Plus, Search, List, LayoutGrid, UserRound } from 'lucide-react';
+import { useTasks, Task } from '../hooks/useTasks';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
 import TaskCard from '../components/TaskCard';
 import TaskListView from '../components/TaskListView';
-import TaskDrawer from '../components/TaskDrawer';
+import TaskDetailModal from '../components/TaskDetailModal';
 import CreateTaskModal from '../components/CreateTaskModal';
+import { useTaskMover, TASK_MOVED_EVENT, type TaskMovedDetail } from '../components/TaskMover';
+import { STAGES, type StageDef } from '../utils/stages';
 import { cn, getCompanyTheme } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { useCompanyStore } from '@/hooks/useCompanyStore';
 import { useCompanies } from '@/features/projects/hooks/useProjects';
 import { canCoordinate } from '@/lib/permissions';
 
-const baseStages = [
-    { id: 'talking_stage', name: 'Talking Stage', color: 'bg-blue-500', icon: MessageSquare, tint: 'bg-blue-50/50' },
-    { id: 'yet_to_start', name: 'Yet to Start', color: 'bg-slate-400', icon: Circle, tint: 'bg-slate-50/50' },
-    { id: 'in_progress', name: 'In Progress', color: 'bg-primary', icon: PlayCircle, tint: 'bg-primary/5' },
-    { id: 'blockers', name: 'Blockers', color: 'bg-warning', icon: AlertCircle, tint: 'bg-warning/10' },
-    { id: 'completed', name: 'Completed', color: 'bg-success', icon: CheckCircle2, tint: 'bg-success/10' },
-] as const;
-
 export default function TaskBoardPage() {
     const { user } = useAuth();
-    const canCreateTask = canCoordinate(user);
-    const isLead = user?.role === 'lead';
+    const canCreateTask = canCoordinate(user) || user?.role === 'lead';
+    const isStaff = user?.role === 'employee';
 
     const { selectedCompanyId } = useCompanyStore();
     const { data: companies = [] } = useCompanies();
     const { data: tasks, isLoading } = useTasks({
         company_id: selectedCompanyId === 'all' ? undefined : selectedCompanyId
     });
-    const updateTaskStage = useUpdateTaskStage();
+    const mover = useTaskMover();
+
+    const [searchParams, setSearchParams] = useSearchParams();
+    const selectedTaskId = searchParams.get('task');
+    const openTask = (id: string | null) => {
+        const next = new URLSearchParams(searchParams);
+        if (id) next.set('task', id); else next.delete('task');
+        setSearchParams(next, { replace: !id });
+    };
+
     const [activeTask, setActiveTask] = useState<Task | null>(null);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-    const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-    const [searchTerm, setSearchTerm] = useState('');
+    const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q') ?? '');
+    const qParam = searchParams.get('q');
+    useEffect(() => { if (qParam != null) setSearchTerm(qParam); }, [qParam]);
     const [view, setView] = useState<'list' | 'board'>('board');
-    const searchQuery = searchTerm.toLowerCase();
+    // Staff open on their own work; coordinators open on everything.
+    const [mineOnly, setMineOnly] = useState(isStaff);
+    const [mobileStage, setMobileStage] = useState<Task['stage']>('in_progress');
+    useEffect(() => { setMineOnly(user?.role === 'employee'); }, [user?.role]);
+
+    // Highlight the card where it landed, so the person sees the move happened.
+    const [justMoved, setJustMoved] = useState<string | null>(null);
+    useEffect(() => {
+        let timer: ReturnType<typeof setTimeout>;
+        const onMoved = (e: Event) => {
+            const { id, stage } = (e as CustomEvent<TaskMovedDetail>).detail;
+            setJustMoved(id);
+            setMobileStage(stage);
+            clearTimeout(timer);
+            timer = setTimeout(() => setJustMoved(null), 4000);
+        };
+        window.addEventListener(TASK_MOVED_EVENT, onMoved);
+        return () => { window.removeEventListener(TASK_MOVED_EVENT, onMoved); clearTimeout(timer); };
+    }, []);
+    const showCompany = selectedCompanyId === 'all';
 
     const currentCompanyName = useMemo(() => {
         if (selectedCompanyId === 'all') return 'Global View';
         return companies.find(c => c.id === selectedCompanyId)?.name || '';
     }, [selectedCompanyId, companies]);
-
     const theme = getCompanyTheme(currentCompanyName);
 
-    const stages = useMemo(() => {
-        return baseStages.map(stage => {
-            if (stage.id === 'in_progress') {
-                return {
-                    ...stage,
-                    color: `text-[${theme.primary}]`,
-                    style: { color: theme.primary },
-                    tintStyle: { backgroundColor: `${theme.primary}05` }
-                };
-            }
-            return stage;
-        });
-    }, [theme]);
-
-    const handleTaskClick = (taskId: string) => {
-        setSelectedTaskId(taskId);
-    };
-
+    // Mouse: drag after moving 6px, so a click still opens the task.
+    // Touch: press and hold, so the column can still be scrolled with a swipe.
     const sensors = useSensors(
-        useSensor(PointerSensor, {
-            activationConstraint: {
-                distance: 8,
-            },
-        })
+        useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+        useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+        useSensor(KeyboardSensor)
     );
 
     const filteredTasks = useMemo(() => {
         if (!tasks) return [];
-        return tasks.filter((task: Task) =>
-            task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            task.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            task.project?.name.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-    }, [tasks, searchQuery]);
+        const q = searchTerm.trim().toLowerCase();
+        return tasks.filter((task: Task) => {
+            if (mineOnly && user && task.assignee_id !== user.id && !task.assignees?.some(a => a.user.id === user.id)) return false;
+            if (!q) return true;
+            return task.title.toLowerCase().includes(q) ||
+                task.description?.toLowerCase().includes(q) ||
+                task.project?.name.toLowerCase().includes(q) ||
+                task.assignee?.name.toLowerCase().includes(q);
+        });
+    }, [tasks, searchTerm, mineOnly, user]);
 
-    const getTasksByStage = (stageId: string) => {
-        return filteredTasks.filter((task) => task.stage === stageId);
-    };
+    const byStage = useMemo(() => {
+        const map = new Map<Task['stage'], Task[]>();
+        STAGES.forEach(s => map.set(s.id, []));
+        filteredTasks.forEach(t => map.get(t.stage)?.push(t));
+        // Urgent first, then nearest deadline.
+        map.forEach(list => list.sort((a, b) =>
+            Number(b.is_urgent) - Number(a.is_urgent) ||
+            (a.due_date ?? '9999').localeCompare(b.due_date ?? '9999')
+        ));
+        return map;
+    }, [filteredTasks]);
+
+    // "Talking stage" is pre-assignment pipeline; only show it when something is in it.
+    const stages = STAGES.filter(s => s.id !== 'talking_stage' || (byStage.get('talking_stage')?.length ?? 0) > 0);
 
     const handleDragStart = (event: DragStartEvent) => {
-        const task = tasks?.find((t: Task) => t.id === event.active.id);
-        setActiveTask(task || null);
+        setActiveTask(tasks?.find((t: Task) => t.id === event.active.id) || null);
     };
 
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
         setActiveTask(null);
-
         if (!over) return;
-
-        const taskId = active.id as string;
-        const newStage = over.id as Task['stage'];
-
-        // Find the task being dragged
-        const task = tasks?.find((t: Task) => t.id === taskId);
-        if (!task || task.stage === newStage) return;
-
-        // Update task stage
-        updateTaskStage.mutate({ id: taskId, stage: newStage });
+        const task = tasks?.find((t: Task) => t.id === active.id);
+        if (task) mover.requestMove(task, over.id as Task['stage']);
     };
 
     const handleTaskComplete = (taskId: string, completed: boolean) => {
-        const newStage = completed ? 'completed' : 'yet_to_start';
-        updateTaskStage.mutate({ id: taskId, stage: newStage });
+        const task = tasks?.find(t => t.id === taskId);
+        if (task) mover.requestMove(task, completed ? 'completed' : 'in_progress');
     };
 
     if (isLoading) {
         return (
             <div className="animate-fade-in flex flex-col h-[calc(100vh-100px)] space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                        <Skeleton className="h-8 w-32 mb-2" />
-                        <Skeleton className="h-4 w-48" />
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Skeleton className="h-9 w-32" />
-                        <Skeleton className="h-9 w-64" />
-                        <Skeleton className="h-9 w-24" />
-                        <Skeleton className="h-9 w-28" />
-                    </div>
+                <Skeleton className="h-8 w-32" />
+                <div className="flex-1 flex gap-4 overflow-hidden mt-4">
+                    {[1, 2, 3, 4].map(i => (
+                        <div key={i} className="flex-shrink-0 w-[300px] rounded-xl bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200/50 p-3 space-y-3">
+                            <Skeleton className="h-5 w-24" />
+                            {[1, 2, 3].map(j => <Skeleton key={j} className="h-28 w-full rounded-xl" />)}
+                        </div>
+                    ))}
                 </div>
-                {view === 'list' ? (
-                    <div className="space-y-8 mt-6">
-                        {[1, 2].map(section => (
-                            <div key={section} className="space-y-2">
-                                <div className="flex items-center gap-3 px-2">
-                                    <Skeleton className="h-5 w-32" />
-                                    <Skeleton className="h-4 w-6" />
-                                    <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800" />
-                                </div>
-                                <div className="space-y-1">
-                                    {[1, 2, 3].map(row => (
-                                        <div key={row} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-transparent bg-white dark:bg-slate-900">
-                                            <Skeleton className="h-5 w-5 rounded-full" />
-                                            <div className="flex-1">
-                                                <Skeleton className="h-5 w-1/3" />
-                                            </div>
-                                            <Skeleton className="hidden sm:block h-6 w-24 rounded" />
-                                            <Skeleton className="hidden md:block h-6 w-16 rounded-full" />
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="flex-1 flex gap-6 overflow-hidden mt-6">
-                        {[1, 2, 3, 4, 5].map(i => (
-                            <div key={i} className="flex-shrink-0 w-[350px] rounded-xl flex flex-col bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200/50 h-full">
-                                <div className="p-4 border-b border-slate-200/50">
-                                    <Skeleton className="h-5 w-24 mb-2" />
-                                    <Skeleton className="h-3 w-16" />
-                                </div>
-                                <div className="p-3 space-y-3">
-                                    {[1, 2, 3].map(j => (
-                                        <Skeleton key={j} className="h-32 w-full rounded-xl" />
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
             </div>
         );
     }
 
+    const moveHandler = (task: Task) => (stage: Task['stage']) => mover.requestMove(task, stage);
+    const cardProps = (task: Task) => ({
+        task,
+        onClick: () => openTask(task.id),
+        onMove: mover.canMove ? moveHandler(task) : undefined,
+        onUpdate: mover.canMove ? () => mover.requestUpdate(task) : undefined,
+        justMoved: justMoved === task.id,
+        showCompany,
+    });
+    const mobileTasks = byStage.get(mobileStage) ?? [];
+
     return (
         <div className="animate-fade-in flex flex-col h-[calc(100vh-100px)] space-y-4">
             {/* Page Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50">Tasks</h1>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                        Manage and track all your tasks
+                    <h1 className="text-[26px] font-bold tracking-tight text-ink">Tasks</h1>
+                    <p className="mt-0.5 text-sm text-ink-muted max-w-2xl">
+                        {mover.canMove
+                            ? <>Use <span className="font-semibold text-ink">Update status</span> on a card<span className="hidden md:inline">, or drag it to another column</span>. Each move asks for a short update; Done also needs proof.</>
+                            : 'Every task across the companies you can see.'}
                     </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
-                    {/* View Switcher */}
+                <div className="flex flex-wrap items-center gap-2">
                     <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
-                        <button
-                            onClick={() => setView('list')}
-                            className={cn(
-                                "px-3 py-1.5 rounded-md text-sm font-medium transition-all",
-                                view === 'list'
-                                    ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-50 shadow-sm"
-                                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
-                            )}
-                        >
-                            <List className="h-4 w-4 inline mr-1.5" />
-                            List
-                        </button>
-                        <button
-                            onClick={() => setView('board')}
-                            className={cn(
-                                "px-3 py-1.5 rounded-md text-sm font-medium transition-all",
-                                view === 'board'
-                                    ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-50 shadow-sm"
-                                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
-                            )}
-                        >
-                            <LayoutGrid className="h-4 w-4 inline mr-1.5" />
-                            Board
-                        </button>
+                        {(['board', 'list'] as const).map(v => (
+                            <button
+                                key={v}
+                                onClick={() => setView(v)}
+                                className={cn(
+                                    "px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                                    view === v ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-50 shadow-sm" : "text-slate-600 dark:text-slate-400"
+                                )}
+                            >
+                                {v === 'board' ? <LayoutGrid className="h-4 w-4 inline mr-1.5" /> : <List className="h-4 w-4 inline mr-1.5" />}
+                                {v === 'board' ? 'Board' : 'List'}
+                            </button>
+                        ))}
                     </div>
-
-                    <div className="relative order-3 w-full sm:order-none sm:w-64">
+                    <button
+                        onClick={() => setMineOnly(m => !m)}
+                        aria-pressed={mineOnly}
+                        className={cn(
+                            "h-9 px-3 rounded-lg border text-sm font-medium inline-flex items-center gap-1.5 transition-colors",
+                            mineOnly ? "border-transparent text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300"
+                        )}
+                        style={mineOnly ? { backgroundColor: theme.primary } : undefined}
+                    >
+                        <UserRound className="h-4 w-4" /> My tasks
+                    </button>
+                    <div className="relative w-full sm:w-60 order-last sm:order-none">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
                         <Input
-                            placeholder="Search tasks..."
+                            placeholder="Search tasks, projects, people..."
                             className="pl-9 h-9"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    <Button variant="outline" size="sm" className="h-9">
-                        <Filter className="h-4 w-4 mr-2" />
-                        Filter
-                    </Button>
-                    {(canCreateTask || isLead) && (
+                    {canCreateTask && (
                         <Button
                             size="sm"
-                            className="h-9 transition-transform hover:scale-105"
+                            className="h-9"
                             onClick={() => setIsCreateModalOpen(true)}
-                            style={{
-                                backgroundColor: theme.primary,
-                                boxShadow: `0 10px 15px -3px ${theme.primary}30`
-                            }}
+                            style={{ backgroundColor: theme.primary }}
                         >
-                            <Plus className="h-4 w-4 mr-2" />
+                            <Plus className="h-4 w-4 mr-1.5" />
                             New Task
                         </Button>
                     )}
@@ -264,140 +225,126 @@ export default function TaskBoardPage() {
             </div>
 
             {/* Content Area */}
-            <div className="flex-1 min-h-0 overflow-auto">
+            <div className="flex-1 min-h-0">
                 {view === 'list' ? (
-                    <TaskListView
-                        tasks={filteredTasks}
-                        onTaskClick={handleTaskClick}
-                        onTaskComplete={handleTaskComplete}
-                    />
+                    <div className="h-full overflow-auto">
+                        <TaskListView tasks={filteredTasks} onTaskClick={openTask} onTaskComplete={handleTaskComplete} />
+                    </div>
                 ) : (
-                    <div className="h-full -mx-4 px-4 overflow-x-auto">
-                        <DndContext
-                            sensors={sensors}
-                            onDragStart={handleDragStart}
-                            onDragEnd={handleDragEnd}
-                        >
-                            <div className="flex gap-6 h-full pb-4 items-start">
-                                {stages.map((stage) => {
-                                    const stageTasks = getTasksByStage(stage.id);
+                    <>
+                        {/* Phone: one stage at a time */}
+                        <div className="md:hidden flex flex-col h-full">
+                            <div className="grid grid-cols-4 gap-1 rounded-[12px] border border-line bg-surface p-1">
+                                {stages.filter(s => s.id !== 'talking_stage').map(s => {
+                                    const active = s.id === mobileStage;
                                     return (
-                                        <TaskColumn
-                                            key={stage.id}
-                                            stage={stage as any}
-                                            tasks={stageTasks}
-                                            stageId={stage.id}
-                                            onAddTask={() => setIsCreateModalOpen(true)}
-                                            onTaskClick={handleTaskClick}
-                                            activeTheme={theme}
-                                        />
+                                        <button
+                                            key={s.id}
+                                            onClick={() => setMobileStage(s.id)}
+                                            className={cn(
+                                                "relative rounded-[9px] px-1 py-2 text-center transition-colors",
+                                                active ? "bg-paper text-ink" : "text-ink-muted"
+                                            )}
+                                        >
+                                            <span className="block text-lg font-bold leading-none tabular-nums" style={active ? { color: s.accent } : undefined}>
+                                                {byStage.get(s.id)?.length ?? 0}
+                                            </span>
+                                            <span className="mt-1 block text-[11px] font-semibold leading-tight">{s.label}</span>
+                                        </button>
                                     );
                                 })}
                             </div>
+                            <div className="flex-1 overflow-y-auto pt-3 space-y-3 pb-6">
+                                {mobileTasks.map(task => <TaskCard key={task.id} {...cardProps(task)} />)}
+                                {mobileTasks.length === 0 && (
+                                    <p className="py-12 text-center text-sm text-slate-400">
+                                        {mineOnly ? 'None of your tasks are here.' : 'No tasks here.'}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
 
-                            <DragOverlay dropAnimation={null}>
-                                {activeTask ? (
-                                    <div className="rotate-3 scale-105 pointer-events-none origin-center">
-                                        <TaskCard task={activeTask} isDragging />
-                                    </div>
-                                ) : null}
-                            </DragOverlay>
-                        </DndContext>
-                    </div>
+                        {/* Tablet and up: the board */}
+                        <div className="hidden md:block h-full overflow-x-auto">
+                            <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={() => setActiveTask(null)}>
+                                <div className="flex gap-4 h-full pb-4 items-start">
+                                    {stages.map((stage) => (
+                                        <TaskColumn
+                                            key={stage.id}
+                                            stage={stage}
+                                            tasks={byStage.get(stage.id) ?? []}
+                                            onAddTask={canCreateTask ? () => setIsCreateModalOpen(true) : undefined}
+                                            cardProps={cardProps}
+                                            dragging={!!activeTask && activeTask.stage !== stage.id}
+                                        />
+                                    ))}
+                                </div>
+                                <DragOverlay dropAnimation={null}>
+                                    {activeTask ? (
+                                        <div className="rotate-2 scale-105 pointer-events-none origin-center w-[284px]">
+                                            <TaskCard task={activeTask} isDragging />
+                                        </div>
+                                    ) : null}
+                                </DragOverlay>
+                            </DndContext>
+                        </div>
+                    </>
                 )}
             </div>
 
-            <CreateTaskModal
-                open={isCreateModalOpen}
-                onClose={() => setIsCreateModalOpen(false)}
-            />
-
-            <TaskDrawer
-                taskId={selectedTaskId}
-                open={!!selectedTaskId}
-                onClose={() => setSelectedTaskId(null)}
-            />
+            <CreateTaskModal open={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} />
+            <TaskDetailModal taskId={selectedTaskId} open={!!selectedTaskId} onClose={() => openTask(null)} />
+            {mover.dialog}
         </div>
     );
 }
 
 interface TaskColumnProps {
-    stage: typeof baseStages[number] & { style?: React.CSSProperties, tintStyle?: React.CSSProperties };
+    stage: StageDef;
     tasks: Task[];
-    onAddTask: () => void;
-    stageId: string;
-    onTaskClick: (taskId: string) => void;
-    activeTheme: { primary: string; accent: string };
+    onAddTask?: () => void;
+    cardProps: (task: Task) => React.ComponentProps<typeof TaskCard>;
+    dragging: boolean;
 }
 
-function TaskColumn({ stage, tasks, onAddTask, stageId, onTaskClick, activeTheme }: TaskColumnProps) {
-    const { setNodeRef } = useDroppable({
-        id: stageId,
-    });
+function TaskColumn({ stage, tasks, onAddTask, cardProps, dragging }: TaskColumnProps) {
+    const { setNodeRef, isOver } = useDroppable({ id: stage.id });
 
     return (
-        <div
+        <section
             ref={setNodeRef}
+            aria-label={stage.label}
             className={cn(
-                "flex-shrink-0 w-[350px] rounded-xl flex flex-col max-h-full bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-800/50",
-                stage.tint
+                "flex-1 min-w-[250px] max-w-[380px] flex flex-col max-h-full rounded-[12px] border bg-paper/70 transition-colors",
+                isOver ? "border-2" : dragging ? "border-dashed border-line-strong" : "border-line"
             )}
-            style={stage.tintStyle}
+            style={isOver ? { borderColor: stage.accent, backgroundColor: `${stage.accent}0f` } : undefined}
         >
-            {/* Column Header */}
-            <div className="p-4 flex items-center justify-between sticky top-0 bg-transparent backdrop-blur-sm z-10">
-                <div className="flex items-center gap-2.5">
-                    <div
-                        className={cn("p-1.5 rounded-md shadow-sm bg-white dark:bg-slate-800", stage.color.startsWith('bg-') ? stage.color.replace('bg-', 'text-') : '')}
-                        style={stage.style}
-                    >
-                        <stage.icon className="h-4 w-4" />
-                    </div>
-                    <div>
-                        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-50 leading-none">{stage.name}</h3>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 font-medium">{tasks.length} tasks</p>
-                    </div>
+            <header className="flex items-start gap-2 border-b border-line px-3.5 pb-3 pt-3" style={{ boxShadow: `inset 0 3px 0 ${stage.accent}` }}>
+                <div className="min-w-0 flex-1">
+                    <h2 className="flex items-baseline gap-2 text-[14px] font-semibold text-ink">
+                        {stage.label}
+                        <span className="text-[13px] font-semibold tabular-nums text-ink-faint">{tasks.length}</span>
+                    </h2>
+                    <p className="mt-0.5 text-[12px] leading-snug text-ink-muted">{stage.hint}</p>
                 </div>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 hover:bg-white/80 dark:hover:bg-slate-800/80 rounded-xl"
-                    onClick={onAddTask}
-                >
-                    <Plus className="h-4 w-4 text-slate-500" />
-                </Button>
-            </div>
+                {onAddTask && (
+                    <button onClick={onAddTask} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[7px] text-ink-muted hover:bg-surface hover:text-ink" aria-label={`Add a task to ${stage.label}`}>
+                        <Plus className="h-4 w-4" />
+                    </button>
+                )}
+            </header>
 
-            {/* Tasks List */}
-            <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-3 scrollbar-thin">
-                {tasks.map((task) => (
-                    <TaskCard
-                        key={task.id}
-                        task={task}
-                        onClick={() => onTaskClick(task.id)}
-                    />
-                ))}
-
+            <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5 scrollbar-thin">
+                {tasks.map((task) => <TaskCard key={task.id} {...cardProps(task)} />)}
                 {tasks.length === 0 && (
-                    <div className="flex flex-col items-center justify-center py-12 px-4 rounded-xl border-2 border-dashed border-slate-200/50 dark:border-slate-800/50 bg-white/30 dark:bg-slate-900/30">
-                        <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 text-center">
-                            No tasks in this stage
+                    <div className="flex items-center justify-center rounded-[10px] border border-dashed border-line-strong px-4 py-10">
+                        <p className="text-[12px] text-ink-faint text-center">
+                            {dragging ? `Drop here to move to ${stage.label}` : 'Nothing here'}
                         </p>
                     </div>
                 )}
-
-                {tasks.length > 0 && (
-                    <button
-                        onClick={onAddTask}
-                        className="w-full py-2.5 flex items-center justify-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/80 dark:hover:bg-slate-800/80 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all group"
-                        onMouseEnter={(e) => (e.currentTarget.style.color = activeTheme.primary)}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = '')}
-                    >
-                        <Plus className="h-3.5 w-3.5 group-hover:scale-110 transition-transform" />
-                        Add Task
-                    </button>
-                )}
             </div>
-        </div>
+        </section>
     );
 }
