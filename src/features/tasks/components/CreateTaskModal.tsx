@@ -11,6 +11,7 @@ import { useProjects } from '@/features/projects/hooks/useProjects';
 import { useUsers } from '@/features/users/hooks/useUsers';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { toast } from 'react-hot-toast';
+import { canViewAllCompanies } from '@/lib/permissions';
 
 const taskSchema = z.object({
     title: z.string().min(1, 'Title is required'),
@@ -36,10 +37,10 @@ export default function CreateTaskModal({
 }: CreateTaskModalProps) {
     const { user } = useAuth();
     const createTask = useCreateTask();
-    const isAdmin = user?.role === 'admin';
+    const canSeeAllCompanies = canViewAllCompanies(user);
 
     // If Lead, only fetch projects for their company
-    const { data: projects } = useProjects(isAdmin ? undefined : user?.company_id);
+    const { data: projects } = useProjects(canSeeAllCompanies ? undefined : user?.company_id);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const {
@@ -59,7 +60,7 @@ export default function CreateTaskModal({
 
     const selectedProjectId = watch('project_id');
     const selectedProject = projects?.find(p => p.id === selectedProjectId);
-    const targetCompanyId = selectedProject?.company_id || (isAdmin ? undefined : user?.company_id);
+    const targetCompanyId = selectedProject?.company_id || (canSeeAllCompanies ? undefined : user?.company_id);
     const { data: companyUsers } = useUsers(targetCompanyId);
 
     const onSubmit = async (data: TaskFormData) => {
@@ -72,7 +73,12 @@ export default function CreateTaskModal({
                 description: data.description,
                 project_id: data.project_id || undefined,
                 priority: data.priority,
-                due_date: data.due_date,
+                due_date: data.due_date || undefined,
+                // A General task has no project to inherit a company from.
+                // Without one it is invisible to its own assignee, so it takes
+                // the primary assignee's company (or the creator's).
+                company_id: data.project_id ? undefined
+                    : companyUsers?.find(u => u.id === data.assignee_ids[0])?.company_id ?? user?.company_id ?? undefined,
                 assignee_ids: data.assignee_ids,
                 assignee_id: data.assignee_ids[0], // Primary assignee is the first selected
             };

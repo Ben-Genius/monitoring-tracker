@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabaseLog } from '@/features/audit/utils/log';
+import type { Evidence } from './useEvidence';
 
 // Types
 export interface Subtask {
@@ -9,6 +10,8 @@ export interface Subtask {
     title: string;
     is_completed: boolean;
     created_at: string;
+    end_date?: string | null;
+    completed_date?: string | null;
 }
 
 export interface TaskComment {
@@ -18,9 +21,15 @@ export interface TaskComment {
     comment: string;
     created_at: string;
     updated_at: string;
+    kind?: 'comment' | 'status_update' | 'nudge';
+    from_stage?: Task['stage'] | null;
+    to_stage?: Task['stage'] | null;
+    progress_percent?: number | null;
+    evidence?: Evidence[];
     user?: {
         name: string;
         email: string;
+        role?: string;
     };
 }
 
@@ -36,6 +45,19 @@ export interface Task {
     created_at: string;
     updated_at: string;
     completed_at: string | null;
+    // ECAS accountability fields
+    progress_percent: number;
+    acknowledged_at: string | null;
+    acknowledged_by: string | null;
+    next_update_due: string | null;
+    last_movement_at: string | null;
+    is_urgent: boolean;
+    blocker_description?: string | null;
+    blocked_by?: string | null;
+    created_by?: string | null;
+    company_id?: string | null;
+    blocker?: { name: string } | null;
+    creator?: { name: string; email?: string } | null;
     project?: {
         name: string;
         company_id: string;
@@ -71,6 +93,9 @@ export interface CreateTaskInput {
     stage?: Task['stage'];
     priority?: Task['priority'];
     due_date?: string;
+    /** Required when there is no project: row-level security scopes a
+     *  project-less task by its own company_id. */
+    company_id?: string;
 }
 
 export interface UpdateTaskInput {
@@ -78,10 +103,15 @@ export interface UpdateTaskInput {
     description?: string;
     stage?: Task['stage'];
     priority?: Task['priority'];
-    due_date?: string;
+    due_date?: string | null;
     assignee_id?: string | null;
     assignee_ids?: string[];
     project_id?: string | null;
+    progress_percent?: number;
+    next_update_due?: string | null;
+    is_urgent?: boolean;
+    blocker_description?: string | null;
+    blocked_by?: string | null;
 }
 
 // Fetch all tasks
@@ -101,6 +131,8 @@ export function useTasks(filters?: {
           *,
           project:projects(name, company_id, company:companies(name)),
           assignee:users!tasks_assignee_id_fkey(name, email),
+          blocker:users!tasks_blocked_by_fkey(name),
+          subtasks:subtasks(is_completed, archived_at),
           comments:task_comments(count)
         `)
                 .is('archived_at', null)
@@ -116,17 +148,23 @@ export function useTasks(filters?: {
                 query = query.eq('stage', filters.stage);
             }
 
-            if (filters?.company_id) {
-                query = query.eq('project.company_id', filters.company_id);
-            }
-
             const { data, error } = await query;
             if (error) throw error;
 
-            return (data || []).map((task: any) => ({
+            // Filter by company here rather than with .eq('project.company_id'):
+            // on an embedded resource without !inner, PostgREST keeps every
+            // row and only nulls the embed, so that filter never filtered.
+            // Tasks without a project carry their own company_id.
+            let rows = (data || []) as unknown as Task[];
+            if (filters?.company_id) {
+                rows = rows.filter(t => (t.project?.company_id ?? t.company_id) === filters.company_id);
+            }
+
+            return rows.map((task) => ({
                 ...task,
+                subtasks: (task.subtasks as (Subtask & { archived_at?: string | null })[] | undefined)?.filter(s => !s.archived_at),
                 _count: {
-                    comments: task.comments?.[0]?.count ?? 0,
+                    comments: (task.comments as unknown as { count: number }[] | undefined)?.[0]?.count ?? 0,
                     subtasks: task.subtasks?.length ?? 0,
                 },
             })) as Task[];
@@ -145,6 +183,7 @@ export function useTask(id: string) {
           *,
           project:projects(name, company_id, company:companies(name)),
           assignee:users!tasks_assignee_id_fkey(name, email),
+          blocker:users!tasks_blocked_by_fkey(name),
           creator:users!tasks_created_by_fkey(name, email)
         `)
                 .eq('id', id)
@@ -263,6 +302,119 @@ export function useUpdateTask(id: string) {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['tasks'] });
             queryClient.invalidateQueries({ queryKey: ['task', id] });
+            queryClient.invalidateQueries({ queryKey: ['brief'] });
+        },
+    });
+}
+
+// Owner accepts a task: one tap, no form.
+export function useAcknowledgeTask() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ id, userId }: { id: string; userId: string }) => {
+            // Only stamp it once; a second tap must not move the date.
+            const { data, error } = await supabase
+                .from('tasks')
+                .update({ acknowledged_at: new Date().toISOString(), acknowledged_by: userId })
+                .eq('id', id)
+                .is('acknowledged_at', null)
+                .select('id, title');
+
+            if (error) throw error;
+
+            if (data && data.length > 0) {
+                supabaseLog({
+                    entity_type: 'task',
+                    entity_id: id,
+                    action: 'updated',
+                    field: 'acknowledged_at',
+                    summary: `Task "${data[0].title}" was accepted by its owner`,
+                });
+            }
+            return data;
+        },
+        onSuccess: (_data, { id }) => {
+            queryClient.invalidateQueries({ queryKey: ['tasks'] });
+            queryClient.invalidateQueries({ queryKey: ['task', id] });
+        },
+    });
+}
+
+// Move a task to another stage, with the rules from the 29 Oct meeting, and
+// show the move on screen immediately instead of waiting for the server.
+export interface MoveTaskInput {
+    task: Pick<Task, 'id' | 'title' | 'stage' | 'assignee_id' | 'acknowledged_at' | 'progress_percent'>;
+    stage: Task['stage'];
+    actorId?: string;
+    blocker_description?: string | null;
+    blocked_by?: string | null;
+    progress_percent?: number | null;
+}
+
+export function movePatch({ task, stage, actorId, blocker_description, blocked_by, progress_percent }: MoveTaskInput) {
+    const now = new Date().toISOString();
+    const patch: Record<string, unknown> = { stage };
+    if (progress_percent != null && stage !== 'completed') patch.progress_percent = progress_percent;
+    if (stage === 'completed') {
+        patch.progress_percent = 100;
+        patch.completed_at = now;
+        patch.blocked_by = null;
+    } else if (task.stage === 'completed') {
+        patch.completed_at = null;
+        if (task.progress_percent === 100 && progress_percent == null) patch.progress_percent = 75;
+    }
+    if (stage === 'blockers') {
+        patch.blocker_description = blocker_description ?? null;
+        patch.blocked_by = blocked_by ?? null;
+    } else if (task.stage === 'blockers') {
+        patch.blocked_by = null;
+    }
+    // The owner starting work on a task they never accepted has accepted it.
+    if (stage === 'in_progress' && !task.acknowledged_at && actorId && actorId === task.assignee_id) {
+        patch.acknowledged_at = now;
+        patch.acknowledged_by = actorId;
+    }
+    return patch;
+}
+
+export function useMoveTask() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (input: MoveTaskInput) => {
+            const patch = movePatch(input);
+            const { error } = await supabase.from('tasks').update(patch).eq('id', input.task.id);
+            if (error) throw error;
+
+            if (input.task.stage !== input.stage) {
+                supabaseLog({
+                    entity_type: 'task',
+                    entity_id: input.task.id,
+                    action: 'stage_changed',
+                    field: 'stage',
+                    old_value: input.task.stage,
+                    new_value: input.stage,
+                    summary: `Task "${input.task.title}" moved from ${input.task.stage.replace('_', ' ')} to ${input.stage.replace('_', ' ')}`,
+                });
+            }
+        },
+        onMutate: async (input) => {
+            await queryClient.cancelQueries({ queryKey: ['tasks'] });
+            const previous = queryClient.getQueriesData<Task[]>({ queryKey: ['tasks'] });
+            const patch = movePatch(input);
+            queryClient.setQueriesData<Task[]>({ queryKey: ['tasks'] }, old =>
+                old?.map(t => (t.id === input.task.id ? ({ ...t, ...patch } as Task) : t))
+            );
+            return { previous };
+        },
+        onError: (_err, _input, context) => {
+            context?.previous.forEach(([key, data]) => queryClient.setQueryData(key, data));
+        },
+        onSettled: (_data, _err, input) => {
+            queryClient.invalidateQueries({ queryKey: ['tasks'] });
+            queryClient.invalidateQueries({ queryKey: ['task', input.task.id] });
+            queryClient.invalidateQueries({ queryKey: ['brief'] });
         },
     });
 }
@@ -412,7 +564,7 @@ export function useTaskComments(taskId: string) {
                 .from('task_comments')
                 .select(`
                     *,
-                    user:users(name, email)
+                    user:users(name, email, role)
                 `)
                 .eq('task_id', taskId)
                 .order('created_at', { ascending: true });
@@ -427,7 +579,10 @@ export function useTaskComments(taskId: string) {
 export function useCreateComment() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async (input: { task_id: string; content: string }) => {
+        mutationFn: async (input: {
+            task_id: string; content: string; kind?: TaskComment['kind'];
+            from_stage?: Task['stage']; to_stage?: Task['stage']; progress_percent?: number | null; evidence?: Evidence[];
+        }) => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('Not authenticated');
 
@@ -436,7 +591,12 @@ export function useCreateComment() {
                 .insert({
                     task_id: input.task_id,
                     comment: input.content,
-                    user_id: user.id
+                    user_id: user.id,
+                    kind: input.kind ?? 'comment',
+                    from_stage: input.from_stage ?? null,
+                    to_stage: input.to_stage ?? null,
+                    progress_percent: input.progress_percent ?? null,
+                    evidence: input.evidence ?? [],
                 })
                 .select()
                 .single();

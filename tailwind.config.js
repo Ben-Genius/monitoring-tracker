@@ -66,6 +66,15 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Monitoring tracker tokens (Oct 2026 redesign)
+        ink: { DEFAULT: "#17202B", muted: "#55606C", faint: "#8A939D" },
+        paper: "#F4F6F8",
+        surface: "#FFFFFF",
+        line: { DEFAULT: "#DDE2E7", strong: "#C7CED6" },
+        todo: "#6B7684",
+        progress: "#1F5FD1",
+        blocked: "#B83A24",
+        done: "#1F7A4D",
         macwest: "#6366f1",
         cypress: "#8b5cf6",
         northbrook: "#ec4899",
@@ -82,7 +91,12 @@ export default {
         pill: "980px",
       },
       fontFamily: {
-        sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"Helvetica Neue"', 'sans-serif'],
+        sans: ['"Public Sans"', '-apple-system', 'BlinkMacSystemFont', '"Helvetica Neue"', 'sans-serif'],
+      },
+      boxShadow: {
+        sheet: "0 24px 64px -12px rgba(23, 32, 43, 0.35)",
+        pop: "0 12px 32px -8px rgba(23, 32, 43, 0.22)",
+        lift: "0 6px 18px -6px rgba(23, 32, 43, 0.18)",
       },
       transitionTimingFunction: {
         'apple': 'cubic-bezier(0.25, 0.1, 0.25, 1)',

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { roleLabel } from '@/lib/roles';
+import { useAuthStore } from '@/features/auth/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -24,6 +26,7 @@ export default function SignupPage() {
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [submitError, setSubmitError] = useState<string | null>(null);
     const [inviteData, setInviteData] = useState<Invite | null>(null);
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');
@@ -66,19 +69,25 @@ export default function SignupPage() {
         e.preventDefault();
         if (!inviteData) return;
         setSubmitting(true);
-        setError(null);
+        setSubmitError(null);
 
         try {
-            const { data: authData, error: authError } = await supabase.auth.signUp({
+            // The login is created server-side, already confirmed: a browser
+            // signUp() would return no session (the project requires email
+            // confirmation), so accept_invite below would be refused.
+            const res = await fetch('/api/accept-invite', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token, password, name }),
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(body.error || 'Failed to create your account');
+
+            const { error: signInError } = await supabase.auth.signInWithPassword({
                 email: inviteData.email,
                 password,
-                options: {
-                    data: { full_name: name }
-                }
             });
-
-            if (authError) throw authError;
-            if (!authData.user) throw new Error("Signup failed");
+            if (signInError) throw signInError;
 
             // One server-side call claims-or-creates the profile and consumes
             // the invite together.
@@ -101,12 +110,14 @@ export default function SignupPage() {
                 throw new Error(profileError.message);
             }
 
-            setTimeout(() => {
-                navigate('/dashboard');
-            }, 1000);
+            // Signing in already ran a session check, which may have raced
+            // ahead of accept_invite and found no profile. Re-check now that
+            // the profile exists, so the dashboard opens signed in.
+            await useAuthStore.getState().checkSession();
+            navigate('/dashboard');
         } catch (err: any) {
             console.error('Signup error:', err);
-            setError(err.message || 'Failed to sign up');
+            setSubmitError(err.message || 'Failed to sign up');
         } finally {
             setSubmitting(false);
         }
@@ -155,7 +166,7 @@ export default function SignupPage() {
                         </div>
                         <CardTitle className="text-2xl font-bold text-center tracking-tight">Accept Invitation</CardTitle>
                         <p className="text-center text-sm text-gray-500 dark:text-slate-400">
-                            Join <strong>{inviteData.company_name || 'the team'}</strong> as a <strong className="capitalize">{inviteData.role}</strong>
+                            Join <strong>{inviteData.company_name || 'the team'}</strong> as <strong>{roleLabel(inviteData.role)}</strong>
                         </p>
                     </CardHeader>
                     <CardContent>
@@ -196,9 +207,9 @@ export default function SignupPage() {
                                 </div>
                             </div>
 
-                            {error && (
+                            {submitError && (
                                 <div className="bg-error/10 border border-error/20 text-error text-sm p-4 rounded-2xl">
-                                    {error}
+                                    {submitError}
                                 </div>
                             )}
 

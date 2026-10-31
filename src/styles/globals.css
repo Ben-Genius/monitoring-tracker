@@ -64,7 +64,8 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
+    font-family: "Public Sans", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    font-feature-settings: "tnum" 0;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     -webkit-tap-highlight-color: transparent;

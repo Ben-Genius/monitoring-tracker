@@ -34,3 +34,8 @@ lerna-debug.log*
 .vercel
 .env*
 cron-jobs.txt
+
+# Local MCP config (contains access tokens) and scratch artifacts
+.mcp.json
+.mt-snapshot.tgz
+.git-corrupt-backup.*/

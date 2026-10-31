@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
+import { supabase } from '@/lib/supabase';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useCreateApproval } from '@/features/approvals/hooks/useApprovals';
@@ -13,10 +14,8 @@ import {
     Clock,
     FileText,
     Plus,
-    Paperclip,
     MessageSquare,
     Building2,
-    MoreHorizontal,
     Users,
     ChevronRight,
     Send,
@@ -43,10 +42,10 @@ import { useTasks } from '@/features/tasks/hooks/useTasks';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { ProgressBar } from '@/components/ui/progress';
 import { formatCurrency, calculateProfitability, cn, getCompanyTheme } from '@/lib/utils';
-import { useProjectComments, useCreateProjectComment, useProjectAttachments } from '../hooks/useProjectDetails';
+import { useProjectComments, useCreateProjectComment, useProjectAttachments, useCreateProjectAttachment, type ProjectAttachment } from '../hooks/useProjectDetails';
 import { toast } from 'react-hot-toast';
 import CreateTaskModal from '@/features/tasks/components/CreateTaskModal';
-import TaskDrawer from '@/features/tasks/components/TaskDrawer';
+import TaskDetailModal from '@/features/tasks/components/TaskDetailModal';
 import { Task } from '@/features/tasks/hooks/useTasks';
 import { AuditFeed } from '@/features/audit/components/AuditFeed';
 
@@ -58,6 +57,33 @@ export default function ProjectDetailPage() {
     const { data: tasks = [] } = useTasks({ project_id: id });
     const { data: comments = [] } = useProjectComments(id || '');
     const { data: attachments = [] } = useProjectAttachments(id || '');
+    const createAttachment = useCreateProjectAttachment();
+    const [uploading, setUploading] = useState(false);
+    const fileInput = useRef<HTMLInputElement>(null);
+    const team = useMemo(() => [...new Set(tasks.map(t => t.assignee?.name).filter(Boolean) as string[])].sort(), [tasks]);
+
+    const uploadFiles = async (list: FileList | null) => {
+        if (!list || !id || !user) return;
+        setUploading(true);
+        try {
+            for (const f of [...list]) {
+                if (f.size > 25 * 1024 * 1024) { toast.error(`${f.name} is larger than 25 MB`); continue; }
+                const path = `${id}/${crypto.randomUUID()}-${f.name.replace(/[^\w.-]+/g, '_').slice(-80)}`;
+                const { error } = await supabase.storage.from('project-files').upload(path, f, { contentType: f.type || undefined });
+                if (error) throw new Error(`Couldn't upload ${f.name}: ${error.message}`);
+                await createAttachment.mutateAsync({
+                    project_id: id, file_name: f.name, file_type: f.type || 'file', file_size: f.size,
+                    url: `storage://project-files/${path}`, uploaded_by: user.id,
+                });
+            }
+            toast.success('Uploaded');
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Upload failed');
+        } finally {
+            setUploading(false);
+            if (fileInput.current) fileInput.current.value = '';
+        }
+    };
 
     const createApproval = useCreateApproval();
     const createComment = useCreateProjectComment();
@@ -232,9 +258,6 @@ export default function ProjectDetailPage() {
                                 >
                                     Update Stage
                                 </Button>
-                                <Button variant="outline" className="h-10 w-10 p-0 rounded-xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700">
-                                    <MoreHorizontal className="h-5 w-5" />
-                                </Button>
                             </>
                         )}
                     </div>
@@ -332,15 +355,16 @@ export default function ProjectDetailPage() {
                     </TabsList>
 
                     <div className="flex items-center gap-4 px-4">
-                        <div className="flex -space-x-2">
-                            {[1, 2, 3].map(_ => (
-                                <div key={_} className="h-8 w-8 rounded-full border-2 border-white dark:border-slate-800 bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-[10px] text-slate-500 dark:text-slate-400">
-                                    {String.fromCharCode(64 + _)}
+                        {/* The real people with tasks on this project (this used to be placeholder avatars). */}
+                        <div className="flex -space-x-2" aria-label={`${team.length} people on this project`}>
+                            {team.slice(0, 4).map(name => (
+                                <div key={name} title={name} className="h-8 w-8 rounded-full border-2 border-white dark:border-slate-800 bg-paper flex items-center justify-center font-bold text-[10px] text-ink">
+                                    {name.split(/\s+/).map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                                 </div>
                             ))}
-                            <div className="h-8 w-8 rounded-full border-2 border-white dark:border-slate-800 bg-slate-900 dark:bg-slate-100 flex items-center justify-center font-bold text-[10px] text-white dark:text-slate-900">+5</div>
+                            {team.length > 4 && <div className="h-8 w-8 rounded-full border-2 border-white bg-ink flex items-center justify-center font-bold text-[10px] text-white">+{team.length - 4}</div>}
                         </div>
-                        <Button variant="ghost" size="sm" className="font-bold text-slate-400 dark:text-slate-500 text-xs hover:text-slate-900 dark:hover:text-slate-300">Manage Team</Button>
+                        <span className="text-[13px] text-ink-muted">{team.length === 0 ? 'No one assigned yet' : `${team.length} ${team.length === 1 ? 'person' : 'people'} on this project`}</span>
                     </div>
                 </div>
 
@@ -807,20 +831,21 @@ export default function ProjectDetailPage() {
                                 <h3 className="text-xl font-bold text-slate-900 tracking-tight">Project Vault</h3>
                                 <p className="text-slate-500 text-xs font-medium mt-1">Centralized documentation for audit and technical reference</p>
                             </div>
-                            <Button className="h-10 px-6 rounded-xl font-bold uppercase text-[10px] tracking-wider shadow-none" style={{ backgroundColor: theme.primary }}>
-                                <Plus className="h-4 w-4 mr-2" /> Upload Asset
+                            <Button onClick={() => fileInput.current?.click()} disabled={uploading} className="h-10 px-5 rounded-[8px] font-semibold shadow-none" style={{ backgroundColor: theme.primary }}>
+                                <Plus className="h-4 w-4 mr-2" /> {uploading ? 'Uploading…' : 'Upload files'}
                             </Button>
+                            <input ref={fileInput} type="file" multiple className="sr-only" onChange={e => uploadFiles(e.target.files)} />
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            {(attachments.length > 0 ? attachments : [
-                                { id: '1', name: 'Technical_Spec.pdf', type: 'Design', size: '2.4 MB', created_at: '2026-01-30' },
-                                { id: '2', name: 'Contract_Agreement.docx', type: 'Legal', size: '1.1 MB', created_at: '2026-01-25' },
-                                { id: '3', name: 'Site_Report.img', type: 'Field', size: '4.5 MB', created_at: '2026-01-31' },
-                                { id: '4', name: 'Budget_Q1.xlsx', type: 'Finance', size: '0.8 MB', created_at: '2026-02-01' }
-                            ]).map((asset) => (
+                            {attachments.map((asset) => (
                                 <AttachmentCard key={asset.id} asset={asset} theme={theme} />
                             ))}
+                            {attachments.length === 0 && (
+                                <p className="col-span-full rounded-[12px] border border-dashed border-line-strong p-8 text-center text-sm text-ink-muted">
+                                    No files yet. Upload contracts, drawings and site reports so everyone works from the same copy.
+                                </p>
+                            )}
                         </div>
                     </div>
                 </TabsContent>
@@ -831,7 +856,7 @@ export default function ProjectDetailPage() {
                 initialProjectId={id}
             />
 
-            <TaskDrawer
+            <TaskDetailModal
                 taskId={selectedTaskId}
                 open={!!selectedTaskId}
                 onClose={() => setSelectedTaskId(null)}
@@ -898,34 +923,28 @@ function CommentItem({ comment }: { comment: any }) {
                 <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
                     <p className="text-sm font-medium text-slate-600 dark:text-slate-300 leading-relaxed italic">"{comment.content}"</p>
                 </div>
-                <div className="flex items-center gap-4 px-1">
-                    <button className="text-[9px] font-bold text-slate-400 uppercase tracking-wider hover:text-slate-900 transition-colors">Acknowledge</button>
-                    <button className="text-[9px] font-bold text-slate-400 uppercase tracking-wider hover:text-slate-900 transition-colors">Reply</button>
-                </div>
             </div>
         </div>
     );
 }
 
-function AttachmentCard({ asset, theme }: { asset: any, theme: any }) {
+function AttachmentCard({ asset, theme }: { asset: ProjectAttachment; theme: { primary: string } }) {
+    const open = async () => {
+        if (!asset.url?.startsWith('storage://')) { window.open(asset.url, '_blank', 'noopener'); return; }
+        const [, bucket, ...rest] = asset.url.replace('storage://', '/').split('/');
+        const { data, error } = await supabase.storage.from(bucket).createSignedUrl(rest.join('/'), 600);
+        if (error || !data) { toast.error('Couldn’t open the file'); return; }
+        window.open(data.signedUrl, '_blank', 'noopener');
+    };
+    const size = asset.file_size ? `${(asset.file_size / 1024 / 1024).toFixed(1)} MB` : '';
     return (
-        <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl hover:border-slate-300 dark:hover:border-slate-700 transition-colors cursor-pointer group">
-            <div className="flex items-start justify-between mb-4">
-                <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${theme.primary}10`, color: theme.primary }}>
-                    <FileText className="h-5 w-5" />
-                </div>
-                <Badge variant="outline" className="text-[9px] h-5 px-1.5 border-slate-200 dark:border-slate-700 font-bold bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 uppercase">{asset.type || 'Doc'}</Badge>
+        <button onClick={open} className="p-4 text-left bg-surface border border-line rounded-[12px] hover:border-line-strong transition-colors">
+            <div className="h-9 w-9 rounded-[8px] flex items-center justify-center" style={{ backgroundColor: `${theme.primary}14`, color: theme.primary }}>
+                <FileText className="h-5 w-5" />
             </div>
-            <div className="space-y-3">
-                <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate leading-tight group-hover:text-slate-900 dark:group-hover:text-white transition-colors">{asset.name}</p>
-                <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1 text-[10px] font-semibold text-slate-400">
-                        <Paperclip className="h-3 w-3" /> {asset.size}
-                    </span>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase">{asset.created_at ? new Date(asset.created_at).toLocaleDateString() : 'N/A'}</span>
-                </div>
-            </div>
-        </div>
+            <p className="mt-3 text-sm font-semibold text-ink truncate">{asset.file_name}</p>
+            <p className="mt-1 text-[12px] text-ink-muted">{[size, asset.created_at ? new Date(asset.created_at).toLocaleDateString('en-GB') : ''].filter(Boolean).join(', ')}</p>
+        </button>
     );
 }
 

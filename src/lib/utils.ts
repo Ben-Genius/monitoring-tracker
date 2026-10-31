@@ -5,6 +5,16 @@ export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs))
 }
 
+/** Short form for stat tiles: GHS 240.6M. */
+export function formatCurrencyCompact(amount: number): string {
+    return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'GHS',
+        notation: 'compact',
+        maximumFractionDigits: 1,
+    }).format(amount);
+}
+
 export function formatCurrency(amount: number): string {
     return new Intl.NumberFormat('en-US', {
         style: 'currency',

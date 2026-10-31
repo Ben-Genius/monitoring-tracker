@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { useCreateProject, useCompanies } from '../hooks/useProjects';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { cn } from '@/lib/utils';
+import { canAdminister } from '@/lib/permissions';
 
 const projectSchema = z.object({
     name: z.string().min(1, 'Project name is required'),
@@ -31,7 +32,7 @@ export default function CreateProjectModal({
 }: CreateProjectModalProps) {
     const { user } = useAuth();
     const createProject = useCreateProject();
-    const isAdmin = user?.role === 'admin';
+    const canChooseCompany = canAdminister(user);
 
     const { data: companies } = useCompanies();
 
@@ -45,7 +46,7 @@ export default function CreateProjectModal({
     } = useForm<ProjectFormData>({
         resolver: zodResolver(projectSchema),
         defaultValues: {
-            company_id: isAdmin ? '' : user?.company_id || '',
+            company_id: canChooseCompany ? '' : user?.company_id || '',
             contract_value: 0,
         },
     });
@@ -135,10 +136,10 @@ export default function CreateProjectModal({
                             </label>
                             <select
                                 {...register('company_id')}
-                                disabled={!isAdmin}
+                                disabled={!canChooseCompany}
                                 className={cn(
                                     "w-full h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:bg-white dark:focus:bg-slate-900 dark:text-slate-50 transition-all appearance-none",
-                                    !isAdmin && "opacity-60 cursor-not-allowed"
+                                    !canChooseCompany && "opacity-60 cursor-not-allowed"
                                 )}
                             >
                                 <option value="">Select Company</option>

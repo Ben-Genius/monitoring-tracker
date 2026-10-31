@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './features/auth/hooks/useAuth';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { homePath } from './lib/permissions';
 
 // LoginPage is the landing route, so it stays in the main bundle — lazy-loading
 // it would only add a network round trip before first paint.
@@ -18,8 +19,7 @@ const TaskBoardPage = lazy(() => import('./features/tasks/pages/TaskBoardPage'))
 const ProjectsPage = lazy(() => import('./features/projects/pages/ProjectsPage'));
 const ProjectDetailPage = lazy(() => import('./features/projects/pages/ProjectDetailPage'));
 const AnalyticsPage = lazy(() => import('./features/analytics/pages/AnalyticsPage'));
-const PipelinePage = lazy(() => import('./features/pipeline/pages/PipelinePage'));
-const ReportsPage = lazy(() => import('./features/reports/pages/ReportsPage'));
+const BriefPage = lazy(() => import('./features/brief/pages/BriefPage'));
 const SettingsPage = lazy(() => import('./features/settings/pages/SettingsPage'));
 const UserManagementPage = lazy(() => import('./features/users/pages/UserManagementPage'));
 const ApprovalsPage = lazy(() => import('./features/approvals/pages/ApprovalsPage'));
@@ -54,7 +54,7 @@ function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
     const user = useAuthStore((state) => state.user);
     const initialized = useAuthStore((state) => state.initialized);
 
-    if (initialized && user) return <Navigate to="/dashboard" replace />;
+    if (initialized && user) return <Navigate to={homePath(user)} replace />;
     return <>{children}</>;
 }
 
@@ -102,8 +102,9 @@ function App() {
                                 <Route path="/projects" element={<ProjectsPage />} />
                                 <Route path="/projects/:id" element={<ProjectDetailPage />} />
                                 <Route path="/analytics" element={<AnalyticsPage />} />
-                                <Route path="/pipeline" element={<PipelinePage />} />
-                                <Route path="/reports" element={<ReportsPage />} />
+                                <Route path="/brief" element={<BriefPage />} />
+                                <Route path="/pipeline" element={<Navigate to="/dashboard" replace />} />
+                                <Route path="/reports" element={<Navigate to="/dashboard" replace />} />
                                 <Route path="/settings" element={<SettingsPage />} />
                                 <Route path="/approvals" element={<ApprovalsPage />} />
                                 <Route path="/users" element={<UserManagementPage />} />

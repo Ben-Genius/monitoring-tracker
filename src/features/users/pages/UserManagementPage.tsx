@@ -1,3 +1,4 @@
+import { toast } from 'react-hot-toast';
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import { cn, getCompanyTheme } from '@/lib/utils';
 import { useCompanyStore } from '@/hooks/useCompanyStore';
 import { useCompanies } from '@/features/projects/hooks/useProjects';
+import { canAdminister } from '@/lib/permissions';
 
 interface User {
     id: string;
@@ -44,7 +46,7 @@ export default function UserManagementPage() {
     const { user: currentUser } = useAuth();
     const { selectedCompanyId } = useCompanyStore();
     const { data: companiesFromStore = [] } = useCompanies();
-    const isAdmin = currentUser?.role === 'admin';
+    const isAdmin = canAdminister(currentUser);
 
     const [users, setUsers] = useState<User[]>([]);
     const [companies, setCompanies] = useState<Company[]>([]);
@@ -60,7 +62,7 @@ export default function UserManagementPage() {
     const [formData, setFormData] = useState({
         email: '',
         name: '',
-        role: 'lead',
+        role: 'employee',
         company_id: '',
     });
 
@@ -100,7 +102,8 @@ export default function UserManagementPage() {
     }
 
     async function handleInvite() {
-        if (!formData.email || !formData.company_id || !formData.name) return;
+        const missing = [!formData.name && 'name', !formData.email && 'work email', !formData.company_id && 'company'].filter(Boolean);
+        if (missing.length) { toast.error(`Add the ${missing.join(', ')} first.`); return; }
 
         try {
             const { data, error } = await supabase
@@ -123,7 +126,7 @@ export default function UserManagementPage() {
             }
         } catch (error) {
             console.error('Error creating invite:', error);
-            alert('Failed to create invite');
+            toast.error(error instanceof Error && error.message.includes('duplicate') ? 'That email already has an invite.' : 'Couldn’t create the invite. Check the email and try again.');
         }
     }
 
@@ -215,8 +218,8 @@ export default function UserManagementPage() {
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 animate-in fade-in zoom-in-95 duration-300">
                         <div className="flex justify-between items-center mb-8">
                             <div>
-                                <h2 className="text-2xl font-black text-slate-900 tracking-tight">Provision Member</h2>
-                                <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">New System Access Request</p>
+                                <h2 className="text-xl font-bold text-ink tracking-tight">Invite a person</h2>
+                                <p className="text-ink-muted text-sm mt-1">They get a link to set their own password.</p>
                             </div>
                             <button onClick={() => { setIsDialogOpen(false); setInviteLink(null); }} className="h-10 w-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
                                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -228,57 +231,55 @@ export default function UserManagementPage() {
                         {!inviteLink ? (
                             <div className="space-y-6">
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Legal Name</label>
+                                    <label className="text-[13px] font-semibold text-ink">Name</label>
                                     <Input
                                         className="h-12 rounded-xl focus-visible:ring-primary/20"
                                         style={{ '--tw-ring-color': theme.primary } as any}
                                         value={formData.name}
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        placeholder="Full legal name"
+                                        placeholder="e.g. Kofi Mensah"
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Work Email</label>
+                                    <label className="text-[13px] font-semibold text-ink">Work email</label>
                                     <Input
                                         type="email"
                                         className="h-12 rounded-xl focus-visible:ring-primary/20"
                                         style={{ '--tw-ring-color': theme.primary } as any}
                                         value={formData.email}
                                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                        placeholder="institutional@domain.com"
+                                        placeholder="name@company.com"
                                     />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Clearance Level</label>
+                                        <label className="text-[13px] font-semibold text-ink">Role</label>
                                         <select
                                             className="w-full h-12 px-4 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none"
                                             style={{ '--tw-ring-color': theme.primary } as any}
                                             value={formData.role}
                                             onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                                         >
-                                            <option value="lead">Project Lead</option>
-                                            <option value="employee">Specialist</option>
-                                            <option value="employee">Finance</option>
-                                            <option value="employee">IT</option>
-                                            <option value="employee">HR</option>
-                                            <option value="employee">Legal</option>
-                                            <option value="employee">Project Manager</option>
-                                            <option value="employee">Administrator</option>
+                                            {/* One option per real role. The old list had Finance, IT, HR, Legal
+                                                and a second "Administrator", all of which created a staff account. */}
+                                            <option value="employee">Staff (works on their own tasks)</option>
+                                            <option value="lead">Project lead (assigns and approves)</option>
 
 
-                                            {isAdmin && <option value="admin">Administrator</option>}
+                                            {isAdmin && <option value="admin">Admin (manages people and settings)</option>}
+                                            {isAdmin && <option value="executive">Executive (all companies, read-only)</option>}
+                                            {isAdmin && <option value="pa">Executive PA (all companies)</option>}
                                         </select>
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Organization</label>
+                                        <label className="text-[13px] font-semibold text-ink">Company</label>
                                         <select
                                             className="w-full h-12 px-4 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none"
                                             style={{ '--tw-ring-color': theme.primary } as any}
                                             value={formData.company_id}
                                             onChange={(e) => setFormData({ ...formData, company_id: e.target.value })}
                                         >
-                                            <option value="">Select Division</option>
+                                            <option value="">Choose a company</option>
                                             {companies.map(c => (
                                                 <option key={c.id} value={c.id}>{c.name}</option>
                                             ))}
@@ -287,13 +288,13 @@ export default function UserManagementPage() {
                                 </div>
                                 <div className="flex flex-col gap-3 pt-4">
                                     <Button
-                                        className="h-12 rounded-xl font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/25"
+                                        className="h-11 rounded-[8px] font-semibold text-sm"
                                         style={{ backgroundColor: theme.primary }}
                                         onClick={handleInvite}
                                     >
-                                        Generate Access Link
+                                        Create invite link
                                     </Button>
-                                    <Button variant="ghost" className="h-12 rounded-xl font-bold text-slate-400" onClick={() => setIsDialogOpen(false)}>Discard</Button>
+                                    <Button variant="ghost" className="h-12 rounded-xl font-bold text-slate-400" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
                                 </div>
                             </div>
                         ) : (
@@ -327,7 +328,7 @@ export default function UserManagementPage() {
                                     onClick={() => {
                                         setIsDialogOpen(false);
                                         setInviteLink(null);
-                                        setFormData({ email: '', name: '', role: 'lead', company_id: '' });
+                                        setFormData({ email: '', name: '', role: 'employee', company_id: '' });
                                     }}
                                 >
                                     Dismiss
