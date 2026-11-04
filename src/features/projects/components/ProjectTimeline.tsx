@@ -1,4 +1,4 @@
-import { cn } from '@/lib/utils';
+import { cn, DEFAULT_BRAND_COLOR } from '@/lib/utils';
 import {
     CheckCircle2,
     Clock,
@@ -31,7 +31,7 @@ interface ProjectTimelineProps {
 }
 
 export default function ProjectTimeline({ currentStage, className, theme: customTheme, onRequestTransition, taskProgress, totalTasks, completedTasks, milestoneProgress }: ProjectTimelineProps) {
-    const defaultTheme = { primary: '#BC52C8', accent: '#8b5cf6' }; // Default blend of cypress (#8b5cf6) and northbrook (#ec4899)
+    const defaultTheme = { primary: DEFAULT_BRAND_COLOR, accent: '#EA580C' };
     const theme = customTheme || defaultTheme;
 
     const stages = [

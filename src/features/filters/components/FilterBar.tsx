@@ -44,20 +44,22 @@ export function FilterBar<T extends Record<string, any>>({
     return (
         <div className={cn('space-y-3', className)}>
             {/* Search + sort + filter toggle */}
-            <div className="flex items-center gap-3">
-                <div className="relative flex-1 max-w-sm">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                <div className="relative min-w-0 flex-1 basis-full sm:basis-auto sm:max-w-sm">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                     <input
                         type="text"
                         value={f.search}
                         onChange={e => f.setSearch(e.target.value)}
                         placeholder={searchPlaceholder}
+                        aria-label={searchPlaceholder.replace(/\.+$/, '')}
                         className="w-full h-9 pl-9 pr-3 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                     />
                 </div>
 
                 {sortOptions && (
                     <select
+                        aria-label="Sort by"
                         value={f.sort ? `${f.sort.field}-${f.sort.direction}` : ''}
                         onChange={e => {
                             if (!e.target.value) { f.setSort(null); return; }

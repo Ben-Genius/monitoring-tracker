@@ -7,7 +7,8 @@ export interface Project {
     name: string;
     description: string | null;
     company_id: string;
-    status: 'active' | 'completed' | 'on_hold';
+    // 'scheduled' and 'bidding' arrive from the Baserow sync.
+    status: 'active' | 'completed' | 'on_hold' | 'scheduled' | 'bidding';
     service_type: string | null;
     contract_value: number;
     actual_cost: number;

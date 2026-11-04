@@ -39,13 +39,14 @@ const Tabs = ({ children, defaultValue, className, onValueChange, style }: {
     )
 }
 
-const TabsList = ({ children, className, style }: {
+const TabsList = ({ children, className, style, label }: {
     children: React.ReactNode,
     className?: string,
-    style?: React.CSSProperties
+    style?: React.CSSProperties,
+    label?: string
 }) => {
     return (
-        <div className={cn("inline-flex items-center justify-center rounded-pill bg-muted p-1 text-muted-foreground", className)} style={style}>
+        <div role="tablist" aria-label={label} className={cn("inline-flex items-center justify-center rounded-pill bg-muted p-1 text-muted-foreground", className)} style={style}>
             {children}
         </div>
     )
@@ -62,6 +63,9 @@ const TabsTrigger = ({ children, value, className, style }: {
 
     return (
         <button
+            type="button"
+            role="tab"
+            aria-selected={isActive}
             onClick={() => context.onValueChange(value)}
             className={cn(
                 "inline-flex items-center justify-center whitespace-nowrap rounded-pill px-3 py-1.5 text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 select-none",
@@ -83,7 +87,7 @@ const TabsContent = ({ children, value, className, style }: {
 }) => {
     const context = useTabs()
     if (value !== context.value) return null
-    return <div className={cn("mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 animate-fade-in", className)} style={style}>{children}</div>
+    return <div role="tabpanel" className={cn("mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 animate-fade-in", className)} style={style}>{children}</div>
 }
 
 export { Tabs, TabsList, TabsTrigger, TabsContent }
