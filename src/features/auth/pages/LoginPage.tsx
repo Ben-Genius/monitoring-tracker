@@ -63,8 +63,8 @@ export default function LoginPage() {
                     {/* Logo */}
                     <div className="flex flex-col items-start">
                         <div className="inline-flex items-center gap-3 mb-6">
-                            <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
-                                <CheckCircle2 className="w-6 h-6 text-white" />
+                            <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex items-center justify-center shadow-lg p-1.5 overflow-hidden ring-2 ring-[#BC52C8]/20">
+                                <img src="/logo.avif" alt="Monitoring Tracker" className="w-full h-full object-contain" />
                             </div>
                             <div>
                                 <h1 className="text-xl font-bold text-gray-900 dark:text-slate-50 tracking-tight">Monitoring Tracker</h1>

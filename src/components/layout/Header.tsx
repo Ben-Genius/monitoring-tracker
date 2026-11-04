@@ -5,7 +5,7 @@ import NotificationsBell from '@/features/notifications/components/Notifications
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useCompanies } from '@/features/projects/hooks/useProjects';
 import { useCompanyStore } from '@/hooks/useCompanyStore';
-import { getCompanyTheme } from '@/lib/utils';
+import { getCompanyTheme, DEFAULT_BRAND_COLOR } from '@/lib/utils';
 import { canViewAllCompanies } from '@/lib/permissions';
 
 interface HeaderProps {
@@ -27,7 +27,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
     const canSwitch = canViewAllCompanies(user);
     const current = selectedCompanyId === 'all' ? null : companies.find(c => c.id === selectedCompanyId);
-    const dot = current ? getCompanyTheme(current.name).primary : '#7FA3C7';
+    const dot = current ? getCompanyTheme(current.name).primary : DEFAULT_BRAND_COLOR;
 
     const search = (e: React.FormEvent) => {
         e.preventDefault();

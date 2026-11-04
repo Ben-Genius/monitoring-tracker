@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, CheckSquare, FolderKanban, BarChart3, Settings, Users, LogOut, X, Sunrise, BadgeCheck } from 'lucide-react';
-import { cn, getCompanyTheme } from '@/lib/utils';
+import { cn, getCompanyTheme, DEFAULT_BRAND_COLOR } from '@/lib/utils';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useCompanyStore } from '@/hooks/useCompanyStore';
 import { useCompanies } from '@/features/projects/hooks/useProjects';
@@ -35,7 +35,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
     const nav = useMemo(() => NAV.filter(i => !i.show || i.show(user)), [user]);
 
     const companyName = selectedCompanyId === 'all' ? '' : companies.find(c => c.id === selectedCompanyId)?.name ?? '';
-    const accent = companyName ? getCompanyTheme(companyName).primary : '#7FA3C7';
+    const accent = companyName ? getCompanyTheme(companyName).primary : DEFAULT_BRAND_COLOR;
 
     useEffect(() => {
         if (!mobileOpen) return;
@@ -48,7 +48,9 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
     const body = (onNavigate?: () => void) => (
         <div className="flex h-full flex-col bg-ink text-white">
             <div className="flex h-14 items-center gap-2.5 px-4">
-                <span className="flex h-7 w-7 items-center justify-center rounded-[7px] text-[13px] font-bold" style={{ backgroundColor: accent }}>M</span>
+                <div className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-white p-1 shadow-sm shrink-0 overflow-hidden ring-1 ring-white/10">
+                    <img src="/logo.avif" alt="Monitoring Tracker" className="h-full w-full object-contain" />
+                </div>
                 <span className="text-[15px] font-semibold tracking-tight">Monitoring Tracker</span>
                 {onNavigate && (
                     <button onClick={onNavigate} className="ml-auto flex h-9 w-9 items-center justify-center rounded-[8px] text-white/70 hover:bg-white/10" aria-label="Close menu">

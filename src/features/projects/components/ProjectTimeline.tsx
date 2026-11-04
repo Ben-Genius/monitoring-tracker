@@ -31,7 +31,7 @@ interface ProjectTimelineProps {
 }
 
 export default function ProjectTimeline({ currentStage, className, theme: customTheme, onRequestTransition, taskProgress, totalTasks, completedTasks, milestoneProgress }: ProjectTimelineProps) {
-    const defaultTheme = { primary: '#6366f1', accent: '#8b5cf6' }; // Default indigo/violet
+    const defaultTheme = { primary: '#BC52C8', accent: '#8b5cf6' }; // Default blend of cypress (#8b5cf6) and northbrook (#ec4899)
     const theme = customTheme || defaultTheme;
 
     const stages = [
