@@ -1,12 +1,21 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Menu, ChevronDown } from 'lucide-react';
+import { CheckIcon } from '@radix-ui/react-icons';
 import NotificationsBell from '@/features/notifications/components/NotificationsBell';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useCompanies } from '@/features/projects/hooks/useProjects';
 import { useCompanyStore } from '@/hooks/useCompanyStore';
-import { getCompanyTheme, DEFAULT_BRAND_COLOR } from '@/lib/utils';
+import { getCompanyTheme, DEFAULT_BRAND_COLOR, cn } from '@/lib/utils';
 import { canViewAllCompanies } from '@/lib/permissions';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface HeaderProps {
     onMenuClick: () => void;
@@ -41,25 +50,70 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 <Menu className="h-5 w-5" />
             </button>
 
-            <label className="relative flex min-w-0 items-center gap-2 rounded-[8px] pl-1 pr-1">
-                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: dot }} aria-hidden />
-                {canSwitch ? (
-                    <>
-                        <span className="sr-only">Company</span>
-                        <select
-                            value={selectedCompanyId}
-                            onChange={(e) => setSelectedCompanyId(e.target.value)}
-                            className="min-w-0 max-w-[11rem] sm:max-w-xs cursor-pointer appearance-none bg-transparent pr-6 text-[15px] font-semibold text-ink outline-none"
+            {canSwitch ? (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <button
+                            type="button"
+                            className="flex items-center gap-2 rounded-lg border border-line bg-surface hover:bg-paper px-2.5 sm:px-3 py-1.5 text-[14px] font-semibold text-ink shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
                         >
-                            <option value="all">All companies</option>
-                            {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
-                        <ChevronDown className="pointer-events-none absolute right-1 h-4 w-4 text-ink-faint" />
-                    </>
-                ) : (
-                    <span className="truncate text-[15px] font-semibold text-ink">{current?.name ?? ''}</span>
-                )}
-            </label>
+                            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: dot }} aria-hidden />
+                            <span className="truncate max-w-[9rem] sm:max-w-[14rem]">
+                                {current ? current.name : 'All companies'}
+                            </span>
+                            <ChevronDown className="-me-1 ms-1 h-4 w-4 shrink-0 text-ink-faint opacity-70" aria-hidden="true" />
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-56 p-1">
+                        <DropdownMenuLabel className="text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
+                            Switch workspace
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                            onClick={() => setSelectedCompanyId('all')}
+                            className={cn(
+                                "flex items-center justify-between cursor-pointer py-2 px-2.5 rounded-md text-[13px] font-medium transition-colors",
+                                selectedCompanyId === 'all' && "bg-accent font-semibold text-accent-foreground"
+                            )}
+                        >
+                            <div className="flex items-center gap-2.5">
+                                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: DEFAULT_BRAND_COLOR }} />
+                                <span>All companies</span>
+                            </div>
+                            {selectedCompanyId === 'all' && (
+                                <CheckIcon className="h-4 w-4 text-ink shrink-0 ml-2" />
+                            )}
+                        </DropdownMenuItem>
+                        {companies.map(c => {
+                            const cColor = getCompanyTheme(c.name).primary;
+                            const isSelected = selectedCompanyId === c.id;
+                            return (
+                                <DropdownMenuItem
+                                    key={c.id}
+                                    onClick={() => setSelectedCompanyId(c.id)}
+                                    className={cn(
+                                        "flex items-center justify-between cursor-pointer py-2 px-2.5 rounded-md text-[13px] font-medium transition-colors",
+                                        isSelected && "bg-accent font-semibold text-accent-foreground"
+                                    )}
+                                >
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: cColor }} />
+                                        <span className="truncate">{c.name}</span>
+                                    </div>
+                                    {isSelected && (
+                                        <CheckIcon className="h-4 w-4 text-ink shrink-0 ml-2" />
+                                    )}
+                                </DropdownMenuItem>
+                            );
+                        })}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            ) : (
+                <div className="flex items-center gap-2 pl-1 pr-1">
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: dot }} aria-hidden />
+                    <span className="truncate text-[14px] font-semibold text-ink">{current?.name ?? ''}</span>
+                </div>
+            )}
 
             <div className="flex-1" />
 

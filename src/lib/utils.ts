@@ -43,8 +43,8 @@ export function formatRelativeTime(date: string | Date): string {
     return formatDate(date);
 }
 
-// Default brand color: 50/50 blend of Cypress (#8b5cf6) and Northbrook (#ec4899)
-export const DEFAULT_BRAND_COLOR = '#BC52C8';
+// Default brand color: Orange (#F58220) and White
+export const DEFAULT_BRAND_COLOR = '#F58220';
 
 export function getCompanyColor(companyName: string): string {
     const colors: Record<string, string> = {
@@ -64,7 +64,7 @@ export function getCompanyTheme(companyName: string) {
         'Northbrook LRD': { primary: '#1E3A8A', secondary: '#334155', accent: '#38BDF8' },
     };
     const key = Object.keys(themes).find(k => companyName.toLowerCase().includes(k.toLowerCase().split(' ')[0]));
-    return (key ? themes[key] : null) || themes[companyName] || { primary: DEFAULT_BRAND_COLOR, secondary: '#8b5cf6', accent: '#ec4899' };
+    return (key ? themes[key] : null) || themes[companyName] || { primary: DEFAULT_BRAND_COLOR, secondary: '#EA580C', accent: '#FED7AA' };
 }
 
 export function getPriorityColor(priority: string): string {

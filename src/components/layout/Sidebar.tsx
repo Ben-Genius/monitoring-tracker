@@ -49,9 +49,9 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
         <div className="flex h-full flex-col bg-ink text-white">
             <div className="flex h-14 items-center gap-2.5 px-4">
                 <div className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-white p-1 shadow-sm shrink-0 overflow-hidden ring-1 ring-white/10">
-                    <img src="/logo.avif" alt="Monitoring Tracker" className="h-full w-full object-contain" />
+                    <img src="/logo.avif" alt="Pulse360" className="h-full w-full object-contain" />
                 </div>
-                <span className="text-[15px] font-semibold tracking-tight">Monitoring Tracker</span>
+                <span className="text-[15px] font-semibold tracking-tight">Pulse360</span>
                 {onNavigate && (
                     <button onClick={onNavigate} className="ml-auto flex h-9 w-9 items-center justify-center rounded-[8px] text-white/70 hover:bg-white/10" aria-label="Close menu">
                         <X className="h-5 w-5" />
