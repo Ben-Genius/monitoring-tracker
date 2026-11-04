@@ -8,13 +8,14 @@ import { stageDef } from '@/features/tasks/utils/stages';
 import { Card, CardHeader } from './primitives';
 import { PRIORITY_WEIGHT, tx } from './tokens';
 
-const DAYS_BEFORE = 2;
-const DAYS_SHOWN = 7;
-const PER_DAY = 3;
+const DAYS_BEFORE = 1;
+const DAYS_SHOWN = 5;
+const PER_DAY = 4;
 
 /**
- * Open tasks laid out by due day around today. The two days before today
- * show what slipped; the rest show what is coming.
+ * Open tasks laid out by due day around today: yesterday shows what just
+ * slipped, the rest show what is coming. Older overdue work is covered by the
+ * Overdue tile and Needs attention, so it is not repeated here.
  */
 export default function DeadlineTimeline({ tasks }: { tasks: Task[] }) {
     const navigate = useNavigate();
@@ -31,20 +32,19 @@ export default function DeadlineTimeline({ tasks }: { tasks: Task[] }) {
             .sort((a, b) => PRIORITY_WEIGHT[b.priority] - PRIORITY_WEIGHT[a.priority]));
     }, [tasks, days]);
 
-    const count = byDay.reduce((n, l) => n + l.length, 0);
+    const empty = byDay.every(l => l.length === 0);
     const range = `${format(days[0], 'd MMM')} – ${format(days[days.length - 1], 'd MMM')}`;
 
     return (
-        <Card aria-labelledby="deadlines-heading">
+        <Card aria-labelledby="deadlines-heading" className="flex flex-col">
             <CardHeader
                 id="deadlines-heading"
                 icon={CalendarRange}
                 title="Deadlines"
-                count={count}
                 action={<span className={cn('text-[12.5px] tabular-nums', tx.muted)}>{range}</span>}
             />
-            <div className="overflow-x-auto px-5 pb-5">
-                <div className="grid min-w-[680px] grid-cols-7">
+            <div className="flex flex-1 flex-col overflow-x-auto px-5 pb-5">
+                <div className="grid min-h-[220px] min-w-[520px] flex-1 grid-cols-5">
                     {days.map((d, i) => {
                         const isToday = i === DAYS_BEFORE;
                         const past = i < DAYS_BEFORE;
@@ -53,7 +53,7 @@ export default function DeadlineTimeline({ tasks }: { tasks: Task[] }) {
                             <div
                                 key={d.toISOString()}
                                 className={cn(
-                                    'flex min-h-[208px] flex-col border-dashed border-line dark:border-slate-800',
+                                    'flex flex-col border-dashed border-line dark:border-slate-800',
                                     i > 0 && 'border-l',
                                     isToday && 'rounded-[10px] border-l-0 bg-brand/[0.07] dark:bg-brand/10',
                                     i === DAYS_BEFORE + 1 && 'border-l-0'
@@ -72,14 +72,17 @@ export default function DeadlineTimeline({ tasks }: { tasks: Task[] }) {
                                                     onClick={() => navigate(`/tasks?task=${t.id}`)}
                                                     title={`${t.title} · ${s.label}${past ? ' · overdue' : ''}`}
                                                     className={cn(
-                                                        'flex w-full items-center gap-1.5 rounded-[8px] border bg-surface px-1.5 py-1.5 text-left shadow-[0_1px_0_rgba(23,32,43,0.04)] transition-colors hover:border-ink/25 dark:bg-slate-900',
+                                                        'flex w-full items-start gap-1.5 rounded-[8px] border bg-surface px-1.5 py-1.5 text-left shadow-[0_1px_0_rgba(23,32,43,0.04)] transition-colors hover:border-ink/25 dark:bg-slate-900',
                                                         past ? 'border-red-200 dark:border-red-500/30' : 'border-line dark:border-slate-700'
                                                     )}
                                                 >
-                                                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[5px]" style={{ backgroundColor: `${s.accent}1F` }}>
+                                                    <span className="mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-[5px]" style={{ backgroundColor: `${s.accent}1F` }}>
                                                         <s.icon className="h-3 w-3" style={{ color: s.accent }} aria-hidden />
                                                     </span>
-                                                    <span className={cn('truncate text-[12px] font-medium', tx.ink)}>{t.title}</span>
+                                                    <span className="min-w-0">
+                                                        <span className={cn('line-clamp-2 text-[12px] font-medium leading-[1.3]', tx.ink)}>{t.title}</span>
+                                                        {t.project?.name && <span className={cn('mt-0.5 block truncate text-[11px]', tx.faint)}>{t.project.name}</span>}
+                                                    </span>
                                                 </button>
                                             </li>
                                         );
@@ -96,7 +99,7 @@ export default function DeadlineTimeline({ tasks }: { tasks: Task[] }) {
                         );
                     })}
                 </div>
-                {count === 0 && (
+                {empty && (
                     <p className={cn('mt-3 text-center text-[13px]', tx.muted)}>No open tasks are due between {range}.</p>
                 )}
             </div>

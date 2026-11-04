@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react';
-import { Flag, type LucideIcon } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
+import { Flag, MoreVertical, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Task } from '@/features/tasks/hooks/useTasks';
 import { stageDef } from '@/features/tasks/utils/stages';
@@ -8,7 +9,7 @@ import { tx } from './tokens';
 export function Card({ className, children, ...rest }: { className?: string; children: ReactNode } & React.HTMLAttributes<HTMLElement>) {
     return (
         <section
-            className={cn('rounded-[14px] border border-line bg-surface dark:border-slate-800 dark:bg-slate-900', className)}
+            className={cn('min-w-0 rounded-[14px] border border-line bg-surface dark:border-slate-800 dark:bg-slate-900', className)}
             {...rest}
         >
             {children}
@@ -82,19 +83,68 @@ export function StageDot({ stage }: { stage: Task['stage'] }) {
     );
 }
 
-const AVATAR_TONES = ['#1F5FD1', '#1F7A4D', '#B45309', '#7C3AED', '#0E7490', '#BE185D', '#4B5563'];
-
 export function Avatar({ name, size = 28 }: { name?: string | null; size?: number }) {
-    const label = name?.trim() || '?';
+    const label = name?.trim() || '';
     const initials = label.split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
-    const tone = AVATAR_TONES[[...label].reduce((h, c) => h + c.charCodeAt(0), 0) % AVATAR_TONES.length];
     return (
         <span
-            className="inline-flex shrink-0 items-center justify-center rounded-full font-semibold text-white ring-2 ring-surface dark:ring-slate-900"
-            style={{ width: size, height: size, fontSize: size * 0.38, backgroundColor: name ? tone : '#8A939D' }}
+            className="inline-flex shrink-0 items-center justify-center rounded-full bg-slate-200 font-semibold text-slate-700 ring-2 ring-surface dark:bg-slate-700 dark:text-slate-100 dark:ring-slate-900"
+            style={{ width: size, height: size, fontSize: size * 0.38 }}
             aria-hidden
         >
-            {name ? initials : '?'}
+            {initials || '?'}
         </span>
+    );
+}
+
+/**
+ * The vertical-dots menu from the stat cards. Position it with `className`
+ * (it is not positioned itself). Closes on outside click and Escape.
+ */
+export function KebabMenu({ label, items, className }: {
+    label: string;
+    items: { label: string; to: string }[];
+    className?: string;
+}) {
+    const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!open) return;
+        const onDown = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+        document.addEventListener('mousedown', onDown);
+        document.addEventListener('keydown', onKey);
+        return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+    }, [open]);
+
+    return (
+        <div ref={ref} className={className}>
+            <button
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded={open}
+                aria-label={label}
+                onClick={() => setOpen(o => !o)}
+                className="flex h-7 w-7 items-center justify-center rounded-[6px] text-ink-muted hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-progress dark:text-slate-400 dark:hover:bg-white/10"
+            >
+                <MoreVertical className="h-4 w-4" aria-hidden />
+            </button>
+            {open && (
+                <div role="menu" className="absolute right-0 top-8 z-30 min-w-[188px] rounded-[10px] border border-line bg-surface p-1 shadow-pop dark:border-slate-700 dark:bg-slate-900">
+                    {items.map(i => (
+                        <Link
+                            key={i.to + i.label}
+                            to={i.to}
+                            role="menuitem"
+                            onClick={() => setOpen(false)}
+                            className="block rounded-[6px] px-3 py-2 text-sm font-medium text-ink hover:bg-paper dark:text-slate-100 dark:hover:bg-slate-800"
+                        >
+                            {i.label}
+                        </Link>
+                    ))}
+                </div>
+            )}
+        </div>
     );
 }

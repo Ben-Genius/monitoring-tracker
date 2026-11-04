@@ -36,16 +36,16 @@ export default function TaskTable({ tasks, isLoading, showCompany }: { tasks: Ta
     return (
         <Card aria-labelledby="tasklist-heading">
             <div className="flex flex-col gap-3 pr-5 sm:flex-row sm:items-center sm:justify-between">
-                <CardHeader id="tasklist-heading" icon={ListChecks} title="Task list" count={isLoading ? undefined : rows.length} />
+                <CardHeader id="tasklist-heading" icon={ListChecks} title="Task list" />
                 <div className="flex gap-2 pl-5 sm:pl-0">
-                    <label className="relative min-w-0 flex-1 sm:w-60 sm:flex-none">
+                    <label className="relative min-w-0 flex-1 sm:w-64 sm:flex-none">
                         <span className="sr-only">Search tasks</span>
                         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" aria-hidden />
                         <input
                             type="search"
                             value={q}
                             onChange={e => setQ(e.target.value)}
-                            placeholder="Search task, project or owner"
+                            placeholder="Search tasks"
                             className="h-10 w-full rounded-[8px] border border-line bg-surface pl-9 pr-3 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-progress dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                         />
                     </label>
