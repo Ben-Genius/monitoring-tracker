@@ -54,6 +54,16 @@ export default function BriefPage() {
             ? `${scope}: nothing needs attention.`
             : `${scope}: ${attention} item${attention === 1 ? '' : 's'} need${attention === 1 ? 's' : ''} attention across ${brief.openCount} open tasks.`;
 
+    const handleTabKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+            e.preventDefault();
+            const nextView: View = view === 'curated' ? 'full' : 'curated';
+            setView(nextView);
+            const nextButton = document.getElementById(`brief-tab-${nextView}`);
+            nextButton?.focus();
+        }
+    };
+
     return (
         <div className="mx-auto w-full max-w-[1440px] space-y-5 pb-16">
             <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -69,12 +79,20 @@ export default function BriefPage() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                    <div className="inline-grid w-full grid-cols-2 gap-1 rounded-[10px] border border-line bg-surface p-1 text-[13px] font-semibold sm:w-auto sm:text-sm dark:border-slate-700 dark:bg-slate-900" role="tablist" aria-label="Brief view">
+                    <div
+                        className="inline-grid w-full grid-cols-2 gap-1 rounded-[10px] border border-line bg-surface p-1 text-[13px] font-semibold sm:w-auto sm:text-sm dark:border-slate-700 dark:bg-slate-900"
+                        role="tablist"
+                        aria-label="Brief view"
+                        onKeyDown={handleTabKeyDown}
+                    >
                         {tabs.map(([key, label, Icon]) => (
                             <button
                                 key={key}
+                                id={`brief-tab-${key}`}
                                 role="tab"
                                 aria-selected={view === key}
+                                aria-controls="brief-tabpanel"
+                                tabIndex={view === key ? 0 : -1}
                                 onClick={() => setView(key)}
                                 className={cn(
                                     'flex items-center justify-center gap-1.5 rounded-[7px] px-2 py-2 text-center leading-tight transition-colors sm:whitespace-nowrap sm:px-3.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-progress',
@@ -90,7 +108,7 @@ export default function BriefPage() {
                         disabled={isFetching}
                         className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-[8px] border border-line bg-surface px-3.5 text-sm font-semibold text-ink hover:border-ink/30 disabled:opacity-70 sm:w-auto dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                     >
-                        <RefreshCw className={cn('h-4 w-4', isFetching && 'animate-spin')} aria-hidden /> Refresh
+                        <RefreshCw className={cn('h-4 w-4', isFetching && 'animate-spin motion-reduce:animate-none')} aria-hidden /> Refresh
                     </button>
                 </div>
             </header>
@@ -103,16 +121,41 @@ export default function BriefPage() {
 
             {isLoading && (
                 <div className="space-y-5" aria-busy="true">
-                    <Skeleton className="h-[122px] w-full rounded-[14px]" />
-                    <Skeleton className="h-64 w-full rounded-[14px]" />
+                    {/* Summary Strip Skeleton */}
+                    <div className="rounded-[14px] border border-line bg-surface overflow-hidden dark:border-slate-800 dark:bg-slate-900">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 divide-y sm:divide-y-0 sm:divide-x divide-line dark:divide-slate-800">
+                            {[1, 2, 3, 4, 5, 6, 7].map(i => (
+                                <div key={i} className="p-4 space-y-2.5">
+                                    <Skeleton className="h-3.5 w-20" />
+                                    <Skeleton className="h-7 w-10" />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Main Sections and Side Rail Skeleton */}
+                    <div className="grid grid-cols-[minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_340px] items-start gap-5">
+                        <div className="space-y-4">
+                            <Skeleton className="h-44 w-full rounded-[14px]" />
+                            <Skeleton className="h-56 w-full rounded-[14px]" />
+                        </div>
+                        <Skeleton className="h-72 w-full rounded-[14px] hidden xl:block" />
+                    </div>
                 </div>
             )}
 
-            {brief && view === 'full' && <BriefTiles brief={brief} />}
+            <div
+                role="tabpanel"
+                id="brief-tabpanel"
+                aria-labelledby={`brief-tab-${view}`}
+                className="space-y-5"
+            >
+                {brief && view === 'full' && <BriefTiles brief={brief} />}
 
-            {brief && (view === 'curated'
-                ? <CuratedView brief={brief} companyName={companyName} scope={scope} fullLabel={fullLabel} onOpen={setOpenTaskId} />
-                : <FullView brief={brief} companies={companies} companyName={companyName} allCompanies={selectedCompanyId === 'all'} curate={!isExecutive} onOpen={setOpenTaskId} />)}
+                {brief && (view === 'curated'
+                    ? <CuratedView brief={brief} companyName={companyName} scope={scope} fullLabel={fullLabel} onOpen={setOpenTaskId} />
+                    : <FullView brief={brief} companies={companies} companyName={companyName} allCompanies={selectedCompanyId === 'all'} curate={!isExecutive} onOpen={setOpenTaskId} />)}
+            </div>
 
             <TaskDetailModal taskId={openTaskId} open={!!openTaskId} onClose={() => setOpenTaskId(null)} />
         </div>

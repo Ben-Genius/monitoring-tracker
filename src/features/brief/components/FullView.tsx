@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Building2, PenLine, Send } from 'lucide-react';
+import { Building2, PenLine, Search, Send, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { cn } from '@/lib/utils';
 import { Card, CardHeader, TickMeter } from '@/features/dashboard/components/primitives';
@@ -22,6 +22,7 @@ interface Props {
 /** Everything that needs a look, and for the PA, the controls to curate it. */
 export default function FullView({ brief, companies, companyName, allCompanies, curate, onOpen }: Props) {
     const [expanded, setExpanded] = useState<Partial<Record<BriefSection, boolean>>>({});
+    const [searchQuery, setSearchQuery] = useState('');
     const { data: today } = useBriefItems();
     const { add, remove, setNote } = useBriefMutations();
     const selected = useMemo(() => new Map((today?.items ?? []).map(i => [i.task_id, i])), [today]);
@@ -32,12 +33,55 @@ export default function FullView({ brief, companies, companyName, allCompanies, 
         else add.mutate({ taskId: t.id }, { onError: (e: Error) => toast.error(e.message) });
     };
 
-    const visible = SECTIONS.filter(s => brief.sections[s.key].length > 0);
+    const q = searchQuery.trim().toLowerCase();
+    const visibleSections = useMemo(() => {
+        return SECTIONS.map(s => {
+            const raw = brief.sections[s.key];
+            const items = q
+                ? raw.filter(t =>
+                    t.title.toLowerCase().includes(q) ||
+                    t.project?.name?.toLowerCase().includes(q) ||
+                    t.owner?.name?.toLowerCase().includes(q)
+                )
+                : raw;
+            return { meta: s, items };
+        }).filter(s => s.items.length > 0);
+    }, [brief, q]);
+
+    const totalRawTasks = useMemo(() => {
+        return SECTIONS.reduce((sum, s) => sum + brief.sections[s.key].length, 0);
+    }, [brief]);
+
     const hasRail = curate || allCompanies;
 
     return (
         <div className={cn('grid grid-cols-[minmax(0,1fr)] items-start gap-5', hasRail && 'xl:grid-cols-[minmax(0,1fr)_340px]')}>
             <div className="flex min-w-0 flex-col gap-5">
+                {/* Search / Filter toolbar when tasks exist */}
+                {totalRawTasks > 0 && (
+                    <div className="relative">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" aria-hidden />
+                        <input
+                            type="search"
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            placeholder="Filter brief by task, project or owner..."
+                            aria-label="Filter brief items"
+                            className="h-10 w-full rounded-[10px] border border-line bg-surface pl-9 pr-8 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-ink focus:ring-2 focus:ring-ink/10 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                        />
+                        {searchQuery && (
+                            <button
+                                type="button"
+                                onClick={() => setSearchQuery('')}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink"
+                                aria-label="Clear filter"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        )}
+                    </div>
+                )}
+
                 {/* Small screens have no rail, so the running count stays pinned on top. */}
                 {curate && (
                     <div className="sticky top-0 z-10 flex items-center gap-3 rounded-[10px] bg-ink px-4 py-3 text-sm text-white shadow-lift xl:hidden">
@@ -46,17 +90,21 @@ export default function FullView({ brief, companies, companyName, allCompanies, 
                     </div>
                 )}
 
-                {visible.length === 0 && (
+                {visibleSections.length === 0 && (
                     <Card className="px-5 py-10 text-center">
-                        <p className={cn('text-sm', tx.muted)}>Nothing to report. No task is urgent, blocked, stuck, overdue or recently moved.</p>
+                        <p className={cn('text-sm', tx.muted)}>
+                            {searchQuery
+                                ? `No task found matching "${searchQuery}".`
+                                : 'Nothing to report. No task is urgent, blocked, stuck, overdue or recently moved.'}
+                        </p>
                     </Card>
                 )}
 
-                {visible.map(s => (
+                {visibleSections.map(({ meta: s, items }) => (
                     <BriefSectionCard
                         key={s.key}
                         meta={s}
-                        items={brief.sections[s.key]}
+                        items={items}
                         companyName={companyName}
                         allCompanies={allCompanies}
                         curate={curate}

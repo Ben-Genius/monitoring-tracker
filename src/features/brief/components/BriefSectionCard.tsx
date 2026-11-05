@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Check, ChevronDown, ChevronRight, ChevronUp, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, Card, CardHeader } from '@/features/dashboard/components/primitives';
@@ -113,16 +113,20 @@ function Progress({ value }: { value: number }) {
 
 function NoteInput({ initial, onSave }: { initial: string; onSave: (note: string) => void }) {
     const [value, setValue] = useState(initial);
+    const inputId = useId();
     useEffect(() => setValue(initial), [initial]);
     return (
         <div className="px-5 pb-3.5 pl-[68px]">
+            <label htmlFor={inputId} className="mb-1 block text-xs font-semibold text-ink dark:text-slate-200">
+                Your line for Mr Blay
+            </label>
             <input
-                aria-label="Your line for Mr Blay"
+                id={inputId}
                 value={value}
                 onChange={e => setValue(e.target.value)}
                 onBlur={() => { if (value.trim() !== initial) onSave(value.trim()); }}
                 onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                placeholder="Your line for Mr Blay, e.g. Kofi expects ECG sign-off Tuesday; I'm following up daily."
+                placeholder="e.g. Kofi expects ECG sign-off Tuesday; I'm following up daily."
                 className="h-10 w-full rounded-[8px] border border-line-strong bg-surface px-3 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-ink focus:ring-2 focus:ring-ink/10 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100"
             />
         </div>
