@@ -8,6 +8,7 @@ import {
     LayoutGrid,
     List,
     Plus,
+    RefreshCw,
     Upload,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -100,7 +101,7 @@ export default function ProjectsPage() {
     const [isImportOpen, setIsImportOpen] = useState(false);
 
     const scopeId = selectedCompanyId === 'all' ? undefined : selectedCompanyId;
-    const { data: projects, isLoading } = useProjects(scopeId, showArchived);
+    const { data: projects, isLoading, isFetching, dataUpdatedAt, refetch } = useProjects(scopeId, showArchived);
     const { data: companies = [] } = useCompanies();
 
     const canSeeAll = canViewAllCompanies(user);
@@ -155,6 +156,20 @@ export default function ProjectsPage() {
                     <p className={cn('mt-0.5 text-sm', tx.muted)}>
                         {isLoading ? 'Loading projects…' : `${rows.length} ${showArchived ? 'live and archived ' : ''}projects across ${scopeName}. Projects with blocked or open work come first.`}
                     </p>
+                    {dataUpdatedAt > 0 && (
+                        <p className={cn('mt-1 flex items-center gap-1.5 text-[12.5px]', tx.muted)}>
+                            <span aria-live="polite">Updated {new Date(dataUpdatedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+                            <button
+                                type="button"
+                                onClick={() => refetch()}
+                                disabled={isFetching}
+                                aria-label={isFetching ? 'Refreshing projects' : 'Refresh projects'}
+                                className="inline-flex h-6 w-6 items-center justify-center rounded-[6px] hover:bg-paper hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-progress disabled:opacity-60 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+                            >
+                                <RefreshCw className={cn('h-3.5 w-3.5', isFetching && 'animate-spin')} aria-hidden />
+                            </button>
+                        </p>
+                    )}
                 </div>
                 <div className="flex flex-wrap gap-2">
                     {/* Projects whose Baserow row was deleted are archived, not removed. This keeps them reviewable. */}
@@ -177,13 +192,9 @@ export default function ProjectsPage() {
                 </div>
             </div>
 
-            {/* Summary Stats Analytics Ribbon */}
+            {/* Portfolio summary: one neutral strip, same footprint while loading */}
             {isLoading ? (
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    {[1, 2, 3, 4].map(i => (
-                        <Skeleton key={i} className="h-[98px] rounded-[14px]" />
-                    ))}
-                </div>
+                <Skeleton className="h-[218px] rounded-[14px] lg:h-[109px]" />
             ) : (
                 <ProjectStatsRibbon projects={rows} />
             )}
@@ -314,7 +325,7 @@ export default function ProjectsPage() {
                                             aria-label="Go to previous page"
                                         >
                                             <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
-                                            <span>Previous</span>
+                                            <span className="hidden sm:inline">Previous</span>
                                         </button>
 
                                         <div className="flex items-center gap-1">
@@ -354,7 +365,7 @@ export default function ProjectsPage() {
                                             className="inline-flex h-8 items-center gap-1 rounded-[6px] border border-line bg-surface px-2.5 text-xs font-semibold text-ink hover:border-ink/30 disabled:pointer-events-none disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
                                             aria-label="Go to next page"
                                         >
-                                            <span>Next</span>
+                                            <span className="hidden sm:inline">Next</span>
                                             <ChevronRight className="h-3.5 w-3.5" aria-hidden />
                                         </button>
                                     </div>

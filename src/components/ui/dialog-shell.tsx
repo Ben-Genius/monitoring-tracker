@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -53,7 +54,8 @@ export function DialogShell({ open, onClose, title, description, children, class
 
     if (!open) return null;
 
-    return (
+    // Portal to <body> so the backdrop covers the sticky header and no scroll container offsets it.
+    return createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
             <div
                 ref={panel}
@@ -81,6 +83,7 @@ export function DialogShell({ open, onClose, title, description, children, class
                 </div>
                 <div className="overflow-y-auto">{children}</div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

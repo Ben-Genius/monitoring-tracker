@@ -1,173 +1,102 @@
 import { useMemo } from 'react';
-import { Activity, AlertTriangle, CheckCircle2, Coins } from 'lucide-react';
-import { formatCurrencyCompact, formatCurrency, cn } from '@/lib/utils';
+import { cn, formatCurrency, formatCurrencyCompact } from '@/lib/utils';
 import { tx } from '@/features/dashboard/components/tokens';
 import type { ProjectRow } from '../utils/projectRow';
 
-interface ProjectStatsRibbonProps {
-    projects: ProjectRow[];
+interface Figure {
+    label: string;
+    value: string;
+    note: string;
+    alert?: boolean;
+    muted?: boolean;
+    title?: string;
 }
 
-export default function ProjectStatsRibbon({ projects }: ProjectStatsRibbonProps) {
-    const stats = useMemo(() => {
-        const totalProjects = projects.length;
-        const activeProjects = projects.filter((p) => p.status === 'active').length;
-        const totalValue = projects.reduce((acc, p) => acc + (Number(p.contract_value) || 0), 0);
-        const totalBlocked = projects.reduce((acc, p) => acc + p.blocked_tasks, 0);
+/**
+ * Portfolio totals for every project in scope, regardless of the tab or search below.
+ * Counts already shown elsewhere (project totals, tab counts) are deliberately left out.
+ */
+export default function ProjectStatsRibbon({ projects }: { projects: ProjectRow[] }) {
+    const figures = useMemo<Figure[]>(() => {
+        const value = projects.reduce((s, p) => s + (Number(p.contract_value) || 0), 0);
+        const unvalued = projects.filter(p => !(Number(p.contract_value) > 0)).length;
 
-        // Average progress across all projects with tasks
-        const projectsWithTasks = projects.filter((p) => p.total_tasks > 0);
-        const avgProgress =
-            projectsWithTasks.length > 0
-                ? Math.round(
-                      projectsWithTasks.reduce((acc, p) => acc + p.progress, 0) /
-                          projectsWithTasks.length
-                  )
-                : 0;
+        // Margin only from projects with a recorded cost, weighted by contract value,
+        // and labelled with how much of the portfolio it actually covers.
+        const costed = projects.filter(p => p.margin !== null);
+        const costedValue = costed.reduce((s, p) => s + Number(p.contract_value), 0);
+        const costedCost = costed.reduce((s, p) => s + Number(p.actual_cost), 0);
+        const margin = costedValue > 0 ? ((costedValue - costedCost) / costedValue) * 100 : null;
+        const coverage = value > 0 ? Math.round((costedValue / value) * 100) : 0;
 
-        // Weighted or average margin
-        const projectsWithMargin = projects.filter((p) => p.margin !== null);
-        const avgMargin =
-            projectsWithMargin.length > 0
-                ? projectsWithMargin.reduce((acc, p) => acc + (p.margin ?? 0), 0) /
-                  projectsWithMargin.length
-                : null;
+        // Progress counts tasks, so a one-task project does not weigh as much as an eighty-task one.
+        const doneTasks = projects.reduce((s, p) => s + p.done_tasks, 0);
+        const allTasks = projects.reduce((s, p) => s + p.total_tasks, 0);
 
-        return {
-            totalProjects,
-            activeProjects,
-            totalValue,
-            totalBlocked,
-            avgProgress,
-            avgMargin,
-        };
+        const blocked = projects.reduce((s, p) => s + p.blocked_tasks, 0);
+        const blockedProjects = projects.filter(p => p.blocked_tasks > 0).length;
+
+        return [
+            {
+                label: 'Contract value',
+                value: value > 0 ? formatCurrencyCompact(value) : 'Not set',
+                note: unvalued ? `${unvalued} ${unvalued === 1 ? 'project has' : 'projects have'} no value yet` : 'Every project has a value',
+                title: value > 0 ? `Exact total: ${formatCurrency(value)}` : undefined,
+                muted: value === 0,
+            },
+            {
+                label: 'Margin',
+                value: margin === null ? 'No costs yet' : `${margin.toFixed(1)}%`,
+                note: margin === null
+                    ? 'No project has a cost recorded'
+                    : `Based on ${costed.length} of ${projects.length} projects (${coverage}% of value) with costs`,
+                alert: margin !== null && margin < 0,
+                muted: margin === null,
+            },
+            {
+                label: 'Tasks done',
+                value: allTasks ? `${Math.round((doneTasks / allTasks) * 100)}%` : 'No tasks',
+                note: allTasks ? `${doneTasks.toLocaleString('en-GB')} of ${allTasks.toLocaleString('en-GB')} tasks` : 'No tasks have been added',
+                muted: allTasks === 0,
+            },
+            {
+                label: 'Blocked',
+                value: String(blocked),
+                note: blocked
+                    ? `${blocked === 1 ? 'Task' : 'Tasks'} in ${blockedProjects} ${blockedProjects === 1 ? 'project' : 'projects'}`
+                    : 'Nothing is blocked',
+                alert: blocked > 0,
+            },
+        ];
     }, [projects]);
 
     return (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {/* 1. Total Portfolio Contract Value */}
-            <div className="rounded-[14px] border border-line bg-surface p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <div className="flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
-                    <span className={tx.muted}>Portfolio Value</span>
-                    <div className="rounded-lg bg-orange-500/10 p-1.5 text-orange-600 dark:text-orange-400">
-                        <Coins className="h-4 w-4" aria-hidden />
-                    </div>
-                </div>
-                <div className="mt-2">
-                    <p className={cn('text-2xl font-bold tracking-tight tabular-nums', tx.ink)}>
-                        {stats.totalValue > 0 ? formatCurrencyCompact(stats.totalValue) : 'GHS 0'}
-                    </p>
-                    <p className={cn('mt-0.5 text-[11px] font-medium truncate', tx.muted)} title={`Exact total: ${formatCurrency(stats.totalValue)}`}>
-                        Across {stats.totalProjects} {stats.totalProjects === 1 ? 'project' : 'projects'}
-                    </p>
-                </div>
-            </div>
-
-            {/* 2. Active Projects */}
-            <div className="rounded-[14px] border border-line bg-surface p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <div className="flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
-                    <span className={tx.muted}>Active Execution</span>
-                    <div className="rounded-lg bg-blue-500/10 p-1.5 text-blue-600 dark:text-blue-400">
-                        <Activity className="h-4 w-4" aria-hidden />
-                    </div>
-                </div>
-                <div className="mt-2">
-                    <div className="flex items-baseline justify-between">
-                        <p className={cn('text-2xl font-bold tracking-tight tabular-nums', tx.ink)}>
-                            {stats.activeProjects}
-                        </p>
-                        <span className="rounded-md bg-blue-50 px-1.5 py-0.5 text-xs font-bold text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 tabular-nums">
-                            {stats.totalProjects > 0
-                                ? `${Math.round((stats.activeProjects / stats.totalProjects) * 100)}%`
-                                : '0%'}
-                        </span>
-                    </div>
-                    <p className={cn('mt-0.5 text-[11px] font-medium', tx.muted)}>
-                        In active delivery phase
-                    </p>
-                </div>
-            </div>
-
-            {/* 3. Average Execution Progress */}
-            <div className="rounded-[14px] border border-line bg-surface p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <div className="flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
-                    <span className={tx.muted}>Average Progress</span>
-                    <div className="rounded-lg bg-emerald-500/10 p-1.5 text-emerald-600 dark:text-emerald-400">
-                        <CheckCircle2 className="h-4 w-4" aria-hidden />
-                    </div>
-                </div>
-                <div className="mt-2">
-                    <div className="flex items-baseline justify-between">
-                        <p className={cn('text-2xl font-bold tracking-tight tabular-nums', tx.ink)}>
-                            {stats.avgProgress}%
-                        </p>
-                        {stats.avgMargin !== null && (
-                            <span
-                                className={cn(
-                                    'rounded-md px-1.5 py-0.5 text-xs font-bold tabular-nums',
-                                    stats.avgMargin >= 15
-                                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
-                                        : stats.avgMargin < 0
-                                            ? 'bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-300'
-                                            : 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
-                                )}
-                            >
-                                {stats.avgMargin.toFixed(1)}% margin
-                            </span>
-                        )}
-                    </div>
-                    <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-line dark:bg-slate-800">
-                        <div
-                            className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                            style={{ width: `${stats.avgProgress}%` }}
-                        />
-                    </div>
-                </div>
-            </div>
-
-            {/* 4. Attention & Blockers */}
-            <div className="rounded-[14px] border border-line bg-surface p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <div className="flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
-                    <span className={tx.muted}>Attention Needed</span>
+        <section aria-label="Portfolio summary" className="rounded-[14px] border border-line bg-surface dark:border-slate-800 dark:bg-slate-900">
+            <dl className="grid grid-cols-2 lg:grid-cols-4">
+                {figures.map((f, i) => (
                     <div
+                        key={f.label}
                         className={cn(
-                            'rounded-lg p-1.5',
-                            stats.totalBlocked > 0
-                                ? 'bg-red-500/10 text-red-600 dark:text-red-400'
-                                : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                            'min-w-0 border-line px-4 py-4 dark:border-slate-800 sm:px-5',
+                            i % 2 === 1 && 'border-l',
+                            i >= 2 && 'border-t lg:border-t-0',
+                            i === 2 && 'lg:border-l'
                         )}
                     >
-                        <AlertTriangle className="h-4 w-4" aria-hidden />
-                    </div>
-                </div>
-                <div className="mt-2">
-                    <div className="flex items-baseline justify-between">
-                        <p
+                        <dt className={cn('text-[13px] font-medium', tx.muted)}>{f.label}</dt>
+                        <dd
                             className={cn(
-                                'text-2xl font-bold tracking-tight tabular-nums',
-                                stats.totalBlocked > 0 ? 'text-blocked dark:text-red-300' : tx.ink
+                                'mt-1.5 text-[22px] font-bold leading-none tabular-nums tracking-tight sm:text-[26px]',
+                                f.alert ? 'text-blocked dark:text-red-300' : f.muted ? cn('text-[18px] font-semibold', tx.muted) : tx.ink
                             )}
+                            title={f.title}
                         >
-                            {stats.totalBlocked}
-                        </p>
-                        <span
-                            className={cn(
-                                'rounded-md px-1.5 py-0.5 text-xs font-bold',
-                                stats.totalBlocked > 0
-                                    ? 'bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-300'
-                                    : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
-                            )}
-                        >
-                            {stats.totalBlocked === 0 ? 'Healthy' : 'Blocked tasks'}
-                        </span>
+                            {f.value}
+                        </dd>
+                        <dd className={cn('mt-1.5 text-[12.5px] leading-snug', tx.muted)}>{f.note}</dd>
                     </div>
-                    <p className={cn('mt-0.5 text-[11px] font-medium', tx.muted)}>
-                        {stats.totalBlocked === 0
-                            ? 'No active milestone blockers'
-                            : 'Tasks requiring executive intervention'}
-                    </p>
-                </div>
-            </div>
-        </div>
+                ))}
+            </dl>
+        </section>
     );
 }

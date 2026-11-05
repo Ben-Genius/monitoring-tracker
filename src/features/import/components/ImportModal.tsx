@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Upload, FileSpreadsheet, X, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
 import { useImport, EntityType, ColumnMap } from '../hooks/useImport';
+import { DialogShell } from '@/components/ui/dialog-shell';
 
 const DB_FIELDS: Record<EntityType, { field: string; label: string; required?: boolean }[]> = {
     projects: [
@@ -99,6 +100,8 @@ export function ImportModal({ open, onClose, onComplete }: ImportModalProps) {
     const handleImport = async () => {
         const r = await importData(entityType, columnMap);
         setResult({ success: r.success, errors: r.errors });
+        // Rows that did import must show up even when others failed.
+        if (r.errors > 0 && r.success > 0) onComplete?.({ success: r.success, errors: r.errors });
         if (r.errors === 0) {
             setTimeout(() => {
                 onClose();
@@ -109,35 +112,24 @@ export function ImportModal({ open, onClose, onComplete }: ImportModalProps) {
 
     const previewRows = rows.slice(0, 5);
 
-    if (!open) return null;
-
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-slate-800">
-                {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-800">
-                    <div className="flex items-center gap-3">
-                        <FileSpreadsheet className="h-5 w-5 text-primary" />
-                        <h2 className="text-xl font-bold text-slate-900 dark:text-slate-50">Import Data</h2>
-                    </div>
-                    <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-500">
-                        <X className="h-5 w-5" />
-                    </button>
-                </div>
+        <DialogShell open={open} onClose={onClose} title="Import data" description="Upload a CSV or Excel file, check the column mapping, then import." className="max-w-3xl">
 
                 <div className="p-6 space-y-6">
                     {/* Entity type */}
                     <div className="flex items-center gap-3">
-                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Import into</span>
-                        <div className="flex gap-1.5">
+                        <span id="import-into" className="text-sm font-semibold text-ink dark:text-slate-100">Import into</span>
+                        <div className="flex gap-1.5" role="group" aria-labelledby="import-into">
                             {(Object.keys(ENTITY_LABELS) as EntityType[]).map(type => (
                                 <button
                                     key={type}
+                                    type="button"
+                                    aria-pressed={entityType === type}
                                     onClick={() => { setEntityType(type); clear(); setResult(null); }}
                                     className={cn(
                                         'px-4 py-2 rounded-xl text-xs font-bold transition-all border',
                                         entityType === type
-                                            ? 'bg-primary text-white border-primary'
+                                            ? 'bg-ink text-white border-ink dark:bg-white dark:text-ink dark:border-white'
                                             : 'bg-slate-50 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700 hover:border-slate-300'
                                     )}
                                 >
@@ -148,14 +140,19 @@ export function ImportModal({ open, onClose, onComplete }: ImportModalProps) {
                     </div>
 
                     {!rows.length ? (
-                        /* Upload area */
+                        /* Upload area: a real button so keyboard users can open the file picker */
+                        <>
                         <div
+                            role="button"
+                            tabIndex={0}
+                            aria-label="Choose a CSV or Excel file to import"
+                            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInputRef.current?.click(); } }}
                             onDrop={handleDrop}
                             onDragOver={e => { e.preventDefault(); setDragOver(true); }}
                             onDragLeave={() => setDragOver(false)}
                             onClick={() => fileInputRef.current?.click()}
                             className={cn(
-                                'border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all',
+                                'border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-progress',
                                 dragOver
                                     ? 'border-primary bg-primary/5'
                                     : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
@@ -172,8 +169,15 @@ export function ImportModal({ open, onClose, onComplete }: ImportModalProps) {
                             <p className="text-sm font-bold text-slate-600 dark:text-slate-400">
                                 Drop your CSV or Excel file here
                             </p>
-                            <p className="text-xs text-slate-400 mt-1">or click to browse</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">or click to browse</p>
                         </div>
+                        {error && (
+                            <div role="alert" className="mt-3 flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-xl text-sm text-red-700 dark:text-red-200">
+                                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
+                                <span>{error}</span>
+                            </div>
+                        )}
+                        </>
                     ) : (
                         /* Preview + mapping */
                         <div className="space-y-6">
@@ -190,10 +194,12 @@ export function ImportModal({ open, onClose, onComplete }: ImportModalProps) {
                                     <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl">
                                         <div className="flex items-center gap-2 text-sm">
                                             <FileSpreadsheet className="h-4 w-4 text-slate-400" />
-                                            <span className="font-semibold text-slate-600">{rows.length} rows</span>
+                                            <span className="font-semibold text-slate-700 dark:text-slate-200">{rows.length} rows</span>
                                             <Badge variant="outline" className="text-[9px]">{columns.length} columns</Badge>
                                         </div>
                                         <button
+                                            type="button"
+                                            aria-label="Remove file"
                                             onClick={clear}
                                             className="text-xs font-semibold text-slate-400 hover:text-red-500 transition-colors"
                                         >
@@ -208,6 +214,7 @@ export function ImportModal({ open, onClose, onComplete }: ImportModalProps) {
                                             <div key={i} className="flex items-center gap-3">
                                                 <div className="flex-1">
                                                     <select
+                                                        aria-label={`File column ${i + 1}`}
                                                         value={map.csvColumn}
                                                         onChange={e => {
                                                             const updated = [...columnMap];
@@ -224,6 +231,7 @@ export function ImportModal({ open, onClose, onComplete }: ImportModalProps) {
                                                 <ArrowRight className="h-4 w-4 text-slate-300 shrink-0" />
                                                 <div className="flex-1">
                                                     <select
+                                                        aria-label={`Pulse360 field for ${map.csvColumn || `column ${i + 1}`}`}
                                                         value={map.dbField}
                                                         onChange={e => {
                                                             const updated = [...columnMap];
@@ -240,6 +248,8 @@ export function ImportModal({ open, onClose, onComplete }: ImportModalProps) {
                                                     </select>
                                                 </div>
                                                 <button
+                                                    type="button"
+                                                    aria-label={`Remove mapping for ${map.csvColumn}`}
                                                     onClick={() => setColumnMap(prev => prev.filter((_, j) => j !== i))}
                                                     className="p-1.5 rounded-md hover:bg-red-50 text-slate-400 hover:text-red-500"
                                                 >
@@ -294,23 +304,23 @@ export function ImportModal({ open, onClose, onComplete }: ImportModalProps) {
                                     </div>
 
                                     {error && (
-                                        <div className="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-xl text-xs text-red-600">
+                                        <div role="alert" className="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-xl text-sm text-red-700 dark:text-red-200">
                                             <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                                             <span>{error}</span>
                                         </div>
                                     )}
 
                                     {result && (
-                                        <div className={cn(
+                                        <div role="status" className={cn(
                                             'flex items-center gap-2 p-3 rounded-xl text-sm font-semibold',
                                             result.errors === 0
-                                                ? 'bg-green-50 text-green-600'
-                                                : 'bg-amber-50 text-amber-600'
+                                                ? 'bg-green-50 text-green-800 dark:bg-green-500/10 dark:text-green-200'
+                                                : 'bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200'
                                         )}>
                                             {result.errors === 0 ? (
                                                 <><CheckCircle2 className="h-4 w-4" /> {result.success} rows imported successfully</>
                                             ) : (
-                                                <><AlertCircle className="h-4 w-4" /> {result.success} imported, {result.errors} errors</>
+                                                <><AlertCircle className="h-4 w-4" /> {result.success} imported, {result.errors} {result.errors === 1 ? 'row' : 'rows'} failed. Fix them in the file and import again.</>
                                             )}
                                         </div>
                                     )}
@@ -333,7 +343,6 @@ export function ImportModal({ open, onClose, onComplete }: ImportModalProps) {
                         </div>
                     )}
                 </div>
-            </div>
-        </div>
+        </DialogShell>
     );
 }

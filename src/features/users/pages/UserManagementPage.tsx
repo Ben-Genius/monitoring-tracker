@@ -1,38 +1,61 @@
 import { toast } from 'react-hot-toast';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useId, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, UserPlus, Copy, Check, Search, Briefcase, Mail, Shield, Activity } from 'lucide-react';
+import {
+    Users,
+    UserPlus,
+    Copy,
+    Check,
+    Search,
+    Mail,
+    Shield,
+    X,
+    ChevronDown,
+    ChevronLeft,
+    ChevronRight,
+    CheckCircle2,
+    AlertCircle,
+    Building2,
+    Clock,
+    ArrowUpDown,
+    ArrowUp,
+    ArrowDown,
+    RotateCcw
+} from 'lucide-react';
 import { Skeleton } from '@/components/common/Skeleton';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { cn, getCompanyTheme } from '@/lib/utils';
+import { cn, getCompanyTheme, formatDate, DEFAULT_BRAND_COLOR } from '@/lib/utils';
 import { useCompanyStore } from '@/hooks/useCompanyStore';
 import { useCompanies } from '@/features/projects/hooks/useProjects';
 import { canAdminister } from '@/lib/permissions';
+import { tx } from '@/features/dashboard/components/tokens';
 
-interface User {
+interface UserRecord {
     id: string;
     email: string;
     name: string;
     role: string;
     company_id: string;
     is_active: boolean;
+    created_at?: string;
     company?: {
         id: string;
         name: string;
     };
 }
 
-interface Company {
+interface CompanyRecord {
     id: string;
     name: string;
 }
 
-interface PendingInvite {
+interface PendingInviteRecord {
     id: string;
+    name?: string;
     email: string;
     role: string;
     token: string;
@@ -42,23 +65,79 @@ interface PendingInvite {
     };
 }
 
+type SortField = 'name' | 'email' | 'role' | 'company' | 'status' | 'created_at';
+type SortDirection = 'asc' | 'desc';
+
+interface SortRule {
+    field: SortField;
+    direction: SortDirection;
+}
+
+const ROLE_LABELS: Record<string, { label: string; desc: string; badgeClass: string }> = {
+    admin: {
+        label: 'Admin',
+        desc: 'Manages people, companies, and settings',
+        badgeClass: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800'
+    },
+    lead: {
+        label: 'Project Lead',
+        desc: 'Assigns tasks, tracks budgets, and approves',
+        badgeClass: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800'
+    },
+    employee: {
+        label: 'Staff Member',
+        desc: 'Works on assigned project tasks',
+        badgeClass: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+    },
+    executive: {
+        label: 'Executive',
+        desc: 'Company-wide read-only visibility',
+        badgeClass: 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+    },
+    pa: {
+        label: 'Executive PA',
+        desc: 'Curates daily briefs across all companies',
+        badgeClass: 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800'
+    },
+};
+
+function getInitials(name: string): string {
+    return name
+        .split(' ')
+        .filter(Boolean)
+        .map(n => n[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase();
+}
+
 export default function UserManagementPage() {
     const { user: currentUser } = useAuth();
     const { selectedCompanyId } = useCompanyStore();
     const { data: companiesFromStore = [] } = useCompanies();
     const isAdmin = canAdminister(currentUser);
 
-    const [users, setUsers] = useState<User[]>([]);
-    const [companies, setCompanies] = useState<Company[]>([]);
-    const [invites, setInvites] = useState<PendingInvite[]>([]);
+    const [users, setUsers] = useState<UserRecord[]>([]);
+    const [companies, setCompanies] = useState<CompanyRecord[]>([]);
+    const [invites, setInvites] = useState<PendingInviteRecord[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-    // Filtering
+    // Modal and dialog states
+    const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
+    const [confirmActionUser, setConfirmActionUser] = useState<UserRecord | null>(null);
+
+    // Filtering & Sorting State
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string>('all');
+    const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>('all');
+    const [selectedStatusFilter, setSelectedStatusFilter] = useState<'all' | 'active' | 'deactivated'>('all');
+    const [sortRule, setSortRule] = useState<SortRule>({ field: 'name', direction: 'asc' });
 
-    // Form State
+    // Pagination State
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+
+    // Invite Form State
     const [formData, setFormData] = useState({
         email: '',
         name: '',
@@ -67,7 +146,14 @@ export default function UserManagementPage() {
     });
 
     const [inviteLink, setInviteLink] = useState<string | null>(null);
-    const [copied, setCopied] = useState(false);
+    const [copiedTokenId, setCopiedTokenId] = useState<string | null>(null);
+    const [copiedModalLink, setCopiedModalLink] = useState(false);
+
+    // Accessibility IDs
+    const inviteNameId = useId();
+    const inviteEmailId = useId();
+    const inviteRoleId = useId();
+    const inviteCompanyId = useId();
 
     const currentCompanyName = useMemo(() => {
         if (selectedCompanyId === 'all') return 'Global View';
@@ -75,15 +161,20 @@ export default function UserManagementPage() {
     }, [selectedCompanyId, companiesFromStore]);
 
     const theme = getCompanyTheme(currentCompanyName);
+    const primaryColor = theme.primary || DEFAULT_BRAND_COLOR;
 
-    useEffect(() => {
-        fetchData();
-    }, []);
-
-    async function fetchData() {
+    const fetchData = useCallback(async () => {
         setLoading(true);
-        let usersQuery = supabase.from('users').select('*, company:companies(id, name)').order('created_at', { ascending: false });
-        let invitesQuery = supabase.from('pending_invites').select('*, company:companies(name)').eq('used', false);
+        let usersQuery = supabase
+            .from('users')
+            .select('*, company:companies(id, name)')
+            .order('created_at', { ascending: false });
+
+        let invitesQuery = supabase
+            .from('pending_invites')
+            .select('*, company:companies(name)')
+            .eq('used', false)
+            .order('created_at', { ascending: false });
 
         // Filter by company if lead
         if (!isAdmin && currentUser?.company_id) {
@@ -91,26 +182,62 @@ export default function UserManagementPage() {
             invitesQuery = invitesQuery.eq('company_id', currentUser.company_id);
         }
 
-        const { data: usersData } = await usersQuery;
-        const { data: companiesData } = await supabase.from('companies').select('*');
-        const { data: invitesData } = await invitesQuery;
+        const [{ data: usersData }, { data: companiesData }, { data: invitesData }] = await Promise.all([
+            usersQuery,
+            supabase.from('companies').select('*').order('name'),
+            invitesQuery
+        ]);
 
         if (usersData) setUsers(usersData);
         if (companiesData) setCompanies(companiesData);
         if (invitesData) setInvites(invitesData);
         setLoading(false);
-    }
+    }, [isAdmin, currentUser?.company_id]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    // Handle ESC key for closing modals
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                if (isInviteDialogOpen) {
+                    setIsInviteDialogOpen(false);
+                    setInviteLink(null);
+                }
+                if (confirmActionUser) {
+                    setConfirmActionUser(null);
+                }
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isInviteDialogOpen, confirmActionUser]);
+
+    // Reset page to 1 whenever filters or search change
+    useEffect(() => {
+        setPage(1);
+    }, [searchTerm, selectedCompanyFilter, selectedRoleFilter, selectedStatusFilter, sortRule, pageSize]);
 
     async function handleInvite() {
-        const missing = [!formData.name && 'name', !formData.email && 'work email', !formData.company_id && 'company'].filter(Boolean);
-        if (missing.length) { toast.error(`Add the ${missing.join(', ')} first.`); return; }
+        const missing = [
+            !formData.name && 'full name',
+            !formData.email && 'work email',
+            !formData.company_id && 'company'
+        ].filter(Boolean);
+
+        if (missing.length) {
+            toast.error(`Please provide the ${missing.join(', ')}.`);
+            return;
+        }
 
         try {
             const { data, error } = await supabase
                 .from('pending_invites')
                 .insert({
-                    email: formData.email,
-                    name: formData.name,
+                    email: formData.email.trim(),
+                    name: formData.name.trim(),
                     role: formData.role,
                     company_id: formData.company_id,
                 })
@@ -122,216 +249,973 @@ export default function UserManagementPage() {
             if (data) {
                 const link = `${window.location.origin}/signup?token=${data.token}`;
                 setInviteLink(link);
+                toast.success('Invitation generated successfully');
                 fetchData();
             }
         } catch (error) {
             console.error('Error creating invite:', error);
-            toast.error(error instanceof Error && error.message.includes('duplicate') ? 'That email already has an invite.' : 'Couldn’t create the invite. Check the email and try again.');
+            toast.error(
+                error instanceof Error && error.message.includes('duplicate')
+                    ? 'That email already has an active invitation.'
+                    : 'Couldn’t create the invite. Please check the email and try again.'
+            );
         }
     }
 
-    async function toggleUserStatus(userId: string, currentStatus: boolean) {
-        if (!confirm(`Are you sure you want to ${currentStatus ? 'deactivate' : 'activate'} this user?`)) return;
+    async function toggleUserStatus(userToUpdate: UserRecord) {
+        const nextStatus = !userToUpdate.is_active;
 
         try {
             const { error } = await supabase
                 .from('users')
-                .update({ is_active: !currentStatus })
-                .eq('id', userId);
+                .update({ is_active: nextStatus })
+                .eq('id', userToUpdate.id);
 
             if (error) throw error;
 
-            // Optimistic update
-            setUsers(users.map(u => u.id === userId ? { ...u, is_active: !currentStatus } : u));
+            // Optimistic state update
+            setUsers(prev => prev.map(u => (u.id === userToUpdate.id ? { ...u, is_active: nextStatus } : u)));
+            toast.success(
+                nextStatus
+                    ? `Restored access for ${userToUpdate.name}`
+                    : `Deactivated ${userToUpdate.name}`
+            );
         } catch (error) {
             console.error('Error updating user status:', error);
-            alert('Failed to update status');
+            toast.error('Failed to update user status.');
+        } finally {
+            setConfirmActionUser(null);
         }
     }
 
-    const filteredUsers = users.filter(user => {
-        const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            user.email.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesCompany = selectedCompanyFilter === 'all' || user.company_id === selectedCompanyFilter;
-        return matchesSearch && matchesCompany;
-    });
+    const copyInviteLink = (token: string, inviteId?: string) => {
+        const link = `${window.location.origin}/signup?token=${token}`;
+        navigator.clipboard.writeText(link);
+        if (inviteId) {
+            setCopiedTokenId(inviteId);
+            setTimeout(() => setCopiedTokenId(null), 2000);
+        } else {
+            setCopiedModalLink(true);
+            setTimeout(() => setCopiedModalLink(false), 2000);
+        }
+        toast.success('Invite link copied to clipboard');
+    };
+
+    // Clear all filters
+    const handleResetFilters = () => {
+        setSearchTerm('');
+        setSelectedCompanyFilter('all');
+        setSelectedRoleFilter('all');
+        setSelectedStatusFilter('all');
+        setSortRule({ field: 'name', direction: 'asc' });
+    };
+
+    // Filter & Sort Pipeline
+    const filteredAndSortedUsers = useMemo(() => {
+        const term = searchTerm.trim().toLowerCase();
+
+        const filtered = users.filter(user => {
+            const matchesSearch =
+                !term ||
+                user.name.toLowerCase().includes(term) ||
+                user.email.toLowerCase().includes(term);
+            const matchesCompany =
+                selectedCompanyFilter === 'all' || user.company_id === selectedCompanyFilter;
+            const matchesRole =
+                selectedRoleFilter === 'all' || user.role === selectedRoleFilter;
+            const matchesStatus =
+                selectedStatusFilter === 'all' ||
+                (selectedStatusFilter === 'active' ? user.is_active : !user.is_active);
+
+            return matchesSearch && matchesCompany && matchesRole && matchesStatus;
+        });
+
+        return filtered.sort((a, b) => {
+            let comparison = 0;
+            if (sortRule.field === 'name') {
+                comparison = a.name.localeCompare(b.name);
+            } else if (sortRule.field === 'email') {
+                comparison = a.email.localeCompare(b.email);
+            } else if (sortRule.field === 'role') {
+                comparison = a.role.localeCompare(b.role);
+            } else if (sortRule.field === 'company') {
+                const compA = a.company?.name || '';
+                const compB = b.company?.name || '';
+                comparison = compA.localeCompare(compB);
+            } else if (sortRule.field === 'status') {
+                comparison = (b.is_active ? 1 : 0) - (a.is_active ? 1 : 0);
+            } else if (sortRule.field === 'created_at') {
+                comparison = new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+            }
+
+            return sortRule.direction === 'asc' ? comparison : -comparison;
+        });
+    }, [users, searchTerm, selectedCompanyFilter, selectedRoleFilter, selectedStatusFilter, sortRule]);
+
+    // Pagination calculations
+    const totalFiltered = filteredAndSortedUsers.length;
+    const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
+    const safePage = Math.min(page, totalPages);
+
+    const paginatedUsers = useMemo(() => {
+        const start = (safePage - 1) * pageSize;
+        return filteredAndSortedUsers.slice(start, start + pageSize);
+    }, [filteredAndSortedUsers, safePage, pageSize]);
+
+    const hasActiveFilters =
+        searchTerm !== '' ||
+        selectedCompanyFilter !== 'all' ||
+        selectedRoleFilter !== 'all' ||
+        selectedStatusFilter !== 'all';
+
+    const handleSort = (field: SortField) => {
+        setSortRule(prev => {
+            if (prev.field === field) {
+                return { field, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+            }
+            return { field, direction: field === 'created_at' || field === 'status' ? 'desc' : 'asc' };
+        });
+    };
+
+    const renderSortIcon = (field: SortField) => {
+        if (sortRule.field !== field) {
+            return <ArrowUpDown className="h-3 w-3 text-ink-faint opacity-60 group-hover:opacity-100" aria-hidden />;
+        }
+        return sortRule.direction === 'asc' ? (
+            <ArrowUp className="h-3 w-3 text-brand" aria-hidden />
+        ) : (
+            <ArrowDown className="h-3 w-3 text-brand" aria-hidden />
+        );
+    };
+
+    // KPI Metrics
+    const metrics = useMemo(() => {
+        const total = users.length;
+        const active = users.filter(u => u.is_active).length;
+        const pendingCount = invites.length;
+        const distinctCompanies = new Set(users.map(u => u.company_id).filter(Boolean)).size;
+
+        return { total, active, pendingCount, distinctCompanies };
+    }, [users, invites]);
 
     return (
-        <div className="space-y-6 animate-fade-in">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-black text-slate-900 tracking-tight">Identity & Access</h1>
-                    <p className="text-slate-500 mt-1 font-medium italic">Manage team members and roles for {currentCompanyName}</p>
+        <div className="mx-auto w-full max-w-[1440px] space-y-6 pb-16">
+            {/* Page Header */}
+            <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-brand/10 text-brand">
+                        <Users className="h-6 w-6" aria-hidden />
+                    </div>
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50">
+                                Team & Access
+                            </h1>
+                            <Badge
+                                variant="outline"
+                                className="text-xs font-semibold px-2.5 py-0.5 border"
+                                style={{
+                                    color: primaryColor,
+                                    borderColor: `${primaryColor}40`,
+                                    backgroundColor: `${primaryColor}10`
+                                }}
+                            >
+                                {currentCompanyName}
+                            </Badge>
+                        </div>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                            Manage team members, roles, and invitation clearances across {currentCompanyName}.
+                        </p>
+                    </div>
                 </div>
+
                 <Button
-                    className="font-black uppercase text-[10px] tracking-widest px-6 h-11 hover:scale-105 transition-transform"
-                    style={{ backgroundColor: theme.primary }}
                     onClick={() => {
-                        // Pre-select company if lead
                         if (!isAdmin && currentUser?.company_id) {
                             setFormData(prev => ({ ...prev, company_id: currentUser.company_id }));
                         }
-                        setIsDialogOpen(true);
+                        setIsInviteDialogOpen(true);
                     }}
+                    className="inline-flex h-10 items-center gap-2 rounded-[8px] px-4 text-sm font-semibold text-white shadow-sm hover:shadow-md transition-all self-start sm:self-auto"
+                    style={{ backgroundColor: primaryColor }}
                 >
-                    <UserPlus className="h-4 w-4 mr-2" />
+                    <UserPlus className="h-4 w-4 mr-1.5" aria-hidden />
                     Invite Member
                 </Button>
-            </div>
+            </header>
 
-            {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-4">
-                <div className="relative flex-1 group">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" style={{ color: searchTerm ? theme.primary : undefined }} />
-                    <Input
-                        placeholder="Search operators..."
-                        className="pl-10 h-12 bg-white border-slate-200 focus-visible:ring-primary/20"
-                        style={{ '--tw-ring-color': theme.primary } as any}
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-                {isAdmin && (
-                    <div className="relative w-full sm:w-[240px] group">
-                        <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
-                        <select
-                            className="w-full h-12 pl-10 pr-4 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all appearance-none"
-                            style={{ '--tw-ring-color': theme.primary } as any}
-                            value={selectedCompanyFilter}
-                            onChange={(e) => setSelectedCompanyFilter(e.target.value)}
-                        >
-                            <option value="all">All Organizations</option>
-                            {companies.map(c => (
-                                <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                        </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+            {/* KPI Summary Ribbon */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {/* 1. Total Team */}
+                <div className="rounded-[14px] border border-line bg-surface p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                    <div className="flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
+                        <span className={tx.muted}>Total Team</span>
+                        <div className="p-1.5 rounded-lg bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                            <Users className="h-4 w-4" aria-hidden />
                         </div>
                     </div>
-                )}
+                    <div className="mt-2">
+                        <p className={cn('text-2xl font-bold tracking-tight tabular-nums', tx.ink)}>
+                            {metrics.total}
+                        </p>
+                        <p className={cn('mt-0.5 text-[11px] font-medium truncate', tx.muted)}>
+                            Registered accounts
+                        </p>
+                    </div>
+                </div>
+
+                {/* 2. Active Members */}
+                <div className="rounded-[14px] border border-line bg-surface p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                    <div className="flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
+                        <span className={tx.muted}>Active Accounts</span>
+                        <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                            <CheckCircle2 className="h-4 w-4" aria-hidden />
+                        </div>
+                    </div>
+                    <div className="mt-2">
+                        <div className="flex items-baseline justify-between">
+                            <p className={cn('text-2xl font-bold tracking-tight tabular-nums', tx.ink)}>
+                                {metrics.active}
+                            </p>
+                            <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 tabular-nums">
+                                {metrics.total > 0 ? `${Math.round((metrics.active / metrics.total) * 100)}%` : '0%'}
+                            </span>
+                        </div>
+                        <p className={cn('mt-0.5 text-[11px] font-medium', tx.muted)}>
+                            Authorized to sign in
+                        </p>
+                    </div>
+                </div>
+
+                {/* 3. Pending Invites */}
+                <div className="rounded-[14px] border border-line bg-surface p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                    <div className="flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
+                        <span className={tx.muted}>Pending Invites</span>
+                        <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                            <Mail className="h-4 w-4" aria-hidden />
+                        </div>
+                    </div>
+                    <div className="mt-2">
+                        <div className="flex items-baseline justify-between">
+                            <p className={cn('text-2xl font-bold tracking-tight tabular-nums', tx.ink)}>
+                                {metrics.pendingCount}
+                            </p>
+                            <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-bold text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
+                                {metrics.pendingCount === 0 ? 'Clear' : 'Awaiting signup'}
+                            </span>
+                        </div>
+                        <p className={cn('mt-0.5 text-[11px] font-medium', tx.muted)}>
+                            Sent links not yet claimed
+                        </p>
+                    </div>
+                </div>
+
+                {/* 4. Ventures Covered */}
+                <div className="rounded-[14px] border border-line bg-surface p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                    <div className="flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
+                        <span className={tx.muted}>Ventures Represented</span>
+                        <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                            <Building2 className="h-4 w-4" aria-hidden />
+                        </div>
+                    </div>
+                    <div className="mt-2">
+                        <p className={cn('text-2xl font-bold tracking-tight tabular-nums', tx.ink)}>
+                            {metrics.distinctCompanies}
+                        </p>
+                        <p className={cn('mt-0.5 text-[11px] font-medium', tx.muted)}>
+                            Active business units
+                        </p>
+                    </div>
+                </div>
             </div>
 
-            {/* Invite Modal */}
-            {isDialogOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 animate-in fade-in zoom-in-95 duration-300">
-                        <div className="flex justify-between items-center mb-8">
-                            <div>
-                                <h2 className="text-xl font-bold text-ink tracking-tight">Invite a person</h2>
-                                <p className="text-ink-muted text-sm mt-1">They get a link to set their own password.</p>
+            {/* Filter, Search & Sort Toolbar */}
+            <div className="flex flex-col gap-3">
+                <div className="flex flex-col sm:flex-row gap-2.5">
+                    {/* Search Input */}
+                    <div className="relative flex-1">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" aria-hidden />
+                        <input
+                            type="search"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Search team members by name or email..."
+                            aria-label="Search team members"
+                            className="h-10 w-full rounded-[10px] border border-line bg-surface pl-9 pr-8 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-ink focus:ring-2 focus:ring-ink/10 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
+                        />
+                        {searchTerm && (
+                            <button
+                                type="button"
+                                onClick={() => setSearchTerm('')}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink"
+                                aria-label="Clear search"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                        {/* Status Filter */}
+                        <div className="relative min-w-[120px]">
+                            <select
+                                value={selectedStatusFilter}
+                                onChange={(e) => setSelectedStatusFilter(e.target.value as any)}
+                                aria-label="Filter by status"
+                                className="h-10 w-full cursor-pointer appearance-none rounded-[10px] border border-line bg-surface pl-3 pr-8 text-xs font-semibold text-ink outline-none focus:border-ink focus:ring-2 focus:ring-ink/10 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
+                            >
+                                <option value="all">All Status</option>
+                                <option value="active">Active Only</option>
+                                <option value="deactivated">Deactivated</option>
+                            </select>
+                            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-faint" aria-hidden />
+                        </div>
+
+                        {/* Role Filter */}
+                        <div className="relative min-w-[130px]">
+                            <select
+                                value={selectedRoleFilter}
+                                onChange={(e) => setSelectedRoleFilter(e.target.value)}
+                                aria-label="Filter by role"
+                                className="h-10 w-full cursor-pointer appearance-none rounded-[10px] border border-line bg-surface pl-3 pr-8 text-xs font-semibold text-ink outline-none focus:border-ink focus:ring-2 focus:ring-ink/10 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
+                            >
+                                <option value="all">All Roles</option>
+                                <option value="admin">Admin</option>
+                                <option value="lead">Project Lead</option>
+                                <option value="employee">Staff</option>
+                                <option value="executive">Executive</option>
+                                <option value="pa">Executive PA</option>
+                            </select>
+                            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-faint" aria-hidden />
+                        </div>
+
+                        {/* Company Filter (Admins only) */}
+                        {isAdmin && (
+                            <div className="relative min-w-[150px]">
+                                <select
+                                    value={selectedCompanyFilter}
+                                    onChange={(e) => setSelectedCompanyFilter(e.target.value)}
+                                    aria-label="Filter by company"
+                                    className="h-10 w-full cursor-pointer appearance-none rounded-[10px] border border-line bg-surface pl-3 pr-8 text-xs font-semibold text-ink outline-none focus:border-ink focus:ring-2 focus:ring-ink/10 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
+                                >
+                                    <option value="all">All Companies</option>
+                                    {companies.map(c => (
+                                        <option key={c.id} value={c.id}>{c.name}</option>
+                                    ))}
+                                </select>
+                                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-faint" aria-hidden />
                             </div>
-                            <button onClick={() => { setIsDialogOpen(false); setInviteLink(null); }} className="h-10 w-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
-                                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
+                        )}
+
+                        {/* Sort Selector */}
+                        <div className="relative min-w-[145px]">
+                            <select
+                                value={`${sortRule.field}-${sortRule.direction}`}
+                                onChange={(e) => {
+                                    const [field, direction] = e.target.value.split('-') as [SortField, SortDirection];
+                                    setSortRule({ field, direction });
+                                }}
+                                aria-label="Sort members list"
+                                className="h-10 w-full cursor-pointer appearance-none rounded-[10px] border border-line bg-surface pl-3 pr-8 text-xs font-semibold text-ink outline-none focus:border-ink focus:ring-2 focus:ring-ink/10 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
+                            >
+                                <option value="name-asc">Name (A → Z)</option>
+                                <option value="name-desc">Name (Z → A)</option>
+                                <option value="status-desc">Active first</option>
+                                <option value="role-asc">Role</option>
+                                <option value="company-asc">Company</option>
+                                <option value="created_at-desc">Recently Added</option>
+                            </select>
+                            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-faint" aria-hidden />
+                        </div>
+
+                        {/* Reset Filters CTA */}
+                        {hasActiveFilters && (
+                            <button
+                                type="button"
+                                onClick={handleResetFilters}
+                                className="inline-flex h-10 items-center gap-1.5 rounded-[10px] border border-line bg-surface px-3 text-xs font-semibold text-ink hover:border-ink/30 transition-colors dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+                                title="Reset all search and filter conditions"
+                            >
+                                <RotateCcw className="h-3.5 w-3.5 text-ink-faint" aria-hidden />
+                                <span>Reset</span>
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Team Directory Table Card */}
+            <Card className="rounded-[14px] border border-line bg-surface shadow-sm overflow-hidden dark:border-slate-800 dark:bg-slate-900">
+                <CardHeader className="border-b border-line dark:border-slate-800 px-6 py-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5">
+                            <Users className="h-4 w-4 text-slate-500" aria-hidden />
+                            <CardTitle className="text-base font-bold text-slate-900 dark:text-slate-100">
+                                Team Directory
+                            </CardTitle>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs font-medium text-slate-500 dark:text-slate-400">
+                            {hasActiveFilters && (
+                                <span className="text-brand font-semibold">
+                                    Filtered: {totalFiltered} of {users.length}
+                                </span>
+                            )}
+                            <span className="tabular-nums">
+                                {totalFiltered} {totalFiltered === 1 ? 'member' : 'members'} total
+                            </span>
+                            {/* Page size select */}
+                            <div className="flex items-center gap-1.5 pl-2 border-l border-line dark:border-slate-800">
+                                <span className="text-[11px] text-slate-400">Show</span>
+                                <select
+                                    value={pageSize}
+                                    onChange={(e) => setPageSize(Number(e.target.value))}
+                                    aria-label="Rows per page"
+                                    className="cursor-pointer bg-transparent font-semibold text-ink dark:text-slate-100 text-xs outline-none"
+                                >
+                                    <option value={10}>10</option>
+                                    <option value={25}>25</option>
+                                    <option value={50}>50</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                    {loading ? (
+                        <div className="p-6 space-y-4">
+                            {[1, 2, 3, 4, 5].map(i => (
+                                <div key={i} className="flex items-center justify-between py-2 border-b border-line dark:border-slate-800 last:border-0">
+                                    <div className="flex items-center gap-3">
+                                        <Skeleton variant="circle" width={40} height={40} />
+                                        <div className="space-y-1.5">
+                                            <Skeleton variant="text" width={160} />
+                                            <Skeleton variant="text" width={220} />
+                                        </div>
+                                    </div>
+                                    <Skeleton variant="text" width={100} />
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full min-w-[780px] text-left text-sm" role="table">
+                                <thead>
+                                    <tr className={cn('border-b border-line text-[12px] font-medium dark:border-slate-800', tx.muted)}>
+                                        <th scope="col" className="px-6 py-3.5 font-semibold">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleSort('name')}
+                                                className="group inline-flex items-center gap-1.5 font-semibold hover:text-ink focus-visible:outline-none"
+                                            >
+                                                <span>Member</span>
+                                                {renderSortIcon('name')}
+                                            </button>
+                                        </th>
+                                        <th scope="col" className="px-4 py-3.5 font-semibold">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleSort('role')}
+                                                className="group inline-flex items-center gap-1.5 font-semibold hover:text-ink focus-visible:outline-none"
+                                            >
+                                                <span>Role</span>
+                                                {renderSortIcon('role')}
+                                            </button>
+                                        </th>
+                                        {isAdmin && (
+                                            <th scope="col" className="px-4 py-3.5 font-semibold">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleSort('company')}
+                                                    className="group inline-flex items-center gap-1.5 font-semibold hover:text-ink focus-visible:outline-none"
+                                                >
+                                                    <span>Company</span>
+                                                    {renderSortIcon('company')}
+                                                </button>
+                                            </th>
+                                        )}
+                                        <th scope="col" className="px-4 py-3.5 font-semibold">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleSort('status')}
+                                                className="group inline-flex items-center gap-1.5 font-semibold hover:text-ink focus-visible:outline-none"
+                                            >
+                                                <span>Status</span>
+                                                {renderSortIcon('status')}
+                                            </button>
+                                        </th>
+                                        <th scope="col" className="px-6 py-3.5 text-right font-semibold">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-line dark:divide-slate-800">
+                                    {paginatedUsers.map(userItem => {
+                                        const roleConfig = ROLE_LABELS[userItem.role] || ROLE_LABELS.employee;
+                                        const companyTheme = userItem.company?.name ? getCompanyTheme(userItem.company.name) : null;
+                                        const isSelf = userItem.id === currentUser?.id;
+
+                                        return (
+                                            <tr key={userItem.id} className="hover:bg-paper/70 dark:hover:bg-slate-800/40 transition-colors">
+                                                {/* Member Details */}
+                                                <td className="px-6 py-3.5">
+                                                    <div className="flex items-center gap-3">
+                                                        <div
+                                                            className="h-9 w-9 rounded-full flex items-center justify-center font-bold text-xs text-white shadow-sm shrink-0"
+                                                            style={{
+                                                                backgroundColor: userItem.is_active ? primaryColor : '#94a3b8'
+                                                            }}
+                                                            aria-hidden
+                                                        >
+                                                            {getInitials(userItem.name)}
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <div className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                                                                <span className="truncate">{userItem.name}</span>
+                                                                {isSelf && (
+                                                                    <span className="rounded px-1.5 py-0.2 text-[10px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                                                        You
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500">
+                                                                <Mail className="h-3 w-3 shrink-0" />
+                                                                <span className="truncate">{userItem.email}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+
+                                                {/* Role */}
+                                                <td className="px-4 py-3.5">
+                                                    <span className={cn('inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold', roleConfig.badgeClass)}>
+                                                        {roleConfig.label}
+                                                    </span>
+                                                </td>
+
+                                                {/* Company */}
+                                                {isAdmin && (
+                                                    <td className="px-4 py-3.5">
+                                                        {userItem.company?.name ? (
+                                                            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-300">
+                                                                <span
+                                                                    className="h-2 w-2 rounded-full shrink-0"
+                                                                    style={{ backgroundColor: companyTheme?.primary }}
+                                                                    aria-hidden
+                                                                />
+                                                                <span className="truncate max-w-[160px]">{userItem.company.name}</span>
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-xs text-slate-400">Unassigned</span>
+                                                        )}
+                                                    </td>
+                                                )}
+
+                                                {/* Status */}
+                                                <td className="px-4 py-3.5">
+                                                    <span className={cn(
+                                                        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold border',
+                                                        userItem.is_active
+                                                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                                            : 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400'
+                                                    )}>
+                                                        <span
+                                                            className={cn('h-1.5 w-1.5 rounded-full', userItem.is_active ? 'bg-emerald-500' : 'bg-slate-400')}
+                                                            aria-hidden
+                                                        />
+                                                        {userItem.is_active ? 'Active' : 'Deactivated'}
+                                                    </span>
+                                                </td>
+
+                                                {/* Actions */}
+                                                <td className="px-6 py-3.5 text-right">
+                                                    {isAdmin && !isSelf ? (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className={cn(
+                                                                'h-8 text-xs font-semibold rounded-[6px] border transition-colors',
+                                                                userItem.is_active
+                                                                    ? 'border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300 dark:border-rose-900/60 dark:hover:bg-rose-950/40 dark:text-rose-400'
+                                                                    : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300 dark:border-emerald-900/60 dark:hover:bg-emerald-950/40 dark:text-emerald-400'
+                                                            )}
+                                                            onClick={() => setConfirmActionUser(userItem)}
+                                                        >
+                                                            {userItem.is_active ? 'Deactivate' : 'Activate'}
+                                                        </Button>
+                                                    ) : (
+                                                        <span className="text-xs text-slate-400">—</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+
+                                    {filteredAndSortedUsers.length === 0 && (
+                                        <tr>
+                                            <td colSpan={isAdmin ? 5 : 4} className="py-16 text-center">
+                                                <div className="flex flex-col items-center">
+                                                    <div className="h-12 w-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3 text-slate-400">
+                                                        <Users className="h-6 w-6" />
+                                                    </div>
+                                                    <p className="font-semibold text-slate-900 dark:text-slate-100 text-base">
+                                                        No members found
+                                                    </p>
+                                                    <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
+                                                        {searchTerm
+                                                            ? `No results matching "${searchTerm}". Try refining your query.`
+                                                            : 'No members match the current filter selection.'}
+                                                    </p>
+                                                    {hasActiveFilters && (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={handleResetFilters}
+                                                            className="mt-4 h-8 text-xs font-semibold gap-1.5"
+                                                        >
+                                                            <RotateCcw className="h-3 w-3" />
+                                                            <span>Clear all filters</span>
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && !loading && (
+                        <nav
+                            aria-label="Team directory pagination"
+                            className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-line dark:border-slate-800 px-6 py-4"
+                        >
+                            <p className={cn('text-xs tabular-nums', tx.muted)}>
+                                Showing <span className={cn('font-semibold', tx.ink)}>{(safePage - 1) * pageSize + 1}</span> to{' '}
+                                <span className={cn('font-semibold', tx.ink)}>{Math.min(safePage * pageSize, totalFiltered)}</span> of{' '}
+                                <span className={cn('font-semibold', tx.ink)}>{totalFiltered}</span> members
+                            </p>
+
+                            <div className="flex items-center gap-1.5 self-center sm:self-auto">
+                                <button
+                                    type="button"
+                                    disabled={safePage <= 1}
+                                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                                    className="inline-flex h-8 items-center gap-1 rounded-[6px] border border-line bg-surface px-2.5 text-xs font-semibold text-ink hover:border-ink/30 disabled:pointer-events-none disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                                    aria-label="Go to previous page"
+                                >
+                                    <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
+                                    <span>Previous</span>
+                                </button>
+
+                                <div className="flex items-center gap-1">
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(pNum => {
+                                        if (totalPages > 7) {
+                                            if (pNum !== 1 && pNum !== totalPages && Math.abs(pNum - safePage) > 1) {
+                                                if (pNum === 2 || pNum === totalPages - 1) {
+                                                    return <span key={pNum} className="px-1 text-slate-400">…</span>;
+                                                }
+                                                return null;
+                                            }
+                                        }
+
+                                        return (
+                                            <button
+                                                key={pNum}
+                                                type="button"
+                                                aria-current={safePage === pNum ? 'page' : undefined}
+                                                onClick={() => setPage(pNum)}
+                                                className={cn(
+                                                    'h-8 w-8 rounded-[6px] text-xs font-semibold tabular-nums transition-colors',
+                                                    safePage === pNum
+                                                        ? 'bg-ink text-white dark:bg-white dark:text-ink'
+                                                        : 'border border-line bg-surface text-ink hover:border-ink/30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
+                                                )}
+                                            >
+                                                {pNum}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                <button
+                                    type="button"
+                                    disabled={safePage >= totalPages}
+                                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                    className="inline-flex h-8 items-center gap-1 rounded-[6px] border border-line bg-surface px-2.5 text-xs font-semibold text-ink hover:border-ink/30 disabled:pointer-events-none disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                                    aria-label="Go to next page"
+                                >
+                                    <span>Next</span>
+                                    <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+                                </button>
+                            </div>
+                        </nav>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Pending Invites Section */}
+            {invites.length > 0 && (
+                <Card className="rounded-[14px] border border-line bg-surface shadow-sm overflow-hidden dark:border-slate-800 dark:bg-slate-900">
+                    <CardHeader className="border-b border-line dark:border-slate-800 px-6 py-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                                <Mail className="h-4 w-4 text-amber-500" aria-hidden />
+                                <CardTitle className="text-base font-bold text-slate-900 dark:text-slate-100">
+                                    Pending Invitations
+                                </CardTitle>
+                            </div>
+                            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 tabular-nums">
+                                {invites.length} awaiting
+                            </span>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <div className="overflow-x-auto">
+                            <table className="w-full min-w-[700px] text-left text-sm" role="table">
+                                <thead>
+                                    <tr className={cn('border-b border-line text-[12px] font-medium dark:border-slate-800', tx.muted)}>
+                                        <th scope="col" className="px-6 py-3 font-semibold">Invited Email</th>
+                                        <th scope="col" className="px-4 py-3 font-semibold">Role</th>
+                                        {isAdmin && <th scope="col" className="px-4 py-3 font-semibold">Company</th>}
+                                        <th scope="col" className="px-4 py-3 font-semibold">Sent Date</th>
+                                        <th scope="col" className="px-6 py-3 text-right font-semibold">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-line dark:divide-slate-800">
+                                    {invites.map(invite => {
+                                        const roleConfig = ROLE_LABELS[invite.role] || ROLE_LABELS.employee;
+                                        const isCopied = copiedTokenId === invite.id;
+
+                                        return (
+                                            <tr key={invite.id} className="hover:bg-paper/70 dark:hover:bg-slate-800/40 transition-colors">
+                                                <td className="px-6 py-3.5 font-medium text-slate-900 dark:text-slate-100">
+                                                    {invite.email}
+                                                </td>
+                                                <td className="px-4 py-3.5">
+                                                    <span className={cn('inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold', roleConfig.badgeClass)}>
+                                                        {roleConfig.label}
+                                                    </span>
+                                                </td>
+                                                {isAdmin && (
+                                                    <td className="px-4 py-3.5 text-slate-600 dark:text-slate-300 text-xs">
+                                                        {invite.company?.name || 'Unassigned'}
+                                                    </td>
+                                                )}
+                                                <td className="px-4 py-3.5 text-xs text-slate-400 tabular-nums">
+                                                    <span className="flex items-center gap-1">
+                                                        <Clock className="h-3 w-3" />
+                                                        {formatDate(invite.created_at)}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-3.5 text-right">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-8 text-xs font-semibold rounded-[6px] gap-1.5"
+                                                        onClick={() => copyInviteLink(invite.token, invite.id)}
+                                                    >
+                                                        {isCopied ? (
+                                                            <>
+                                                                <Check className="h-3.5 w-3.5 text-emerald-500" />
+                                                                <span className="text-emerald-600">Copied</span>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Copy className="h-3.5 w-3.5 text-slate-400" />
+                                                                <span>Copy Link</span>
+                                                            </>
+                                                        )}
+                                                    </Button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Invite Member Modal Dialog */}
+            {isInviteDialogOpen && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="invite-dialog-title"
+                >
+                    <div className="bg-surface dark:bg-slate-900 border border-line dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between pb-4 border-b border-line dark:border-slate-800">
+                            <div>
+                                <h2 id="invite-dialog-title" className="text-lg font-bold text-slate-900 dark:text-slate-100 tracking-tight">
+                                    Invite Team Member
+                                </h2>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                    They will receive an invitation link to set up their credentials.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsInviteDialogOpen(false);
+                                    setInviteLink(null);
+                                }}
+                                className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                aria-label="Close dialog"
+                            >
+                                <X className="h-4 w-4" />
                             </button>
                         </div>
 
                         {!inviteLink ? (
-                            <div className="space-y-6">
-                                <div className="space-y-2">
-                                    <label className="text-[13px] font-semibold text-ink">Name</label>
+                            <form
+                                onSubmit={(e) => {
+                                    e.preventDefault();
+                                    handleInvite();
+                                }}
+                                className="space-y-4 pt-4"
+                            >
+                                <div>
+                                    <label htmlFor={inviteNameId} className="block text-xs font-semibold text-ink dark:text-slate-200 mb-1">
+                                        Full Name
+                                    </label>
                                     <Input
-                                        className="h-12 rounded-xl focus-visible:ring-primary/20"
-                                        style={{ '--tw-ring-color': theme.primary } as any}
+                                        id={inviteNameId}
                                         value={formData.name}
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        placeholder="e.g. Kofi Mensah"
+                                        placeholder="e.g. Kwame Mensah"
+                                        required
+                                        className="h-10 rounded-lg text-sm bg-surface dark:bg-slate-950"
                                     />
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-[13px] font-semibold text-ink">Work email</label>
+
+                                <div>
+                                    <label htmlFor={inviteEmailId} className="block text-xs font-semibold text-ink dark:text-slate-200 mb-1">
+                                        Work Email
+                                    </label>
                                     <Input
+                                        id={inviteEmailId}
                                         type="email"
-                                        className="h-12 rounded-xl focus-visible:ring-primary/20"
-                                        style={{ '--tw-ring-color': theme.primary } as any}
                                         value={formData.email}
                                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                         placeholder="name@company.com"
+                                        required
+                                        className="h-10 rounded-lg text-sm bg-surface dark:bg-slate-950"
                                     />
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <label className="text-[13px] font-semibold text-ink">Role</label>
-                                        <select
-                                            className="w-full h-12 px-4 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none"
-                                            style={{ '--tw-ring-color': theme.primary } as any}
-                                            value={formData.role}
-                                            onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                                        >
-                                            {/* One option per real role. The old list had Finance, IT, HR, Legal
-                                                and a second "Administrator", all of which created a staff account. */}
-                                            <option value="employee">Staff (works on their own tasks)</option>
-                                            <option value="lead">Project lead (assigns and approves)</option>
 
-
-                                            {isAdmin && <option value="admin">Admin (manages people and settings)</option>}
-                                            {isAdmin && <option value="executive">Executive (all companies, read-only)</option>}
-                                            {isAdmin && <option value="pa">Executive PA (all companies)</option>}
-                                        </select>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label htmlFor={inviteRoleId} className="block text-xs font-semibold text-ink dark:text-slate-200 mb-1">
+                                            Role
+                                        </label>
+                                        <div className="relative">
+                                            <select
+                                                id={inviteRoleId}
+                                                value={formData.role}
+                                                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                                                className="h-10 w-full appearance-none rounded-lg border border-line bg-surface dark:bg-slate-950 px-3 pr-8 text-xs font-semibold text-ink dark:text-slate-100 outline-none focus:border-ink focus:ring-2 focus:ring-ink/10"
+                                            >
+                                                <option value="employee">Staff Member</option>
+                                                <option value="lead">Project Lead</option>
+                                                {isAdmin && <option value="admin">Admin</option>}
+                                                {isAdmin && <option value="executive">Executive</option>}
+                                                {isAdmin && <option value="pa">Executive PA</option>}
+                                            </select>
+                                            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-faint" aria-hidden />
+                                        </div>
                                     </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[13px] font-semibold text-ink">Company</label>
-                                        <select
-                                            className="w-full h-12 px-4 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none"
-                                            style={{ '--tw-ring-color': theme.primary } as any}
-                                            value={formData.company_id}
-                                            onChange={(e) => setFormData({ ...formData, company_id: e.target.value })}
-                                        >
-                                            <option value="">Choose a company</option>
-                                            {companies.map(c => (
-                                                <option key={c.id} value={c.id}>{c.name}</option>
-                                            ))}
-                                        </select>
+
+                                    <div>
+                                        <label htmlFor={inviteCompanyId} className="block text-xs font-semibold text-ink dark:text-slate-200 mb-1">
+                                            Company
+                                        </label>
+                                        <div className="relative">
+                                            <select
+                                                id={inviteCompanyId}
+                                                value={formData.company_id}
+                                                onChange={(e) => setFormData({ ...formData, company_id: e.target.value })}
+                                                required
+                                                className="h-10 w-full appearance-none rounded-lg border border-line bg-surface dark:bg-slate-950 px-3 pr-8 text-xs font-semibold text-ink dark:text-slate-100 outline-none focus:border-ink focus:ring-2 focus:ring-ink/10"
+                                            >
+                                                <option value="">Select company</option>
+                                                {companies.map(c => (
+                                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                                ))}
+                                            </select>
+                                            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-faint" aria-hidden />
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="flex flex-col gap-3 pt-4">
+
+                                <div className="flex items-center justify-end gap-2.5 pt-3">
                                     <Button
-                                        className="h-11 rounded-[8px] font-semibold text-sm"
-                                        style={{ backgroundColor: theme.primary }}
-                                        onClick={handleInvite}
+                                        type="button"
+                                        variant="outline"
+                                        className="h-9 rounded-lg text-xs font-semibold"
+                                        onClick={() => setIsInviteDialogOpen(false)}
                                     >
-                                        Create invite link
+                                        Cancel
                                     </Button>
-                                    <Button variant="ghost" className="h-12 rounded-xl font-bold text-slate-400" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+                                    <Button
+                                        type="submit"
+                                        className="h-9 rounded-lg text-xs font-semibold text-white"
+                                        style={{ backgroundColor: primaryColor }}
+                                    >
+                                        Create Invite Link
+                                    </Button>
                                 </div>
-                            </div>
+                            </form>
                         ) : (
-                            <div className="space-y-6">
-                                <div className="p-8 bg-green-50 rounded-3xl border border-green-100/50 text-center animate-in zoom-in-95 duration-500">
-                                    <div className="mx-auto w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-4 transition-transform hover:rotate-6">
-                                        <Shield className="h-8 w-8 text-green-500" />
+                            <div className="space-y-4 pt-4">
+                                <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-800/60 text-center">
+                                    <div className="mx-auto w-10 h-10 bg-emerald-100 dark:bg-emerald-900 rounded-full flex items-center justify-center mb-2">
+                                        <Shield className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                                     </div>
-                                    <p className="text-lg font-black text-slate-900 tracking-tight mb-1">Provisioning Successful</p>
-                                    <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-6 leading-relaxed">System access token has been generated.</p>
+                                    <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                                        Invitation Ready
+                                    </p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                        Share this personalized signup link with {formData.name || 'the user'}.
+                                    </p>
 
-                                    <div className="flex items-center space-x-2 bg-white p-2 rounded-2xl border border-slate-100 shadow-inner group">
-                                        <Input value={inviteLink} readOnly className="font-mono text-[10px] flex-1 border-0 shadow-none focus-visible:ring-0 bg-transparent text-slate-500" />
+                                    <div className="mt-3 flex items-center gap-1.5 bg-surface dark:bg-slate-900 p-1.5 rounded-lg border border-line dark:border-slate-800">
+                                        <Input
+                                            value={inviteLink}
+                                            readOnly
+                                            className="h-8 text-xs font-mono border-0 shadow-none focus-visible:ring-0 bg-transparent text-slate-600 dark:text-slate-300"
+                                        />
                                         <Button
-                                            size="icon"
+                                            size="sm"
                                             variant="ghost"
-                                            className="h-10 w-10 text-primary hover:bg-primary/5 rounded-xl transition-all"
-                                            style={{ color: theme.primary }}
-                                            onClick={() => {
-                                                navigator.clipboard.writeText(inviteLink);
-                                                setCopied(true);
-                                                setTimeout(() => setCopied(false), 2000);
-                                            }}
+                                            className="h-8 px-2.5 text-xs font-semibold shrink-0 gap-1"
+                                            onClick={() => copyInviteLink(inviteLink.split('token=')[1])}
                                         >
-                                            {copied ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
+                                            {copiedModalLink ? (
+                                                <>
+                                                    <Check className="h-3.5 w-3.5 text-emerald-600" />
+                                                    <span className="text-emerald-600">Copied</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Copy className="h-3.5 w-3.5 text-slate-500" />
+                                                    <span>Copy</span>
+                                                </>
+                                            )}
                                         </Button>
                                     </div>
                                 </div>
+
                                 <Button
-                                    className="w-full h-12 rounded-xl font-black uppercase text-xs tracking-widest bg-slate-900 shadow-xl shadow-slate-900/20"
+                                    className="w-full h-9 rounded-lg text-xs font-semibold text-white bg-slate-900 dark:bg-slate-100 dark:text-slate-900"
                                     onClick={() => {
-                                        setIsDialogOpen(false);
+                                        setIsInviteDialogOpen(false);
                                         setInviteLink(null);
                                         setFormData({ email: '', name: '', role: 'employee', company_id: '' });
                                     }}
                                 >
-                                    Dismiss
+                                    Done
                                 </Button>
                             </div>
                         )}
@@ -339,191 +1223,64 @@ export default function UserManagementPage() {
                 </div>
             )}
 
-            {/* Users List */}
-            <Card className="border-slate-200/60 shadow-xl shadow-slate-200/20 rounded-3xl overflow-hidden border-none">
-                <CardHeader className="bg-slate-50/30 border-b border-slate-50 p-8">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                            <div className="h-12 w-12 rounded-2xl flex items-center justify-center bg-white shadow-sm" style={{ color: theme.primary }}>
-                                <Users className="h-6 w-6" />
+            {/* Confirmation Dialog for Activation / Deactivation */}
+            {confirmActionUser && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="confirm-dialog-title"
+                >
+                    <div className="bg-surface dark:bg-slate-900 border border-line dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+                        <div className="flex items-center gap-3">
+                            <div className={cn(
+                                'h-10 w-10 rounded-xl flex items-center justify-center shrink-0',
+                                confirmActionUser.is_active
+                                    ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400'
+                                    : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400'
+                            )}>
+                                <AlertCircle className="h-5 w-5" />
                             </div>
                             <div>
-                                <CardTitle className="text-xl font-semibold text-slate-900 tracking-tight">Active Personnel</CardTitle>
-                                <p className="text-xs font-medium text-slate-400 uppercase tracking-widest">Master Workforce Directory</p>
+                                <h3 id="confirm-dialog-title" className="text-base font-bold text-slate-900 dark:text-slate-100">
+                                    {confirmActionUser.is_active ? 'Deactivate user?' : 'Restore user access?'}
+                                </h3>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                    {confirmActionUser.name} ({confirmActionUser.email})
+                                </p>
                             </div>
                         </div>
-                        <Badge variant="secondary" className="px-5 py-2 rounded-full font-black text-[10px] bg-white border border-slate-100 shadow-sm text-slate-600 uppercase tracking-widest">{filteredUsers.length} Active</Badge>
-                    </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                    {loading ? (
-                        <div className="p-8 space-y-4">
-                            {[1, 2, 3].map((i) => (
-                                <div key={i} className="flex items-center justify-between p-6 border-b border-slate-50 last:border-0">
-                                    <div className="flex items-center space-x-5">
-                                        <Skeleton variant="circle" width={48} height={48} />
-                                        <div className="space-y-3">
-                                            <Skeleton variant="text" width={200} />
-                                            <Skeleton variant="text" width={120} />
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead className="bg-slate-50/50">
-                                    <tr className="text-left">
-                                        <th className="p-6 font-black text-[11px] text-slate-400 uppercase tracking-widest">Name & Verification</th>
-                                        <th className="p-6 font-black text-[11px] text-slate-400 uppercase tracking-widest">Role Clearance</th>
-                                        {isAdmin && <th className="p-6 font-black text-[11px] text-slate-400 uppercase tracking-widest">Associated Firm</th>}
-                                        <th className="p-6 font-black text-[11px] text-slate-400 uppercase tracking-widest text-center">Security Status</th>
-                                        <th className="p-6 font-black text-[11px] text-slate-400 uppercase tracking-widest text-right">Administrative</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-50">
-                                    {filteredUsers.map(user => (
-                                        <tr key={user.id} className="hover:bg-slate-50/20 group transition-colors">
-                                            <td className="p-6">
-                                                <div className="flex items-center gap-4">
-                                                    <div
-                                                        className="h-10 w-10 rounded-full flex items-center justify-center font-black text-white text-[11px] shadow-md transition-transform group-hover:scale-105"
-                                                        style={{ backgroundColor: user.is_active ? theme.primary : '#94a3b8' }}
-                                                    >
-                                                        {user.name.split(' ').map(n => n[0]).join('')}
-                                                    </div>
-                                                    <div>
-                                                        <div className="font-sans text-slate-900 text-base tracking-tight">{user.name}</div>
-                                                        <div className="flex items-center gap-1.5 mt-0.5">
-                                                            <Mail className="h-3 w-3 text-slate-300" />
-                                                            <div className="text-xs font-mono text-slate-400">{user.email}</div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="p-6">
-                                                <Badge variant="outline" className={cn(
-                                                    "capitalize px-3 py-1 font-black text-[9px] uppercase tracking-widest rounded-md h-7",
-                                                    user.role === 'admin' ? "bg-purple-50 text-purple-700 border-purple-100 shadow-sm shadow-purple-900/5" :
-                                                        user.role === 'lead' ? "bg-indigo-50 text-indigo-700 border-indigo-100 shadow-sm shadow-indigo-900/5" :
-                                                            "bg-slate-50 text-slate-500 border-slate-100"
-                                                )}
-                                                    style={user.role === 'lead' ? { backgroundColor: `${theme.primary}10`, color: theme.primary, borderColor: `${theme.primary}20` } : undefined}
-                                                >{user.role}</Badge>
-                                            </td>
-                                            {isAdmin && (
-                                                <td className="p-6">
-                                                    <div className="flex items-center gap-2.5 font-semibold text-slate-600">
-                                                        <div className="h-6 w-6 rounded-md bg-slate-100 flex items-center justify-center">
-                                                            <Briefcase className="h-3.5 w-3.5 text-slate-400" />
-                                                        </div>
-                                                        {user.company?.name || 'Unassigned'}
-                                                    </div>
-                                                </td>
-                                            )}
-                                            <td className="p-6 text-center">
-                                                <div className="flex justify-center">
-                                                    <Badge variant="secondary" className={cn(
-                                                        "px-3 py-1 font-black text-[9px] uppercase tracking-widest h-7 rounded-md shadow-sm border",
-                                                        user.is_active
-                                                            ? "bg-emerald-50 text-emerald-600 border-emerald-100"
-                                                            : "bg-rose-50 text-rose-600 border-rose-100"
-                                                    )}>
-                                                        <Activity className="h-2.5 w-2.5 mr-1.5 animate-pulse" />
-                                                        {user.is_active ? 'Active' : 'Locked'}
-                                                    </Badge>
-                                                </div>
-                                            </td>
-                                            <td className="p-6 text-right">
-                                                <div className="flex justify-end gap-2">
-                                                    {isAdmin && user.id !== currentUser?.id && (
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className={cn(
-                                                                "h-9 px-4 rounded-xl font-black uppercase text-[11px] tracking-widest transition-all",
-                                                                user.is_active ? "text-rose-600 hover:text-rose-700 hover:bg-rose-50" : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                                                            )}
-                                                            onClick={() => toggleUserStatus(user.id, user.is_active)}
-                                                        >
-                                                            {user.is_active ? 'Terminate' : 'Restore Access'}
-                                                        </Button>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {filteredUsers.length === 0 && (
-                                        <tr><td colSpan={5} className="p-16 text-center">
-                                            <div className="flex flex-col items-center">
-                                                <div className="h-16 w-16 rounded-3xl bg-slate-100 flex items-center justify-center mb-6 shadow-inner">
-                                                    <Users className="h-8 w-8 text-slate-300" />
-                                                </div>
-                                                <p className="font-black text-slate-900 text-xl tracking-tight">No Results Found</p>
-                                                <p className="text-slate-500 font-medium mt-1">No personnel record matches your current search filters.</p>
-                                            </div>
-                                        </td></tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
 
-            {/* Pending Invites Section - Only for Leads/Admins */}
-            {invites.length > 0 && (
-                <Card className="border-slate-200/60 shadow-xl shadow-slate-200/20 rounded-3xl overflow-hidden animate-in slide-in-from-bottom-6 duration-700 border-none">
-                    <CardHeader className="bg-slate-50/30 border-b border-slate-50 p-8">
-                        <div className="flex items-center space-x-3">
-                            <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-white shadow-sm text-amber-500">
-                                <Mail className="h-5 w-5" />
-                            </div>
-                            <CardTitle className="text-lg font-semibold text-slate-900 tracking-tight">Pending Authorizations</CardTitle>
+                        <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                            {confirmActionUser.is_active
+                                ? 'This will suspend the user from logging in to Pulse360 until an administrator reactivates their account.'
+                                : 'This will reactivate access for this member, allowing them to sign in to Pulse360 immediately.'}
+                        </p>
+
+                        <div className="flex items-center justify-end gap-2.5 pt-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 rounded-lg text-xs font-semibold"
+                                onClick={() => setConfirmActionUser(null)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                size="sm"
+                                className={cn(
+                                    'h-8 rounded-lg text-xs font-semibold text-white',
+                                    confirmActionUser.is_active
+                                        ? 'bg-rose-600 hover:bg-rose-700'
+                                        : 'bg-emerald-600 hover:bg-emerald-700'
+                                )}
+                                onClick={() => toggleUserStatus(confirmActionUser)}
+                            >
+                                {confirmActionUser.is_active ? 'Deactivate Account' : 'Restore Access'}
+                            </Button>
                         </div>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead className="bg-slate-50/50">
-                                    <tr className="text-left">
-                                        <th className="p-6 font-semibold text-[11px] text-slate-400 uppercase tracking-widest">Awaiting Email</th>
-                                        <th className="p-6 font-semibold text-[11px] text-slate-400 uppercase tracking-widest">Target Role</th>
-                                        {isAdmin && <th className="p-6 font-semibold text-[11px] text-slate-400 uppercase tracking-widest">Entity</th>}
-                                        <th className="p-6 font-semibold text-[11px] text-slate-400 uppercase tracking-widest text-right">Access Link</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-50">
-                                    {invites.map(invite => (
-                                        <tr key={invite.id} className="hover:bg-slate-50/20 transition-colors">
-                                            <td className="p-6 text-slate-900 font-semibold tracking-tight">{invite.email}</td>
-                                            <td className="p-6">
-                                                <Badge variant="secondary" className="bg-slate-50 text-slate-400 px-3 py-1 font-black text-[9px] uppercase tracking-widest border border-slate-100">{invite.role}</Badge>
-                                            </td>
-                                            {isAdmin && <td className="p-6 text-slate-500 font-semibold">{invite.company?.name}</td>}
-                                            <td className="p-6 text-right">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-10 px-6 rounded-xl font-black uppercase text-[11px] tracking-widest transition-all hover:bg-primary/5 hover:text-primary"
-                                                    style={{ '--tw-hover-text-primary': theme.primary } as any}
-                                                    onClick={() => {
-                                                        const link = `${window.location.origin}/signup?token=${invite.token}`;
-                                                        navigator.clipboard.writeText(link);
-                                                        alert('Direct link secured and copied to clipboard.');
-                                                    }}
-                                                >
-                                                    Copy Token
-                                                </Button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
             )}
         </div>
     );

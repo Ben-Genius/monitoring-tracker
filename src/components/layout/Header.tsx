@@ -45,8 +45,8 @@ export default function Header({ onMenuClick }: HeaderProps) {
     };
 
     return (
-        <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-line bg-surface px-3 sm:px-5">
-            <button type="button" onClick={onMenuClick} className="flex h-10 w-10 items-center justify-center rounded-[8px] text-ink md:hidden" aria-label="Open navigation menu">
+        <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-line bg-surface px-3 dark:border-slate-800 dark:bg-slate-900 sm:px-5">
+            <button type="button" onClick={onMenuClick} className="flex h-10 w-10 items-center justify-center rounded-[8px] text-ink dark:text-slate-100 md:hidden" aria-label="Open navigation menu">
                 <Menu className="h-5 w-5" />
             </button>
 
@@ -55,7 +55,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                     <DropdownMenuTrigger asChild>
                         <button
                             type="button"
-                            className="flex items-center gap-2 rounded-lg border border-line bg-surface hover:bg-paper px-2.5 sm:px-3 py-1.5 text-[14px] font-semibold text-ink shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+                            className="flex items-center gap-2 rounded-lg border border-line bg-surface hover:bg-paper dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800 px-2.5 sm:px-3 py-1.5 text-[14px] font-semibold text-ink shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
                         >
                             <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: dot }} aria-hidden />
                             <span className="truncate max-w-[9rem] sm:max-w-[14rem]">
@@ -111,7 +111,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
             ) : (
                 <div className="flex items-center gap-2 pl-1 pr-1">
                     <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: dot }} aria-hidden />
-                    <span className="truncate text-[14px] font-semibold text-ink">{current?.name ?? ''}</span>
+                    <span className="truncate text-[14px] font-semibold text-ink dark:text-slate-100">{current?.name ?? ''}</span>
                 </div>
             )}
 
@@ -125,7 +125,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                     onChange={e => setQ(e.target.value)}
                     placeholder="Search tasks and people"
                     aria-label="Search tasks"
-                    className="h-9 w-full rounded-[8px] border border-line bg-paper pl-9 pr-3 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-progress focus:bg-surface"
+                    className="h-9 w-full rounded-[8px] border border-line bg-paper pl-9 pr-3 text-sm text-ink outline-none placeholder:text-ink-muted focus:border-progress focus:bg-surface dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-400 dark:focus:bg-slate-900"
                 />
             </form>
             <NotificationsBell />

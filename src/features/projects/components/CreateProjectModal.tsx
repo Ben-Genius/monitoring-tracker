@@ -2,226 +2,135 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { X, Briefcase, Calendar, DollarSign, Layout } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { useCreateProject, useCompanies } from '../hooks/useProjects';
+import { AlertCircle } from 'lucide-react';
+import { DialogShell } from '@/components/ui/dialog-shell';
+import { useCreateProject, useCompanies, type CreateProjectInput } from '../hooks/useProjects';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { canAdminister } from '@/lib/permissions';
 
 const projectSchema = z.object({
-    name: z.string().min(1, 'Project name is required'),
+    name: z.string().trim().min(1, 'Enter a project name.'),
     description: z.string().optional(),
-    company_id: z.string().min(1, 'Company is required'),
-    contract_value: z.number().min(0, 'Contract value must be positive'),
-    expected_handover: z.string().min(1, 'Expected handover date is required'),
+    company_id: z.string().min(1, 'Choose the company this project belongs to.'),
+    contract_value: z.number({ invalid_type_error: 'Enter the contract value in cedis, for example 1250000.' })
+        .min(0, 'The contract value cannot be negative.'),
+    expected_handover: z.string().min(1, 'Choose the expected handover date.'),
     start_date: z.string().optional(),
+}).refine(d => !d.start_date || d.start_date <= d.expected_handover, {
+    path: ['expected_handover'],
+    message: 'Handover must be on or after the start date.',
 });
 
 type ProjectFormData = z.infer<typeof projectSchema>;
+
+const fieldCls = 'h-11 w-full rounded-[8px] border border-line bg-surface px-3 text-sm text-ink outline-none placeholder:text-ink-muted focus:border-progress focus:ring-2 focus:ring-progress/20 disabled:cursor-not-allowed disabled:bg-paper dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500';
+const errorFieldCls = 'border-blocked focus:border-blocked focus:ring-blocked/20 dark:border-red-400';
 
 interface CreateProjectModalProps {
     open: boolean;
     onClose: () => void;
 }
 
-export default function CreateProjectModal({
-    open,
-    onClose,
-}: CreateProjectModalProps) {
+export default function CreateProjectModal({ open, onClose }: CreateProjectModalProps) {
     const { user } = useAuth();
     const createProject = useCreateProject();
     const canChooseCompany = canAdminister(user);
-
     const { data: companies } = useCompanies();
+    const [saveError, setSaveError] = useState<string | null>(null);
 
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    const {
-        register,
-        handleSubmit,
-        formState: { errors },
-        reset,
-    } = useForm<ProjectFormData>({
+    const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<ProjectFormData>({
         resolver: zodResolver(projectSchema),
-        defaultValues: {
-            company_id: canChooseCompany ? '' : user?.company_id || '',
-            contract_value: 0,
-        },
+        defaultValues: { company_id: canChooseCompany ? '' : user?.company_id || '', contract_value: 0 },
     });
 
-    const onSubmit = async (data: ProjectFormData) => {
-        setIsSubmitting(true);
-        const sanitizedData = {
-            ...data,
-            description: data.description || null,
-            start_date: data.start_date || null,
-        };
+    const close = () => { setSaveError(null); onClose(); };
 
+    const onSubmit = async (data: ProjectFormData) => {
+        setSaveError(null);
         try {
-            await createProject.mutateAsync(sanitizedData as any);
+            await createProject.mutateAsync({
+                ...data,
+                description: data.description || undefined,
+                start_date: data.start_date || undefined,
+            } as CreateProjectInput);
             reset();
-            onClose();
+            close();
         } catch (error) {
-            console.error('Failed to create project:', error);
-        } finally {
-            setIsSubmitting(false);
+            // Keep the form filled in and say what went wrong, instead of failing silently.
+            setSaveError(error instanceof Error ? error.message : 'The project could not be saved. Try again.');
         }
     };
 
-    if (!open) return null;
-
     return (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-800">
-                {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
-                    <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                            <Layout className="h-6 w-6" />
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-50">Initialize New Project</h2>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">Set up a new monitoring lifecycle.</p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={onClose}
-                        className="p-2 hover:bg-slate-200/50 dark:hover:bg-slate-800 rounded-full transition-colors"
-                    >
-                        <X className="h-5 w-5 text-slate-400" />
-                    </button>
+        <DialogShell open={open} onClose={close} title="New project" description="Fields marked * are required." className="max-w-2xl">
+            <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5 p-6">
+                <div className="grid gap-5 md:grid-cols-2">
+                    <Field id="np-name" label="Project name" required error={errors.name?.message} className="md:col-span-2">
+                        <input id="np-name" {...register('name')} placeholder="e.g. Tema Warehouse Fit-out" {...aria('np-name', errors.name)} className={cn(fieldCls, errors.name && errorFieldCls)} />
+                    </Field>
+
+                    <Field id="np-desc" label="Description" hint="Optional. Scope and key deliverables." className="md:col-span-2">
+                        <textarea id="np-desc" rows={3} {...register('description')} aria-describedby="np-desc-hint" className={cn(fieldCls, 'h-auto py-2.5')} />
+                    </Field>
+
+                    <Field id="np-company" label="Company" required error={errors.company_id?.message} hint={canChooseCompany ? undefined : 'Projects are created in your own company.'}>
+                        <select id="np-company" {...register('company_id')} disabled={!canChooseCompany} {...aria('np-company', errors.company_id, !canChooseCompany)} className={cn(fieldCls, errors.company_id && errorFieldCls)}>
+                            <option value="">Choose a company</option>
+                            {companies?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                    </Field>
+
+                    <Field id="np-value" label="Contract value (GHS)" required error={errors.contract_value?.message} hint="Full amount in cedis, not millions.">
+                        <input id="np-value" type="number" inputMode="decimal" min={0} step="0.01" {...register('contract_value', { valueAsNumber: true })} {...aria('np-value', errors.contract_value, true)} className={cn(fieldCls, errors.contract_value && errorFieldCls)} />
+                    </Field>
+
+                    <Field id="np-start" label="Start date">
+                        <input id="np-start" type="date" {...register('start_date')} className={fieldCls} />
+                    </Field>
+
+                    <Field id="np-handover" label="Expected handover" required error={errors.expected_handover?.message}>
+                        <input id="np-handover" type="date" {...register('expected_handover')} {...aria('np-handover', errors.expected_handover)} className={cn(fieldCls, errors.expected_handover && errorFieldCls)} />
+                    </Field>
                 </div>
 
-                {/* Form */}
-                <form onSubmit={handleSubmit(onSubmit)} className="p-8 space-y-6 overflow-y-auto">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Name */}
-                        <div className="md:col-span-2 space-y-2">
-                            <label className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                                Project Identity <span className="text-error font-black">*</span>
-                            </label>
-                            <Input
-                                {...register('name')}
-                                placeholder="e.g. Pipeline Expansion Phase II"
-                                className={cn(
-                                    "h-12 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-900 dark:text-slate-50 transition-all",
-                                    errors.name && "border-error focus:ring-error"
-                                )}
-                            />
-                            {errors.name && (
-                                <p className="text-error text-xs font-medium mt-1">{errors.name.message}</p>
-                            )}
-                        </div>
-
-                        {/* Description */}
-                        <div className="md:col-span-2 space-y-2">
-                            <label className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider gap-2">
-                                Detailed Scope
-                            </label>
-                            <textarea
-                                {...register('description')}
-                                placeholder="Describe the project objectives and key deliverables..."
-                                rows={3}
-                                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm dark:text-slate-50 placeholder:text-slate-400"
-                            />
-                        </div>
-
-                        {/* Company (Admin only) */}
-                        <div className="space-y-2">
-                            <label className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                                <Briefcase className="h-3.5 w-3.5" />
-                                Portfolio Company <span className="text-error font-black">*</span>
-                            </label>
-                            <select
-                                {...register('company_id')}
-                                disabled={!canChooseCompany}
-                                className={cn(
-                                    "w-full h-12 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:bg-white dark:focus:bg-slate-900 dark:text-slate-50 transition-all appearance-none",
-                                    !canChooseCompany && "opacity-60 cursor-not-allowed"
-                                )}
-                            >
-                                <option value="">Select Company</option>
-                                {companies?.map((c) => (
-                                    <option key={c.id} value={c.id}>{c.name}</option>
-                                ))}
-                            </select>
-                            {errors.company_id && (
-                                <p className="text-error text-xs font-medium mt-1">{errors.company_id.message}</p>
-                            )}
-                        </div>
-
-                        {/* Contract Value */}
-                        <div className="space-y-2">
-                            <label className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-                                <DollarSign className="h-3.5 w-3.5" />
-                                Contract Value ($M) <span className="text-error font-black">*</span>
-                            </label>
-                            <div className="relative">
-                                <Input
-                                    type="number"
-                                    step="0.01"
-                                    {...register('contract_value', { valueAsNumber: true })}
-                                    className="h-12 pl-12 bg-slate-50 border-slate-200"
-                                />
-                                <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                            </div>
-                            {errors.contract_value && (
-                                <p className="text-error text-xs font-medium mt-1">{errors.contract_value.message}</p>
-                            )}
-                        </div>
-
-                        {/* Start Date */}
-                        <div className="space-y-2">
-                            <label className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-                                <Calendar className="h-3.5 w-3.5" />
-                                Commencement Date
-                            </label>
-                            <Input
-                                type="date"
-                                {...register('start_date')}
-                                className="h-12 bg-slate-50 border-slate-200"
-                            />
-                        </div>
-
-                        {/* Expected Handover */}
-                        <div className="md:col-span-2 space-y-2">
-                            <label className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-                                <Calendar className="h-3.5 w-3.5" />
-                                Expected Target Handover <span className="text-error font-black">*</span>
-                            </label>
-                            <Input
-                                type="date"
-                                {...register('expected_handover')}
-                                className="h-12 bg-slate-50 border-slate-200"
-                            />
-                            {errors.expected_handover && (
-                                <p className="text-error text-xs font-medium mt-1">{errors.expected_handover.message}</p>
-                            )}
-                        </div>
+                {saveError && (
+                    <div role="alert" className="flex items-start gap-2 rounded-[8px] border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden /> {saveError}
                     </div>
+                )}
 
-                    {/* Actions */}
-                    <div className="flex justify-end gap-3 pt-6 border-t border-slate-100 dark:border-slate-800">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={onClose}
-                            className="h-12 px-8 rounded-xl font-bold border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="h-12 px-10 rounded-xl font-bold shadow-xl "
-                        >
-                            {isSubmitting ? 'Initializing Project...' : 'Launch Project'}
-                        </Button>
-                    </div>
-                </form>
-            </div>
+                <div className="flex justify-end gap-2 border-t border-line pt-5 dark:border-slate-800">
+                    <button type="button" onClick={close} className="inline-flex h-10 items-center rounded-[8px] border border-line bg-surface px-4 text-sm font-semibold text-ink hover:border-ink/30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
+                        Cancel
+                    </button>
+                    <button type="submit" disabled={isSubmitting} className="inline-flex h-10 items-center rounded-[8px] bg-ink px-4 text-sm font-semibold text-white hover:bg-ink/90 disabled:opacity-60 dark:bg-white dark:text-ink">
+                        {isSubmitting ? 'Creating…' : 'Create project'}
+                    </button>
+                </div>
+            </form>
+        </DialogShell>
+    );
+}
+
+/** Wires a field to its hint and error so screen readers announce both. */
+function aria(id: string, error: unknown, hasHint = false) {
+    const ids = [hasHint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(' ');
+    return { 'aria-invalid': error ? true : undefined, 'aria-describedby': ids || undefined };
+}
+
+function Field({ id, label, required, hint, error, className, children }: {
+    id: string; label: string; required?: boolean; hint?: string; error?: string; className?: string; children: React.ReactNode;
+}) {
+    return (
+        <div className={cn('space-y-1.5', className)}>
+            <label htmlFor={id} className="block text-sm font-semibold text-ink dark:text-slate-100">
+                {label}{required && <span className="text-blocked dark:text-red-300" aria-hidden> *</span>}
+                {required && <span className="sr-only"> (required)</span>}
+            </label>
+            {hint && <p id={`${id}-hint`} className="text-[12.5px] text-ink-muted dark:text-slate-400">{hint}</p>}
+            {children}
+            {error && <p id={`${id}-error`} className="text-[12.5px] font-medium text-blocked dark:text-red-300">{error}</p>}
         </div>
     );
 }

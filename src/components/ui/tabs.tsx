@@ -39,6 +39,20 @@ const Tabs = ({ children, defaultValue, className, onValueChange, style }: {
     )
 }
 
+// Arrow keys, Home and End move between tabs and select them (automatic activation).
+function moveFocus(e: React.KeyboardEvent<HTMLDivElement>) {
+    const keys = ['ArrowRight', 'ArrowLeft', 'Home', 'End'];
+    if (!keys.includes(e.key)) return;
+    const tabs = [...e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]:not([disabled])')];
+    const i = tabs.indexOf(document.activeElement as HTMLButtonElement);
+    if (i < 0) return;
+    e.preventDefault();
+    const next = e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1
+        : (i + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+    tabs[next].focus();
+    tabs[next].click();
+}
+
 const TabsList = ({ children, className, style, label }: {
     children: React.ReactNode,
     className?: string,
@@ -46,7 +60,7 @@ const TabsList = ({ children, className, style, label }: {
     label?: string
 }) => {
     return (
-        <div role="tablist" aria-label={label} className={cn("inline-flex items-center justify-center rounded-pill bg-muted p-1 text-muted-foreground", className)} style={style}>
+        <div role="tablist" aria-label={label} onKeyDown={moveFocus} className={cn("inline-flex items-center justify-center rounded-pill bg-muted p-1 text-muted-foreground", className)} style={style}>
             {children}
         </div>
     )
@@ -66,6 +80,7 @@ const TabsTrigger = ({ children, value, className, style }: {
             type="button"
             role="tab"
             aria-selected={isActive}
+            tabIndex={isActive ? 0 : -1}
             onClick={() => context.onValueChange(value)}
             className={cn(
                 "inline-flex items-center justify-center whitespace-nowrap rounded-pill px-3 py-1.5 text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 select-none",
