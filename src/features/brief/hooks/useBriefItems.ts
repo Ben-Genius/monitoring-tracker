@@ -93,3 +93,40 @@ export function useBriefMutations(date = todayISO()) {
     });
     return { add, remove, setNote };
 }
+
+export interface BriefDay {
+    /** False until the brief_days migration is applied; the page then behaves as before (no ready step). */
+    available: boolean;
+    readyAt: string | null;
+    readyBy: string | null;
+}
+
+/** Whether the PA has marked this day's brief as ready for Mr Blay. */
+export function useBriefDay(date = todayISO()) {
+    return useQuery({
+        queryKey: ['brief-day', date],
+        queryFn: async (): Promise<BriefDay> => {
+            const { data, error } = await supabase.from('brief_days')
+                .select('ready_at, ready_by_user:users!brief_days_ready_by_fkey(name)')
+                .eq('brief_date', date).maybeSingle();
+            // A missing table (migration not applied yet) must not break the brief.
+            if (error) return { available: false, readyAt: null, readyBy: null };
+            const row = data as { ready_at: string | null; ready_by_user: { name: string } | null } | null;
+            return { available: true, readyAt: row?.ready_at ?? null, readyBy: row?.ready_by_user?.name ?? null };
+        },
+    });
+}
+
+export function useBriefDayMutation(date = todayISO()) {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (ready: boolean) => {
+            const { data: { user } } = await supabase.auth.getUser();
+            const now = new Date().toISOString();
+            const { error } = await supabase.from('brief_days')
+                .upsert({ brief_date: date, ready_at: ready ? now : null, ready_by: ready ? user?.id ?? null : null, updated_at: now }, { onConflict: 'brief_date' });
+            if (error) throw error;
+        },
+        onSettled: () => qc.invalidateQueries({ queryKey: ['brief-day', date] }),
+    });
+}

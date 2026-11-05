@@ -144,10 +144,10 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                 role="dialog"
                 aria-modal="true"
                 aria-label={task.title}
-                className="bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-5xl h-[94vh] sm:h-[90vh] flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200"
+                className="bg-surface dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-5xl h-[94vh] sm:h-[90vh] flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200"
             >
                 {/* ── Header ───────────────────────────────────────────── */}
-                <div className="border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 pt-4 pb-3 space-y-2.5">
+                <div className="border-b border-line dark:border-slate-800 px-4 sm:px-6 pt-4 pb-3 space-y-2.5">
                     <div className="flex items-center gap-2">
                         <div className="flex min-w-0 flex-1 items-center gap-1 text-[13px] text-ink-muted">
                             <span className="truncate">{task.project?.company?.name || 'No company'}</span>
@@ -156,17 +156,17 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                                 <select
                                     value={task.project_id || ''}
                                     onChange={e => save({ project_id: e.target.value || null }, 'Project changed')}
-                                    className="min-w-0 truncate bg-transparent font-medium text-ink hover:underline outline-none cursor-pointer"
+                                    className="min-w-0 max-w-full cursor-pointer truncate rounded-[4px] bg-transparent font-medium text-ink outline-none [field-sizing:content] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-progress dark:text-slate-100"
                                     aria-label="Project"
                                 >
                                     <option value="">No project</option>
                                     {projects.map((p: { id: string; name: string }) => <option key={p.id} value={p.id}>{p.name}</option>)}
                                 </select>
                             ) : (
-                                <span className="truncate text-slate-500">{task.project?.name || 'No project'}</span>
+                                <span className="truncate text-ink-muted">{task.project?.name || 'No project'}</span>
                             )}
                         </div>
-                        <button onClick={onClose} className="icon-btn shrink-0" aria-label="Close"><X className="h-5 w-5 text-slate-500" /></button>
+                        <button onClick={onClose} className="icon-btn shrink-0" aria-label="Close"><X className="h-5 w-5 text-ink-muted" /></button>
                     </div>
 
                     {canEdit ? (
@@ -176,11 +176,11 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                             onChange={e => setTitle(e.target.value)}
                             onBlur={saveTitle}
                             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLTextAreaElement).blur(); } }}
-                            className="w-full resize-none bg-transparent text-xl font-bold leading-snug text-slate-900 dark:text-slate-50 outline-none rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/50 focus:bg-slate-50 px-1 -mx-1 [field-sizing:content]"
+                            className="w-full resize-none bg-transparent text-xl font-bold leading-snug text-ink dark:text-slate-50 outline-none rounded-md hover:bg-paper dark:hover:bg-slate-800/50 focus:bg-paper px-1 -mx-1 [field-sizing:content]"
                             aria-label="Task title"
                         />
                     ) : (
-                        <h2 className="text-xl font-bold leading-snug text-slate-900 dark:text-slate-50">{task.title}</h2>
+                        <h2 className="text-xl font-bold leading-snug text-ink dark:text-slate-50">{task.title}</h2>
                     )}
 
                     <div className="flex flex-wrap items-center gap-2">
@@ -206,24 +206,21 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                             onClick={() => save({ is_urgent: !task.is_urgent }, task.is_urgent ? 'No longer urgent' : 'Marked urgent')}
                             className={cn(
                                 'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors disabled:cursor-default',
-                                task.is_urgent ? 'border-red-600 bg-red-600 text-white' : 'border-slate-200 text-slate-500 hover:bg-slate-50 dark:border-slate-700'
+                                task.is_urgent ? 'border-red-600 bg-red-600 text-white' : 'border-line text-ink-muted hover:bg-paper dark:border-slate-700'
                             )}
                         >
                             <AlertTriangle className="h-3.5 w-3.5" /> {task.is_urgent ? 'Urgent' : canEdit ? 'Mark urgent' : 'Not urgent'}
                         </button>
-                        <span className="text-xs text-slate-400">
-                            {task.assignee?.name ? <>Owner: <span className="font-semibold text-slate-600 dark:text-slate-300">{task.assignee.name}</span></> : 'No owner yet'}
-                        </span>
                     </div>
                 </div>
 
                 {/* ── Body ─────────────────────────────────────────────── */}
                 <div className="flex-1 overflow-y-auto">
                     <div className="grid md:grid-cols-[minmax(0,1fr)_300px]">
-                        <div className="p-4 sm:p-6 space-y-7 md:border-r border-slate-100 dark:border-slate-800">
+                        <div className="p-4 sm:p-6 space-y-7 md:border-r border-line dark:border-slate-800">
 
                             {/* 1. Is it moving? */}
-                            <section className="rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-3">
+                            <section className="rounded-xl border border-line dark:border-slate-800 p-4 space-y-3">
                                 {task.stage === 'blockers' && (
                                     <div className="flex items-start gap-2 rounded-lg bg-red-50 dark:bg-red-950/40 p-3 text-sm text-red-800 dark:text-red-200">
                                         <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
@@ -240,33 +237,31 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                                 )}
 
                                 <div className="flex items-baseline justify-between gap-3">
-                                    <h3 className="text-sm font-semibold text-ink">How far along?</h3>
-                                    <span className="text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-50">{progress}%</span>
+                                    <h3 className="text-sm font-semibold text-ink dark:text-slate-100">How far along?</h3>
+                                    <span className="text-2xl font-bold tabular-nums text-ink dark:text-slate-50">{progress}%</span>
                                 </div>
-                                <div className="h-2 overflow-hidden rounded-full bg-paper">
-                                    <div className="h-full rounded-full transition-all" style={{ width: `${progress}%`, backgroundColor: stage.accent }} />
+                                <div className="h-2 overflow-hidden rounded-full bg-paper dark:bg-slate-800">
+                                    <div className="h-full rounded-full bg-slate-600 transition-all dark:bg-slate-300" style={{ width: `${progress}%` }} />
                                 </div>
                                 {mover.canMove && (
                                     <div className="flex flex-wrap gap-2">
                                         {task.stage !== 'completed' && (
-                                            <button onClick={() => mover.requestUpdate(movable)} className="h-9 rounded-[8px] border border-line px-3 text-[13px] font-semibold text-ink hover:border-ink/30">
+                                            <button onClick={() => mover.requestUpdate(movable)} className="h-9 rounded-[8px] border border-line px-3 text-[13px] font-semibold text-ink hover:border-ink/30 dark:border-slate-700 dark:text-slate-100 dark:hover:border-slate-500">
                                                 Post an update
                                             </button>
                                         )}
-                                        <MoveMenu current={task.stage} onMove={st => mover.requestMove(movable, st)} align="left"
-                                            trigger={<span className="inline-flex h-9 items-center gap-1 px-1 text-[13px]">Change status <ChevronDown className="h-3.5 w-3.5 text-ink-faint" /></span>} />
                                     </div>
                                 )}
                                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-                                    <span className={cn('inline-flex items-center gap-1', stale ? 'font-semibold text-red-600' : 'text-slate-500')}>
+                                    <span className={cn('inline-flex items-center gap-1', stale ? 'font-semibold text-red-600' : 'text-ink-muted')}>
                                         <Clock className="h-3.5 w-3.5" />
                                         {idle == null ? 'Not moved yet' : idle === 0 ? 'Moved today' : `Last moved ${idle} day${idle === 1 ? '' : 's'} ago`}
                                         {stale && ' — over the 2-day limit'}
                                     </span>
-                                    <span className="inline-flex items-center gap-1 text-slate-500">
+                                    <span className="inline-flex items-center gap-1 text-ink-muted">
                                         <UserCheck className="h-3.5 w-3.5" />
                                         {task.acknowledged_at ? <>Accepted {formatDate(task.acknowledged_at)}</>
-                                            : task.assignee_id ? <span className="font-semibold text-amber-700">Owner hasn't accepted yet</span> : 'No owner to accept'}
+                                            : task.assignee_id ? <span className="font-semibold text-ink dark:text-slate-100">Owner hasn't accepted yet</span> : 'No owner to accept'}
                                     </span>
                                     {!task.acknowledged_at && isOwner && task.stage !== 'completed' && (
                                         <Button size="sm" className="h-7 text-xs" disabled={acknowledgeTask.isPending}
@@ -280,11 +275,11 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                             {/* 2. What is it? */}
                             <section className="space-y-2">
                                 <div className="flex items-center justify-between">
-                                    <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                                        <FileText className="h-4 w-4 text-slate-400" /> What needs to be done
+                                    <h3 className="flex items-center gap-2 text-sm font-semibold text-ink dark:text-slate-200">
+                                        <FileText className="h-4 w-4 text-ink-muted" /> What needs to be done
                                     </h3>
                                     {canEdit && !editingDescription && (
-                                        <button onClick={() => setEditingDescription(true)} className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-800">
+                                        <button onClick={() => setEditingDescription(true)} className="inline-flex items-center gap-1 text-xs font-semibold text-ink-muted hover:text-ink">
                                             <Pencil className="h-3.5 w-3.5" /> {task.description ? 'Edit' : 'Add'}
                                         </button>
                                     )}
@@ -297,7 +292,7 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                                             value={description}
                                             onChange={e => setDescription(e.target.value)}
                                             placeholder={'What does "done" look like, and anything the owner needs to know.\n\ne.g. Get the signed wayleave form back from ECG Tema. Contact: Mr Owusu. Needed before cable laying on 10 Nov.'}
-                                            className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 p-3 text-sm leading-relaxed outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                                            className="w-full rounded-xl border border-line dark:border-slate-700 bg-surface dark:bg-slate-950 p-3 text-sm leading-relaxed outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                                         />
                                         <div className="flex justify-end gap-2">
                                             <Button variant="outline" size="sm" onClick={() => { setDescription(task.description || ''); setEditingDescription(false); }}>Cancel</Button>
@@ -305,10 +300,10 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                                         </div>
                                     </div>
                                 ) : task.description ? (
-                                    <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-slate-700 dark:text-slate-300">{task.description}</p>
+                                    <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-ink dark:text-slate-300">{task.description}</p>
                                 ) : (
-                                    <p className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-3 text-sm text-slate-400">
-                                        No description yet.{canEdit && ' Add one line on what "done" looks like, so the owner and Mr Blay read it the same way.'}
+                                    <p className="rounded-xl border border-dashed border-line dark:border-slate-700 p-3 text-sm text-ink-muted">
+                                        No description yet.{canEdit && ' Add one line on what "done" looks like, so the owner and their manager read it the same way.'}
                                     </p>
                                 )}
                             </section>
@@ -316,28 +311,28 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                             {/* 3. Steps */}
                             <section className="space-y-2.5">
                                 <div className="flex items-center justify-between gap-3">
-                                    <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                                        <ListChecks className="h-4 w-4 text-slate-400" /> Steps
+                                    <h3 className="flex items-center gap-2 text-sm font-semibold text-ink dark:text-slate-200">
+                                        <ListChecks className="h-4 w-4 text-ink-muted" /> Steps
                                     </h3>
                                     {subtasks.length > 0 && (
-                                        <span className="text-xs font-semibold text-slate-500">{stepsDone} of {subtasks.length} done</span>
+                                        <span className="text-xs font-semibold text-ink-muted">{stepsDone} of {subtasks.length} done</span>
                                     )}
                                 </div>
                                 {subtasks.length > 0 && (
-                                    <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                                    <div className="h-1.5 rounded-full bg-paper dark:bg-slate-800 overflow-hidden">
                                         <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${(stepsDone / subtasks.length) * 100}%` }} />
                                     </div>
                                 )}
-                                <ol className="divide-y divide-slate-100 dark:divide-slate-800 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden empty:hidden">
+                                <ol className="divide-y divide-slate-100 dark:divide-slate-800 rounded-xl border border-line dark:border-slate-800 overflow-hidden empty:hidden">
                                     {subtasks.map((s, i) => (
-                                        <li key={s.id} className="group flex items-start gap-3 px-3 py-2.5 bg-white dark:bg-slate-900">
+                                        <li key={s.id} className="group flex items-start gap-3 px-3 py-2.5 bg-surface dark:bg-slate-900">
                                             <button
                                                 disabled={!canEdit}
                                                 onClick={() => toggleSubtask.mutate({ id: s.id, is_completed: !s.is_completed })}
                                                 aria-label={s.is_completed ? `Mark step ${i + 1} not done` : `Mark step ${i + 1} done`}
                                                 className={cn(
                                                     'mt-0.5 h-5 w-5 shrink-0 rounded-md border-2 flex items-center justify-center transition-colors',
-                                                    s.is_completed ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 bg-white hover:border-emerald-400 dark:bg-slate-900'
+                                                    s.is_completed ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-line-strong bg-surface hover:border-emerald-400 dark:bg-slate-900'
                                                 )}
                                             >
                                                 {s.is_completed && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
@@ -356,16 +351,16 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                                                     <button
                                                         disabled={!canEdit}
                                                         onClick={() => setEditingStep({ id: s.id, title: s.title })}
-                                                        className={cn('text-left text-sm leading-snug', s.is_completed ? 'text-slate-400 line-through' : 'text-slate-800 dark:text-slate-200')}
+                                                        className={cn('text-left text-sm leading-snug', s.is_completed ? 'text-ink-muted line-through' : 'text-ink dark:text-slate-200')}
                                                     >
-                                                        <span className="mr-1.5 text-slate-400 tabular-nums">{i + 1}.</span>{splitStepCode(s.title).text}
+                                                        <span className="mr-1.5 text-ink-muted tabular-nums">{i + 1}.</span>{splitStepCode(s.title).text}
                                                         {splitStepCode(s.title).code && (
-                                                            <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 no-underline dark:bg-slate-800">{splitStepCode(s.title).code}</span>
+                                                            <span className="ml-2 rounded bg-paper px-1.5 py-0.5 text-[10px] font-medium text-ink-muted no-underline dark:bg-slate-800">{splitStepCode(s.title).code}</span>
                                                         )}
                                                     </button>
                                                 )}
                                                 {(s.end_date || s.completed_date) && (
-                                                    <p className="mt-0.5 text-[11px] text-slate-400">
+                                                    <p className="mt-0.5 text-[11px] text-ink-muted">
                                                         {s.is_completed && s.completed_date ? `Done ${formatDate(s.completed_date)}` : s.end_date ? `Due ${formatDate(s.end_date)}` : ''}
                                                     </p>
                                                 )}
@@ -373,7 +368,7 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                                             {canEdit && (
                                                 <button
                                                     onClick={() => { if (confirmDelete(s.title)) deleteSubtask.mutate(s.id); }}
-                                                    className="p-1 rounded-md text-slate-300 hover:text-red-600 hover:bg-red-50 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                                                    className="p-1 rounded-md text-ink-muted hover:text-red-700 hover:bg-red-50 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-progress md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity dark:text-slate-400 dark:hover:bg-red-500/10 dark:hover:text-red-300"
                                                     aria-label={`Delete step ${i + 1}`}
                                                 >
                                                     <Trash2 className="h-4 w-4" />
@@ -383,7 +378,7 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                                     ))}
                                 </ol>
                                 {subtasks.length === 0 && (
-                                    <p className="text-sm text-slate-400">
+                                    <p className="text-sm text-ink-muted">
                                         No steps yet.{canEdit && ' Break the task into small steps the owner can tick off — each tick shows it moving.'}
                                     </p>
                                 )}
@@ -393,9 +388,9 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                                             value={newStep}
                                             onChange={e => setNewStep(e.target.value)}
                                             placeholder="Add a step, e.g. Collect three supplier quotes"
-                                            className="flex-1 h-10 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                                            className="flex-1 h-10 rounded-lg border border-line dark:border-slate-700 bg-surface dark:bg-slate-950 px-3 text-sm text-ink outline-none placeholder:text-ink-muted focus:border-progress focus:ring-2 focus:ring-progress/15 dark:text-slate-100 dark:placeholder:text-slate-500"
                                         />
-                                        <Button type="submit" size="sm" className="h-10" disabled={!newStep.trim() || createSubtask.isPending}>
+                                        <Button type="submit" size="sm" className="h-10 bg-ink text-white hover:bg-ink/90 dark:bg-white dark:text-ink dark:hover:bg-white/90" disabled={!newStep.trim() || createSubtask.isPending}>
                                             <Plus className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Add step</span>
                                         </Button>
                                     </form>
@@ -404,9 +399,9 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
 
                             {/* 4. Updates */}
                             <section className="space-y-3">
-                                <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                <h3 className="flex items-center gap-2 text-sm font-semibold text-ink dark:text-slate-200">
                                     <MessageSquare className="h-4 w-4 text-ink-faint" /> History and comments
-                                    {comments.length > 0 && <span className="text-slate-400 font-normal">{comments.length}</span>}
+                                    {comments.length > 0 && <span className="text-ink-muted font-normal">{comments.length}</span>}
                                 </h3>
                                 {comments.length === 0 && <p className="text-sm text-ink-faint">Nothing yet. Status changes, proof and comments appear here.</p>}
                                 <ol className="space-y-4">
@@ -420,9 +415,9 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                                                 value={update}
                                                 onChange={e => setUpdate(e.target.value)}
                                                 placeholder={isExecutive ? 'e.g. Can we get this done before the board meeting?' : 'Add a comment'}
-                                                className="flex-1 h-10 rounded-[8px] border border-line bg-surface px-3 text-sm outline-none placeholder:text-ink-faint focus:border-progress focus:ring-2 focus:ring-progress/15"
+                                                className="flex-1 h-10 rounded-[8px] border border-line bg-surface px-3 text-sm text-ink outline-none placeholder:text-ink-muted focus:border-progress focus:ring-2 focus:ring-progress/15 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
                                             />
-                                            <Button type="submit" size="sm" className="h-10" disabled={!update.trim() || createComment.isPending} aria-label={isExecutive ? 'Send note' : 'Post comment'}>
+                                            <Button type="submit" size="sm" className="h-10 bg-ink text-white hover:bg-ink/90 dark:bg-white dark:text-ink dark:hover:bg-white/90" disabled={!update.trim() || createComment.isPending} aria-label={isExecutive ? 'Send note' : 'Post comment'}>
                                                 <Send className="h-4 w-4 sm:mr-1.5" /><span className="hidden sm:inline">{isExecutive ? 'Send note' : 'Post'}</span>
                                             </Button>
                                         </div>
@@ -433,13 +428,13 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                         </div>
 
                         {/* ── Side details ─────────────────────────────── */}
-                        <aside className="p-4 sm:p-6 space-y-4 bg-slate-50/60 dark:bg-slate-900/60 border-t md:border-t-0 border-slate-100 dark:border-slate-800">
+                        <aside className="p-4 sm:p-6 space-y-4 bg-paper/60 dark:bg-slate-900/60 border-t md:border-t-0 border-line dark:border-slate-800">
                             <Field icon={User} label="Owner">
                                 {canStructure ? (
                                     <select
                                         value={task.assignee_id || ''}
                                         onChange={e => save(e.target.value ? { assignee_ids: [e.target.value] } : { assignee_id: null }, 'Owner changed')}
-                                        className="w-full h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 text-sm"
+                                        className="w-full h-9 rounded-lg border border-line dark:border-slate-700 bg-surface px-2 text-sm text-ink dark:bg-slate-950 dark:text-slate-100"
                                     >
                                         <option value="">No owner</option>
                                         {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
@@ -450,26 +445,26 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                                 {canStructure ? (
                                     <input type="date" value={toDateInput(task.due_date)}
                                         onChange={e => save({ due_date: e.target.value || null }, 'Deadline saved')}
-                                        className="w-full h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 text-sm" />
+                                        className="w-full h-9 rounded-lg border border-line dark:border-slate-700 bg-surface px-2 text-sm text-ink dark:bg-slate-950 dark:text-slate-100" />
                                 ) : <Value>{task.due_date ? formatDate(task.due_date) : 'None'}</Value>}
                             </Field>
                             <Field icon={Clock} label="Next update due" hint="When the owner will report back">
                                 {canEdit ? (
                                     <input type="date" value={toDateInput(task.next_update_due)}
                                         onChange={e => save({ next_update_due: endOfDay(e.target.value) }, 'Next update date saved')}
-                                        className={cn('w-full h-9 rounded-lg border bg-white dark:bg-slate-950 px-2 text-sm', isUpdateOverdue(task) ? 'border-red-300 text-red-700' : 'border-slate-200 dark:border-slate-700')} />
+                                        className={cn('w-full h-9 rounded-lg border bg-surface px-2 text-sm text-ink dark:bg-slate-950 dark:text-slate-100', isUpdateOverdue(task) ? 'border-red-300 text-red-700' : 'border-line dark:border-slate-700')} />
                                 ) : <Value className={isUpdateOverdue(task) ? 'text-red-700' : ''}>{task.next_update_due ? formatDate(task.next_update_due) : 'Not set'}</Value>}
                             </Field>
                             <Field icon={Flag} label="Priority">
                                 {canEdit ? (
                                     <select value={task.priority} onChange={e => save({ priority: e.target.value as Task['priority'] }, 'Priority saved')}
-                                        className="w-full h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 text-sm capitalize">
+                                        className="w-full h-9 rounded-lg border border-line dark:border-slate-700 bg-surface px-2 text-sm text-ink dark:bg-slate-950 dark:text-slate-100 capitalize">
                                         {['low', 'medium', 'high', 'critical'].map(p => <option key={p} value={p}>{p[0].toUpperCase() + p.slice(1)}</option>)}
                                     </select>
                                 ) : <Value className="capitalize">{task.priority}</Value>}
                             </Field>
-                            <div className="pt-2 border-t border-slate-200/70 dark:border-slate-800 text-xs text-slate-500 space-y-1">
-                                <p>Assigned by <span className="font-semibold text-slate-700 dark:text-slate-300">{creator?.name || 'not recorded'}</span></p>
+                            <div className="pt-2 border-t border-line/70 dark:border-slate-800 text-xs text-ink-muted space-y-1">
+                                <p>Assigned by <span className="font-semibold text-ink dark:text-slate-300">{creator?.name || 'not recorded'}</span></p>
                                 <p>Created {formatDate(task.created_at)}</p>
                             </div>
                         </aside>
@@ -485,20 +480,21 @@ function confirmDelete(title: string) {
     return window.confirm(`Delete the step "${title}"?`);
 }
 
+// A real <label> wraps the control, so every side field has an accessible name.
 function Field({ icon: Icon, label, hint, children }: { icon: typeof User; label: string; hint?: string; children: React.ReactNode }) {
     return (
-        <div className="space-y-1.5">
-            <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-                <Icon className="h-3.5 w-3.5" /> {label}
-            </p>
+        <label className="block space-y-1.5">
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-ink-muted dark:text-slate-400">
+                <Icon className="h-3.5 w-3.5" aria-hidden /> {label}
+            </span>
             {children}
-            {hint && <p className="text-[11px] text-slate-400">{hint}</p>}
-        </div>
+            {hint && <span className="block text-[12px] text-ink-muted dark:text-slate-400">{hint}</span>}
+        </label>
     );
 }
 
 function Value({ children, className }: { children: React.ReactNode; className?: string }) {
-    return <p className={cn('text-sm font-semibold text-slate-800 dark:text-slate-200', className)}>{children}</p>;
+    return <p className={cn('text-sm font-semibold text-ink dark:text-slate-200', className)}>{children}</p>;
 }
 
 function FeedEntry({ c }: { c: TaskComment }) {

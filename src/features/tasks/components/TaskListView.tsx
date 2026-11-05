@@ -6,17 +6,21 @@ import { cn } from '@/lib/utils';
 
 interface TaskListViewProps {
     tasks: Task[];
+    /** Finished tasks older than the recent window, left out until asked for. */
+    hiddenDone?: number;
+    onShowAllDone?: () => void;
     onTaskClick: (taskId: string) => void;
     onTaskComplete: (taskId: string, completed: boolean) => void;
 }
 
-export default function TaskListView({ tasks, onTaskClick, onTaskComplete }: TaskListViewProps) {
+export default function TaskListView({ tasks, onTaskClick, onTaskComplete, hiddenDone = 0, onShowAllDone }: TaskListViewProps) {
     // Group tasks by sections
     const groupedTasks = useMemo(() => {
         const now = new Date();
         const nextWeekStart = addWeeks(now, 1);
 
         const recentlyAssigned: Task[] = [];
+        const overdue: Task[] = [];
         const doToday: Task[] = [];
         const doNextWeek: Task[] = [];
         const doLater: Task[] = [];
@@ -38,8 +42,11 @@ export default function TaskListView({ tasks, onTaskClick, onTaskComplete }: Tas
             if (daysSinceCreated <= 7 && (!dueDate || dueDate > now)) {
                 recentlyAssigned.push(task);
             }
-            // Do today (due today or overdue)
-            else if (dueDate && (isToday(dueDate) || isPast(dueDate))) {
+            // Overdue gets its own group: calling it "today" hid how late it is.
+            else if (dueDate && isPast(dueDate) && !isToday(dueDate)) {
+                overdue.push(task);
+            }
+            else if (dueDate && isToday(dueDate)) {
                 doToday.push(task);
             }
             // Do next week (due within next 7 days)
@@ -54,6 +61,7 @@ export default function TaskListView({ tasks, onTaskClick, onTaskComplete }: Tas
 
         return {
             recentlyAssigned,
+            overdue,
             doToday,
             doNextWeek,
             doLater,
@@ -63,10 +71,11 @@ export default function TaskListView({ tasks, onTaskClick, onTaskComplete }: Tas
 
     const sections = [
         { id: 'recently', title: 'Recently assigned', tasks: groupedTasks.recentlyAssigned },
-        { id: 'today', title: 'Do today', tasks: groupedTasks.doToday },
-        { id: 'nextWeek', title: 'Do next week', tasks: groupedTasks.doNextWeek },
-        { id: 'later', title: 'Do later', tasks: groupedTasks.doLater },
-        { id: 'completed', title: 'Completed', tasks: groupedTasks.completed },
+        { id: 'overdue', title: 'Overdue', tasks: groupedTasks.overdue },
+        { id: 'today', title: 'Due today', tasks: groupedTasks.doToday },
+        { id: 'nextWeek', title: 'Due in the next 7 days', tasks: groupedTasks.doNextWeek },
+        { id: 'later', title: 'Later or no date', tasks: groupedTasks.doLater },
+        { id: 'completed', title: 'Done', tasks: groupedTasks.completed },
     ];
 
     return (
@@ -80,6 +89,11 @@ export default function TaskListView({ tasks, onTaskClick, onTaskComplete }: Tas
                     onTaskComplete={onTaskComplete}
                 />
             ))}
+            {hiddenDone > 0 && onShowAllDone && (
+                <button type="button" onClick={onShowAllDone} className="ml-2 text-[13px] font-semibold text-progress hover:underline dark:text-blue-300">
+                    Show {hiddenDone} older finished {hiddenDone === 1 ? 'task' : 'tasks'}
+                </button>
+            )}
         </div>
     );
 }
@@ -98,9 +112,9 @@ function TaskSection({ title, tasks, onTaskClick, onTaskComplete }: TaskSectionP
         <div className="space-y-2">
             {/* Section Header */}
             <div className="flex items-center gap-3 px-2">
-                <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">{title}</h2>
-                <span className="text-xs font-medium text-slate-400 dark:text-slate-500">{tasks.length}</span>
-                <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800" />
+                <h2 className="text-sm font-semibold text-ink dark:text-slate-50">{title}</h2>
+                <span className="text-xs font-medium tabular-nums text-ink-muted dark:text-slate-400">{tasks.length}</span>
+                <div className="flex-1 h-px bg-line dark:bg-slate-800" />
             </div>
 
             {/* Task Rows */}
@@ -135,24 +149,26 @@ function TaskRow({ task, onClick, onComplete }: TaskRowProps) {
         return format(date, 'MMM d');
     };
 
+    // Neutral by default; only critical earns colour, matching the board's urgent/blocked rule.
     const priorityColors = {
-        low: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
-        medium: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
-        high: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300',
-        critical: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300',
+        low: 'border border-line text-ink-muted dark:border-slate-700 dark:text-slate-400',
+        medium: 'border border-line text-ink dark:border-slate-700 dark:text-slate-200',
+        high: 'border border-line font-semibold text-ink dark:border-slate-700 dark:text-slate-100',
+        critical: 'bg-red-50 text-red-800 dark:bg-red-500/10 dark:text-red-200',
     };
 
     return (
         <div
             className={cn(
                 "card-lift group flex items-center gap-3 px-3 py-2.5 rounded-xl border border-transparent",
-                "hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-200 dark:hover:border-slate-700 cursor-pointer transition-all",
-                isCompleted && "opacity-60"
+                "hover:bg-paper dark:hover:bg-slate-800 hover:border-line dark:hover:border-slate-700 cursor-pointer transition-all",
             )}
             onClick={onClick}
         >
             {/* Checkbox */}
             <button
+                type="button"
+                aria-label={isCompleted ? `Reopen ${task.title}` : `Mark ${task.title} done`}
                 onClick={(e) => {
                     e.stopPropagation();
                     onComplete(!isCompleted);
@@ -162,25 +178,29 @@ function TaskRow({ task, onClick, onComplete }: TaskRowProps) {
                 {isCompleted ? (
                     <CheckCircle2 className="h-5 w-5 text-success" />
                 ) : (
-                    <Circle className="h-5 w-5 text-slate-300 dark:text-slate-600 group-hover:text-slate-400 dark:group-hover:text-slate-500" />
+                    <Circle className="h-5 w-5 text-ink-faint dark:text-slate-500 group-hover:text-ink-muted dark:group-hover:text-slate-300" aria-hidden />
                 )}
             </button>
 
             {/* Task Title */}
             <div className="flex-1 min-w-0">
-                <p className={cn(
-                    "text-sm font-medium text-slate-900 dark:text-slate-50 truncate",
-                    isCompleted && "line-through text-slate-500 dark:text-slate-500"
-                )}>
+                <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onClick(); }}
+                    className={cn(
+                        "block w-full truncate text-left text-sm font-medium text-ink outline-none focus-visible:underline dark:text-slate-50",
+                        isCompleted && "line-through text-ink-muted dark:text-slate-400"
+                    )}
+                >
                     {task.title}
-                </p>
+                </button>
             </div>
 
             {/* Due Date */}
             {task.due_date && (
                 <div className={cn(
                     "flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium",
-                    isOverdue ? "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400" : "text-slate-500 dark:text-slate-400"
+                    isOverdue ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300" : "text-ink-muted dark:text-slate-400"
                 )}>
                     <Calendar className="h-3.5 w-3.5" />
                     {formatDueDate(task.due_date)}
@@ -189,7 +209,7 @@ function TaskRow({ task, onClick, onComplete }: TaskRowProps) {
 
             {/* Assignee */}
             {task.assignee && (
-                <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                <div className="flex items-center gap-1.5 text-xs text-ink-muted dark:text-slate-400">
                     <User className="h-3.5 w-3.5" />
                     <span className="truncate max-w-[100px]">{task.assignee.name}</span>
                 </div>
@@ -197,7 +217,7 @@ function TaskRow({ task, onClick, onComplete }: TaskRowProps) {
 
             {/* Project */}
             {task.project && (
-                <div className="hidden sm:block px-2 py-1 rounded text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 truncate max-w-[150px]">
+                <div className="hidden sm:block px-2 py-1 rounded text-xs font-medium bg-paper dark:bg-slate-800 text-ink-muted dark:text-slate-300 truncate max-w-[150px]">
                     {task.project.name}
                 </div>
             )}

@@ -167,7 +167,7 @@ function StatusUpdateSheet({ task, initialTarget, onClose }: { task: MovableTask
                 onClick={e => e.stopPropagation()}
                 onSubmit={submit}
                 aria-label="Update status"
-                className="w-full sm:max-w-xl max-h-[92vh] flex flex-col rounded-t-[18px] sm:rounded-[14px] bg-surface shadow-sheet animate-in slide-in-from-bottom-6 duration-200"
+                className="w-full sm:max-w-xl max-h-[92vh] flex flex-col rounded-t-[18px] sm:rounded-[14px] bg-surface text-ink shadow-sheet animate-in slide-in-from-bottom-6 duration-200 dark:bg-slate-900 dark:text-slate-100"
             >
                 {phase === 'done' ? (
                     <div className="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center">
@@ -248,7 +248,7 @@ function StatusUpdateSheet({ task, initialTarget, onClose }: { task: MovableTask
                                     value={text}
                                     onChange={e => { (target === 'blockers' ? setReason : setNote)(e.target.value); setError(null); }}
                                     placeholder={copy.notePh}
-                                    className="w-full rounded-[8px] border border-line bg-surface p-3 text-[15px] leading-relaxed text-ink outline-none placeholder:text-ink-faint focus:border-progress focus:ring-2 focus:ring-progress/15"
+                                    className="w-full rounded-[8px] border border-line bg-surface p-3 text-[15px] leading-relaxed text-ink outline-none placeholder:text-ink-muted focus:border-progress focus:ring-2 focus:ring-progress/15 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
                                 />
                             </label>
 
@@ -257,7 +257,7 @@ function StatusUpdateSheet({ task, initialTarget, onClose }: { task: MovableTask
                                     <span className="text-[13px] font-semibold text-ink">Who is it waiting on?</span>
                                     <div className="relative">
                                         <select value={blockedBy} onChange={e => setBlockedBy(e.target.value)}
-                                            className="h-10 w-full appearance-none rounded-[8px] border border-line bg-surface pl-3 pr-9 text-sm text-ink">
+                                            className="h-10 w-full appearance-none rounded-[8px] border border-line bg-surface pl-3 pr-9 text-sm text-ink dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100">
                                             <option value="">Someone outside the team</option>
                                             {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                                         </select>
@@ -391,23 +391,23 @@ export function MoveMenu({ current, onMove, onUpdate, trigger, align = 'right' }
     return (
         <div className="relative" onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
             <button ref={btn} type="button" onClick={toggle} aria-haspopup="menu" aria-expanded={open}
-                className="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-[7px] border border-line bg-surface px-2.5 text-[12px] font-semibold text-ink hover:border-ink/30">
+                className="inline-flex h-8 items-center gap-1 whitespace-nowrap rounded-[7px] border border-line bg-surface px-2.5 text-[12px] font-semibold text-ink hover:border-ink/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-progress dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-500">
                 {trigger ?? <>Update status <ChevronDown className="h-3.5 w-3.5 text-ink-faint" /></>}
             </button>
             {pos && createPortal(
                 <div ref={menu} role="menu" style={{ top: pos.top, left: pos.left }}
                     onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}
-                    className="fixed z-[80] w-[220px] rounded-[12px] border border-line bg-surface p-1.5 shadow-pop">
+                    className="fixed z-[80] w-[220px] rounded-[12px] border border-line bg-surface p-1.5 shadow-pop dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
                     {onUpdate && current !== 'completed' && (
                         <button role="menuitem" type="button" onClick={() => pick(onUpdate)}
-                            className="flex w-full items-center gap-2 rounded-[8px] px-2.5 py-2 text-left text-sm font-medium text-ink hover:bg-paper">
+                            className="flex w-full items-center gap-2 rounded-[8px] px-2.5 py-2 text-left text-sm font-medium text-ink hover:bg-paper dark:text-slate-100 dark:hover:bg-slate-800">
                             <span className="h-2 w-2 rounded-full bg-ink/40" /> Post an update
                         </button>
                     )}
-                    <p className="px-2.5 pb-1 pt-2 text-[12px] text-ink-faint">Move to</p>
+                    <p className="px-2.5 pb-1 pt-2 text-[12px] text-ink-muted dark:text-slate-400">Move to</p>
                     {options.map(s => (
                         <button key={s.id} role="menuitem" type="button" onClick={() => pick(() => onMove(s.id))}
-                            className="flex w-full items-center gap-2 rounded-[8px] px-2.5 py-2 text-left text-sm text-ink hover:bg-paper">
+                            className="flex w-full items-center gap-2 rounded-[8px] px-2.5 py-2 text-left text-sm text-ink hover:bg-paper dark:text-slate-100 dark:hover:bg-slate-800">
                             <s.icon className="h-4 w-4" style={{ color: s.accent }} />
                             <span className="flex-1">{s.label}</span>
                             {s.id === 'completed' && <span className="text-[11px] text-ink-faint">needs proof</span>}

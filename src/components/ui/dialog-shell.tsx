@@ -12,13 +12,15 @@ interface DialogShellProps {
     description?: string;
     children: ReactNode;
     className?: string;
+    /** 'side' slides in from the right edge, for details that sit beside a list. */
+    variant?: 'center' | 'side';
 }
 
 /**
  * Accessible modal frame: labelled dialog role, Escape and backdrop close,
  * focus moved in on open, trapped while open, and returned on close.
  */
-export function DialogShell({ open, onClose, title, description, children, className }: DialogShellProps) {
+export function DialogShell({ open, onClose, title, description, children, className, variant = 'center' }: DialogShellProps) {
     const panel = useRef<HTMLDivElement>(null);
     const titleId = useId();
     const descId = useId();
@@ -56,7 +58,7 @@ export function DialogShell({ open, onClose, title, description, children, class
 
     // Portal to <body> so the backdrop covers the sticky header and no scroll container offsets it.
     return createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
+        <div className={cn('fixed inset-0 z-50 flex bg-slate-950/50', variant === 'side' ? 'justify-end' : 'items-center justify-center p-4')} onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
             <div
                 ref={panel}
                 role="dialog"
@@ -64,7 +66,11 @@ export function DialogShell({ open, onClose, title, description, children, class
                 aria-labelledby={titleId}
                 aria-describedby={description ? descId : undefined}
                 tabIndex={-1}
-                className={cn('flex max-h-[90vh] w-full flex-col overflow-hidden rounded-[14px] border border-line bg-surface shadow-pop outline-none dark:border-slate-800 dark:bg-slate-900', className)}
+                className={cn(
+                    'flex w-full flex-col overflow-hidden border-line bg-surface shadow-pop outline-none dark:border-slate-800 dark:bg-slate-900',
+                    variant === 'side' ? 'h-full max-w-[440px] border-l motion-safe:animate-in motion-safe:slide-in-from-right-8' : 'max-h-[90vh] rounded-[14px] border',
+                    className
+                )}
             >
                 <div className="flex items-start justify-between gap-4 border-b border-line px-6 py-4 dark:border-slate-800">
                     <div>
@@ -81,7 +87,7 @@ export function DialogShell({ open, onClose, title, description, children, class
                         <X className="h-5 w-5" aria-hidden />
                     </button>
                 </div>
-                <div className="overflow-y-auto">{children}</div>
+                <div className="flex-1 overflow-y-auto">{children}</div>
             </div>
         </div>,
         document.body

@@ -2,27 +2,30 @@ import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { X, UserPlus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { AlertCircle } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import { DialogShell } from '@/components/ui/dialog-shell';
 import { MultiSelect } from '@/components/ui/multi-select';
+import { cn } from '@/lib/utils';
 import { useCreateTask, CreateTaskInput } from '../hooks/useTasks';
 import { useProjects } from '@/features/projects/hooks/useProjects';
 import { useUsers } from '@/features/users/hooks/useUsers';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { toast } from 'react-hot-toast';
 import { canViewAllCompanies } from '@/lib/permissions';
 
 const taskSchema = z.object({
-    title: z.string().min(1, 'Title is required'),
+    title: z.string().trim().min(1, 'Enter a title for the task.'),
     description: z.string().optional(),
     project_id: z.string().optional(),
-    assignee_ids: z.array(z.string()).min(1, 'Select at least one assignee'),
+    assignee_ids: z.array(z.string()).min(1, 'Choose at least one person to own this task.'),
     priority: z.enum(['low', 'medium', 'high', 'critical']),
     due_date: z.string().optional(),
 });
 
 type TaskFormData = z.infer<typeof taskSchema>;
+
+const fieldCls = 'h-11 w-full rounded-[8px] border border-line bg-surface px-3 text-sm text-ink outline-none placeholder:text-ink-muted focus:border-progress focus:ring-2 focus:ring-progress/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500';
+const errorCls = 'border-blocked dark:border-red-400';
 
 interface CreateTaskModalProps {
     open: boolean;
@@ -30,209 +33,134 @@ interface CreateTaskModalProps {
     initialProjectId?: string;
 }
 
-export default function CreateTaskModal({
-    open,
-    onClose,
-    initialProjectId,
-}: CreateTaskModalProps) {
+export default function CreateTaskModal({ open, onClose, initialProjectId }: CreateTaskModalProps) {
     const { user } = useAuth();
     const createTask = useCreateTask();
     const canSeeAllCompanies = canViewAllCompanies(user);
-
-    // If Lead, only fetch projects for their company
     const { data: projects } = useProjects(canSeeAllCompanies ? undefined : user?.company_id);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [saveError, setSaveError] = useState<string | null>(null);
 
-    const {
-        register,
-        handleSubmit,
-        control,
-        formState: { errors },
-        reset,
-        watch,
-    } = useForm<TaskFormData>({
+    const { register, handleSubmit, control, formState: { errors, isSubmitting }, reset, watch } = useForm<TaskFormData>({
         resolver: zodResolver(taskSchema),
-        defaultValues: {
-            priority: 'medium',
-            project_id: initialProjectId,
-        },
+        defaultValues: { priority: 'medium', project_id: initialProjectId, assignee_ids: [] },
     });
 
-    const selectedProjectId = watch('project_id');
-    const selectedProject = projects?.find(p => p.id === selectedProjectId);
+    const selectedProject = projects?.find(p => p.id === watch('project_id'));
     const targetCompanyId = selectedProject?.company_id || (canSeeAllCompanies ? undefined : user?.company_id);
     const { data: companyUsers } = useUsers(targetCompanyId);
 
-    const onSubmit = async (data: TaskFormData) => {
-        setIsSubmitting(true);
-        const toastId = toast.loading('Creating task...');
-        try {
-            // Transform form data to match API input
-            const payload: CreateTaskInput = {
-                title: data.title,
-                description: data.description,
-                project_id: data.project_id || undefined,
-                priority: data.priority,
-                due_date: data.due_date || undefined,
-                // A General task has no project to inherit a company from.
-                // Without one it is invisible to its own assignee, so it takes
-                // the primary assignee's company (or the creator's).
-                company_id: data.project_id ? undefined
-                    : companyUsers?.find(u => u.id === data.assignee_ids[0])?.company_id ?? user?.company_id ?? undefined,
-                assignee_ids: data.assignee_ids,
-                assignee_id: data.assignee_ids[0], // Primary assignee is the first selected
-            };
+    const close = () => { setSaveError(null); onClose(); };
 
+    const onSubmit = async (data: TaskFormData) => {
+        setSaveError(null);
+        const payload: CreateTaskInput = {
+            title: data.title,
+            description: data.description,
+            project_id: data.project_id || undefined,
+            priority: data.priority,
+            due_date: data.due_date || undefined,
+            // A general task has no project to inherit a company from. Without one it is
+            // invisible to its own assignee, so it takes the primary assignee's company (or the creator's).
+            company_id: data.project_id ? undefined
+                : companyUsers?.find(u => u.id === data.assignee_ids[0])?.company_id ?? user?.company_id ?? undefined,
+            assignee_ids: data.assignee_ids,
+            assignee_id: data.assignee_ids[0], // The first person chosen is the owner.
+        };
+        try {
             await createTask.mutateAsync(payload);
-            toast.success('Task created successfully!', { id: toastId });
+            toast.success('Task created. It starts in Yet to start.');
             reset();
-            onClose();
-        } catch (error: any) {
-            console.error('Failed to create task:', error);
-            toast.error(error.message || 'Failed to create task', { id: toastId });
-        } finally {
-            setIsSubmitting(false);
+            close();
+        } catch (error) {
+            setSaveError(error instanceof Error ? error.message : 'The task could not be created. Try again.');
         }
     };
 
-    if (!open) return null;
-
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-900 rounded-md shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-slate-800">
-                {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b">
-                    <h2 className="text-xl font-bold text-slate-900 dark:text-slate-50">Create New Task</h2>
-                    <button
-                        onClick={onClose}
-                        className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-md text-slate-500 dark:text-slate-400"
-                    >
-                        <X className="h-5 w-5" />
-                    </button>
-                </div>
+        <DialogShell open={open} onClose={close} title="New task" description="New tasks start in Yet to start. Fields marked * are required." className="max-w-2xl">
+            <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5 p-6">
+                <Field id="nt-title" label="Title" required error={errors.title?.message}>
+                    <input id="nt-title" {...register('title')} placeholder="e.g. Pour first-floor slab, Block A" {...aria('nt-title', errors.title)} className={cn(fieldCls, errors.title && errorCls)} />
+                </Field>
 
-                {/* Form */}
-                <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
-                    {/* Title */}
-                    <div>
-                        <label className="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">
-                            Title <span className="text-error">*</span>
-                        </label>
-                        <Input
-                            {...register('title')}
-                            placeholder="Enter task title"
-                            className={errors.title ? 'border-error' : ''}
-                        />
-                        {errors.title && (
-                            <p className="text-error text-sm mt-1">{errors.title.message}</p>
+                <Field id="nt-desc" label="Description" hint={'Optional. What does "done" look like?'}>
+                    <textarea id="nt-desc" rows={3} {...register('description')} aria-describedby="nt-desc-hint" className={cn(fieldCls, 'h-auto py-2.5')} />
+                </Field>
+
+                <Field id="nt-project" label="Project" hint="Optional. Leave empty for a general task.">
+                    <select id="nt-project" {...register('project_id')} aria-describedby="nt-project-hint" className={fieldCls}>
+                        <option value="">No project (general task)</option>
+                        {projects?.map(p => <option key={p.id} value={p.id}>{p.name} ({p.company?.name})</option>)}
+                    </select>
+                </Field>
+
+                <Field id="nt-people" label="Owner and helpers" required error={errors.assignee_ids?.message} hint="The first person you choose owns the task.">
+                    <Controller
+                        control={control}
+                        name="assignee_ids"
+                        render={({ field }) => (
+                            <MultiSelect
+                                id="nt-people"
+                                options={companyUsers?.map(u => ({ value: u.id, label: u.name })) || []}
+                                selected={field.value}
+                                onChange={field.onChange}
+                                placeholder="Type a name"
+                                aria-describedby={['nt-people-hint', errors.assignee_ids && 'nt-people-error'].filter(Boolean).join(' ')}
+                                aria-invalid={!!errors.assignee_ids}
+                            />
                         )}
-                    </div>
+                    />
+                </Field>
 
-                    {/* Description */}
-                    <div>
-                        <label className="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">
-                            Description
-                        </label>
-                        <textarea
-                            {...register('description')}
-                            placeholder="Enter task description"
-                            rows={3}
-                            className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-                        />
-                    </div>
-
-                    {/* Project */}
-                    <div>
-                        <label className="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">
-                            Project <span className="text-slate-400 dark:text-slate-500 text-xs font-normal ml-1">(Optional)</span>
-                        </label>
-                        <select
-                            {...register('project_id')}
-                            className="w-full h-10 px-3 rounded-md border border-input bg-background"
-                        >
-                            <option value="">No Project (General Task)</option>
-                            {projects?.map((project) => (
-                                <option key={project.id} value={project.id}>
-                                    {project.name} ({project.company?.name})
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {/* Assignee */}
-                    <div>
-                        <div className="flex items-center justify-between mb-2">
-                            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                                Assignees <span className="text-error">*</span>
-                            </label>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 text-xs gap-1.5 text-slate-500 dark:text-slate-400 hover:text-primary"
-                                onClick={() => toast.error('User management is currently limited to the Management page.')}
-                            >
-                                <UserPlus className="h-3.5 w-3.5" />
-                                Add Assignee
-                            </Button>
-                        </div>
-
-                        <Controller
-                            control={control}
-                            name="assignee_ids"
-                            defaultValue={[]} // Ensure default value is array
-                            render={({ field }) => (
-                                <MultiSelect
-                                    options={companyUsers?.map(u => ({ value: u.id, label: u.name })) || []}
-                                    selected={field.value}
-                                    onChange={field.onChange}
-                                    placeholder="Select assignees..."
-                                    className={errors.assignee_ids ? 'border-error' : ''}
-                                />
-                            )}
-                        />
-
-                        {errors.assignee_ids && (
-                            <p className="text-error text-sm mt-1">
-                                {errors.assignee_ids.message}
-                            </p>
-                        )}
-                        {/* Helper text removed as filtering logic handles fallback */}
-                    </div>
-
-
-
-                    {/* Priority */}
-                    <div>
-                        <label className="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">Priority</label>
-                        <select
-                            {...register('priority')}
-                            className="w-full h-10 px-3 rounded-md border border-input bg-background dark:bg-slate-800 text-slate-900 dark:text-slate-50"
-                        >
+                <div className="grid gap-5 sm:grid-cols-2">
+                    <Field id="nt-priority" label="Priority">
+                        <select id="nt-priority" {...register('priority')} className={fieldCls}>
                             <option value="low">Low</option>
                             <option value="medium">Medium</option>
                             <option value="high">High</option>
                             <option value="critical">Critical</option>
                         </select>
-                    </div>
+                    </Field>
+                    <Field id="nt-due" label="Due date">
+                        <input id="nt-due" type="date" {...register('due_date')} className={fieldCls} />
+                    </Field>
+                </div>
 
-                    {/* Due Date */}
-                    <div>
-                        <label className="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-300">Due Date</label>
-                        <Input type="date" {...register('due_date')} />
+                {saveError && (
+                    <div role="alert" className="flex items-start gap-2 rounded-[8px] border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden /> {saveError}
                     </div>
+                )}
 
-                    {/* Actions */}
-                    <div className="flex justify-end space-x-3 pt-4">
-                        <Button type="button" variant="outline" onClick={onClose}>
-                            Cancel
-                        </Button>
-                        <Button type="submit" disabled={isSubmitting}>
-                            {isSubmitting ? 'Creating...' : 'Create Task'}
-                        </Button>
-                    </div>
-                </form>
-            </div>
+                <div className="flex justify-end gap-2 border-t border-line pt-5 dark:border-slate-800">
+                    <button type="button" onClick={close} className="inline-flex h-10 items-center rounded-[8px] border border-line bg-surface px-4 text-sm font-semibold text-ink hover:border-ink/30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
+                        Cancel
+                    </button>
+                    <button type="submit" disabled={isSubmitting} className="inline-flex h-10 items-center rounded-[8px] bg-ink px-4 text-sm font-semibold text-white hover:bg-ink/90 disabled:opacity-60 dark:bg-white dark:text-ink">
+                        {isSubmitting ? 'Creating…' : 'Create task'}
+                    </button>
+                </div>
+            </form>
+        </DialogShell>
+    );
+}
+
+function aria(id: string, error: unknown) {
+    return { 'aria-invalid': error ? true : undefined, 'aria-describedby': error ? `${id}-error` : undefined };
+}
+
+function Field({ id, label, required, hint, error, children }: {
+    id: string; label: string; required?: boolean; hint?: string; error?: string; children: React.ReactNode;
+}) {
+    return (
+        <div className="space-y-1.5">
+            <label htmlFor={id} className="block text-sm font-semibold text-ink dark:text-slate-100">
+                {label}{required && <span className="text-blocked dark:text-red-300" aria-hidden> *</span>}
+                {required && <span className="sr-only"> (required)</span>}
+            </label>
+            {hint && <p id={`${id}-hint`} className="text-[12.5px] text-ink-muted dark:text-slate-400">{hint}</p>}
+            {children}
+            {error && <p id={`${id}-error`} className="text-[12.5px] font-medium text-blocked dark:text-red-300">{error}</p>}
         </div>
     );
 }

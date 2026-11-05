@@ -37,7 +37,7 @@ export function greeting(d: Date) {
     return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 }
 
-function daysLate(iso: string | null) {
+export function daysLate(iso: string | null) {
     return iso ? Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / DAY_MS)) : 0;
 }
 
@@ -56,10 +56,11 @@ export function reason(t: BriefTask, section: BriefSection): string {
         case 'urgent': return t.stage === 'blockers' ? `Urgent and blocked. ${blocked}` : `${stageDef(t.stage).label}, ${t.progress_percent}% done`;
         case 'blocked': return blocked;
         case 'stuck': return `No movement for ${daysSinceMovement(t)} days, ${t.progress_percent}% done`;
+        // Rows no longer carry a stage column, so overdue (the one reason that doesn't say it) adds the stage.
         case 'overdue':
             return t.due_date && new Date(t.due_date).getTime() < Date.now()
-                ? `Deadline was ${formatDate(t.due_date)}, ${daysLate(t.due_date)} days late`
-                : `Promised update ${t.next_update_due ? formatDate(t.next_update_due) : ''} not received`;
+                ? `Deadline was ${formatDate(t.due_date)}, ${daysLate(t.due_date)} days late · ${stageDef(t.stage).label}`
+                : `Promised update ${t.next_update_due ? formatDate(t.next_update_due) : ''} not received · ${stageDef(t.stage).label}`;
         case 'unaccepted': return 'Owner hasn’t accepted this yet';
         case 'moved': return `${stageDef(t.stage).label}, now ${t.progress_percent}% done`;
         case 'done': return t.completed_at ? `Completed ${formatDate(t.completed_at)}` : 'Completed';

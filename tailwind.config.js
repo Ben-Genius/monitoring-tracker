@@ -75,6 +75,13 @@ export default {
         progress: "#1F5FD1",
         blocked: "#B83A24",
         done: "#1F7A4D",
+        // Brief attention split (emphasis palette, checked with the dataviz validator in light and dark).
+        attn: {
+          urgent: "#B83A24", "urgent-dark": "#F08C78",
+          blocked: "#E0866F", "blocked-dark": "#B9513E",
+          stuck: "#475569", "stuck-dark": "#94A3B8",
+          overdue: "#A9B4C2", "overdue-dark": "#475569",
+        },
         macwest: "#8B0000",
         cypress: "#006837",
         northbrook: "#1E3A8A",
@@ -100,6 +107,8 @@ export default {
         sheet: "0 24px 64px -12px rgba(23, 32, 43, 0.35)",
         pop: "0 12px 32px -8px rgba(23, 32, 43, 0.22)",
         lift: "0 6px 18px -6px rgba(23, 32, 43, 0.18)",
+        // Resting elevation for cards: a hairline plus a soft drop, so cards lift off the paper background.
+        card: "0 1px 2px rgba(23, 32, 43, 0.05), 0 8px 24px -12px rgba(23, 32, 43, 0.12)",
       },
       transitionTimingFunction: {
         'apple': 'cubic-bezier(0.25, 0.1, 0.25, 1)',

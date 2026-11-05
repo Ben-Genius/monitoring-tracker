@@ -1,66 +1,84 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, type KeyboardEvent } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
+import { ArrowLeft, Check, ChevronRight, FileText, Link2, Plus, Trash2, Upload } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { useParams, useNavigate } from 'react-router-dom';
+import { cn, formatCurrency, formatCurrencyCompact, formatDate, getCompanyTheme } from '@/lib/utils';
+import { canApprove } from '@/lib/permissions';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useCreateApproval } from '@/features/approvals/hooks/useApprovals';
-import ProjectTimeline from '../components/ProjectTimeline';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-    ArrowLeft,
-    Calendar,
-    Clock,
-    FileText,
-    Plus,
-    MessageSquare,
-    Building2,
-    Users,
-    ChevronRight,
-    Send,
-    DollarSign,
-    Quote,
-    User,
-    Circle,
-    PlayCircle,
-    XCircle,
-    ListTodo,
-    CheckCircle2,
-    Share2,
-    Download,
-    BarChart2,
-    Shield,
-    Trash2,
-    Flag,
-    AlertCircle
-} from 'lucide-react';
-import { useProject } from '../hooks/useProjects';
-import { useProjectProgress } from '../hooks/useProjectProgress';
-import { useMilestones, useCreateMilestone, useUpdateMilestone, useDeleteMilestone } from '../hooks/useMilestones';
-import { useTasks } from '@/features/tasks/hooks/useTasks';
-import LoadingSpinner from '@/components/common/LoadingSpinner';
-import { ProgressBar } from '@/components/ui/progress';
-import { formatCurrency, calculateProfitability, cn, getCompanyTheme } from '@/lib/utils';
-import { useProjectComments, useCreateProjectComment, useProjectAttachments, useCreateProjectAttachment, type ProjectAttachment } from '../hooks/useProjectDetails';
-import { toast } from 'react-hot-toast';
+import { useTasks, type Task } from '@/features/tasks/hooks/useTasks';
 import CreateTaskModal from '@/features/tasks/components/CreateTaskModal';
 import TaskDetailModal from '@/features/tasks/components/TaskDetailModal';
-import { Task } from '@/features/tasks/hooks/useTasks';
 import { AuditFeed } from '@/features/audit/components/AuditFeed';
+import { tx } from '@/features/dashboard/components/tokens';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import LoadingSpinner from '@/components/common/LoadingSpinner';
+import { useProject } from '../hooks/useProjects';
+import { useMilestones, useUpdateMilestone, useDeleteMilestone, type Milestone } from '../hooks/useMilestones';
+import { useProjectComments, useCreateProjectComment, useProjectAttachments, useCreateProjectAttachment, type ProjectAttachment, type ProjectComment } from '../hooks/useProjectDetails';
+import ProjectTimeline from '../components/ProjectTimeline';
+import MilestoneDialog from '../components/MilestoneDialog';
+import { STATUS_LABEL } from '../utils/projectRow';
+
+const STAGE_LABEL: Record<Task['stage'], string> = {
+    talking_stage: 'Talking stage',
+    yet_to_start: 'Yet to start',
+    in_progress: 'In progress',
+    blockers: 'Blocked',
+    completed: 'Done',
+};
+const STAGE_ORDER: Task['stage'][] = ['talking_stage', 'yet_to_start', 'in_progress', 'blockers', 'completed'];
+const PRIORITY_LABEL: Record<Task['priority'], string> = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low' };
+
+/** Local calendar date as YYYY-MM-DD, to compare against date-only columns. */
+const today = () => new Date().toLocaleDateString('en-CA');
+const isOverdue = (due: string | null | undefined, done: boolean) => !!due && !done && due.slice(0, 10) < today();
+const initials = (name: string) => name.split(/\s+/).map(n => n[0]).join('').slice(0, 2).toUpperCase();
+
+const card = 'rounded-[14px] border border-line bg-surface dark:border-slate-800 dark:bg-slate-900';
+const primaryBtn = 'bg-ink text-white hover:bg-ink/90 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white';
+const focusRing = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-progress';
 
 export default function ProjectDetailPage() {
-    const { id } = useParams();
-    const navigate = useNavigate();
+    const { id = '' } = useParams();
     const { user } = useAuth();
-    const { data: project, isLoading } = useProject(id || '');
-    const { data: tasks = [] } = useTasks({ project_id: id });
-    const { data: comments = [] } = useProjectComments(id || '');
-    const { data: attachments = [] } = useProjectAttachments(id || '');
+    const { data: project, isLoading } = useProject(id);
+    const { data: tasks = [], isLoading: tasksLoading } = useTasks({ project_id: id });
+    const { data: comments = [], isLoading: commentsLoading } = useProjectComments(id);
+    const { data: attachments = [] } = useProjectAttachments(id);
+    const { data: milestones = [] } = useMilestones(id);
     const createAttachment = useCreateProjectAttachment();
+    const createApproval = useCreateApproval();
+    const createComment = useCreateProjectComment();
+    const updateMilestone = useUpdateMilestone();
+    const deleteMilestone = useDeleteMilestone();
+
+    const [tab, setTab] = useState('overview');
+    const [commentText, setCommentText] = useState('');
+    const [descExpanded, setDescExpanded] = useState(false);
+    const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+    const [isMilestoneOpen, setIsMilestoneOpen] = useState(false);
+    const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
     const [uploading, setUploading] = useState(false);
     const fileInput = useRef<HTMLInputElement>(null);
+
+    // Every task figure on the page comes from this one list, so the counts always agree.
+    const stats = useMemo(() => {
+        const done = tasks.filter(t => t.stage === 'completed').length;
+        const blocked = tasks.filter(t => t.stage === 'blockers').length;
+        return { total: tasks.length, done, blocked, pct: tasks.length ? Math.round((done / tasks.length) * 100) : 0 };
+    }, [tasks]);
     const team = useMemo(() => [...new Set(tasks.map(t => t.assignee?.name).filter(Boolean) as string[])].sort(), [tasks]);
+    // Blocked first, then overdue, then soonest due: the order someone chasing work needs.
+    const openTasks = useMemo(() => tasks
+        .filter(t => t.stage !== 'completed')
+        .sort((a, b) =>
+            Number(b.stage === 'blockers') - Number(a.stage === 'blockers') ||
+            Number(isOverdue(b.due_date, false)) - Number(isOverdue(a.due_date, false)) ||
+            (a.due_date ?? '9999').localeCompare(b.due_date ?? '9999')), [tasks]);
+    const milestonesDone = milestones.filter(m => m.status === 'completed').length;
 
     const uploadFiles = async (list: FileList | null) => {
         if (!list || !id || !user) return;
@@ -85,850 +103,504 @@ export default function ProjectDetailPage() {
         }
     };
 
-    const createApproval = useCreateApproval();
-    const createComment = useCreateProjectComment();
-
-    const { progress, taskProgress, milestoneProgress, totalTasks, completedTasks, milestoneCount, completedMilestones } = useProjectProgress(id || '');
-    const { data: milestones = [] } = useMilestones(id || '');
-    const createMilestone = useCreateMilestone();
-    const updateMilestone = useUpdateMilestone();
-    const deleteMilestone = useDeleteMilestone();
-
-    const [commentText, setCommentText] = useState('');
-    const [activeTab, setActiveTab] = useState('overview');
-    const [isExpanded, setIsExpanded] = useState(false);
-    const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
-    const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-
-    const theme = useMemo(() => {
-        if (!project?.company?.name) return getCompanyTheme('Global View');
-        return getCompanyTheme(project.company.name);
-    }, [project?.company?.name]);
-
     if (isLoading) {
-        return (
-            <div className="flex items-center justify-center h-screen">
-                <LoadingSpinner size="lg" />
-            </div>
-        );
+        return <div className="flex items-center justify-center py-32"><LoadingSpinner size="lg" /></div>;
     }
 
     if (!project) {
         return (
-            <div className="flex flex-col items-center justify-center h-screen gap-4">
-                <h2 className="text-2xl font-bold">Project not found</h2>
-                <Button onClick={() => navigate('/projects')}>Back to Projects</Button>
+            <div className="flex flex-col items-center justify-center gap-4 py-32 text-center">
+                <h1 className={cn('text-[22px] font-semibold', tx.ink)}>Project not found</h1>
+                <p className={cn('text-[14px]', tx.muted)}>It may have been removed, or you may not have access to it.</p>
+                <Button asChild variant="outline"><Link to="/projects">Back to projects</Link></Button>
             </div>
         );
     }
 
-    const profitability = calculateProfitability(project.contract_value || 0, project.actual_cost || 0);
+    const contract = Number(project.contract_value) || 0;
+    const cost = Number(project.actual_cost) || 0;
+    // A margin with no recorded cost would read as 100%, so it is left empty instead.
+    const margin = contract > 0 && cost > 0 ? ((contract - cost) / contract) * 100 : null;
+    // Approvals can only move an active project to completed (see useUpdateApproval).
+    const canRequestCompletion = project.status === 'active' && canApprove(user);
 
-    const handleRequestTransition = async () => {
-        if (!user || !project) return;
-        const nextStageMap: Record<string, string> = { 'planning': 'active', 'active': 'completed' };
-        const nextStage = nextStageMap[project.status];
-        if (!nextStage) return;
-
+    const requestCompletion = async () => {
+        if (!user) return;
         try {
             await createApproval.mutateAsync({
                 project_id: project.id,
                 type: 'stage_transition',
-                content: `Request to transition project "${project.name}" from ${project.status} to ${nextStage} stage`,
+                content: `Request to mark "${project.name}" as completed and handed over`,
                 entity_type: 'project_completion',
                 entity_id: project.id,
                 requester_id: user.id,
-                comments: `Requesting transition to ${nextStage} stage based on current execution milestones.`
+                comments: `${stats.done} of ${stats.total} tasks done, ${milestonesDone} of ${milestones.length} milestones done.`,
             });
-            toast.success('Transition request submitted for Admin review.');
-        } catch (error: any) {
+            toast.success('Sent for approval. The project moves to Handed over once it is approved.');
+        } catch (error) {
             console.error(error);
-            toast.error('Failed to submit request.');
+            toast.error("Couldn't send the request. Try again.");
         }
     };
 
-    const handleAddComment = async () => {
-        if (!commentText.trim()) return;
+    const copyLink = async () => {
         try {
-            await createComment.mutateAsync({ project_id: project.id, content: commentText });
-            setCommentText('');
-        } catch (error) { console.error(error); }
+            await navigator.clipboard.writeText(window.location.href);
+            toast.success('Link copied');
+        } catch {
+            toast.error("Couldn't copy the link");
+        }
     };
 
+    const addComment = async () => {
+        if (!commentText.trim()) return;
+        try {
+            await createComment.mutateAsync({ project_id: project.id, content: commentText.trim() });
+            setCommentText('');
+        } catch (error) {
+            console.error(error);
+            toast.error("Couldn't post your comment. It's still in the box, so you can try again.");
+        }
+    };
+    const onCommentKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); addComment(); }
+    };
 
+    const companyName = project.company?.name;
+    const description = project.description?.trim();
+    const longDescription = !!description && description.length > 240;
 
     return (
-        <div className="space-y-8 animate-fade-in">
-            {/* Header / Action Bar */}
-            <div className="flex items-center justify-between">
-                <Button variant="ghost" onClick={() => navigate('/projects')} className="group font-bold text-slate-500 hover:text-slate-900">
-                    <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
-                    Back to Portfolio
-                </Button>
-                <div className="flex items-center gap-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="rounded-xl border-slate-200 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
-                        onClick={() => {
-                            navigator.clipboard.writeText(window.location.href);
-                            // Assuming toast is available or use alert fallback
-                            alert("Link copied to clipboard!");
-                        }}
-                    >
-                        <Share2 className="h-4 w-4 mr-2" /> Share
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="rounded-xl border-slate-200 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
-                        onClick={() => alert("Export started. You will receive an email shortly.")}
-                    >
-                        <Download className="h-4 w-4 mr-2" /> Export
+        <div className="space-y-6 animate-fade-in">
+            {/* Header */}
+            <header className="space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                    <Link to="/projects" className={cn('inline-flex items-center gap-1.5 rounded-[6px] text-[14px] font-medium hover:text-ink dark:hover:text-slate-100', tx.muted, focusRing)}>
+                        <ArrowLeft className="h-4 w-4" aria-hidden /> Projects
+                    </Link>
+                    <Button variant="outline" size="sm" onClick={copyLink} className="gap-1.5">
+                        <Link2 className="h-4 w-4" aria-hidden /> Copy link
                     </Button>
                 </div>
-            </div>
 
-            {/* Stacked Hero Section */}
-            <div className="w-full mb-8 flex flex-col gap-8">
-                {/* 1. Identity & Description (Full Width) */}
-                <div className="space-y-6">
-                    {/* Breadcrumbs & Badge */}
-                    <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm text-slate-500 dark:text-slate-400">
-                            <Building2 className="h-5 w-5" />
-                        </div>
-                        <div className="flex items-center gap-2 text-sm font-medium">
-                            <span className="text-slate-500">
-                                {project.company?.name || 'Monitoring Node'}
-                            </span>
-                            <ChevronRight className="h-4 w-4 text-slate-300" />
-                            <Badge variant="outline" className="px-2.5 py-0.5 bg-slate-100 border-slate-200 text-slate-600 rounded-md uppercase tracking-wider text-[10px] font-bold">
-                                {project.status?.replace('_', ' ') || 'Planning'}
-                            </Badge>
-                            {project.service_type && (
-                                <Badge variant="secondary" className="px-2.5 py-0.5 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 rounded-md uppercase tracking-wider text-[10px] font-bold">
-                                    {project.service_type}
-                                </Badge>
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div className="min-w-0 space-y-2">
+                        <p className={cn('flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]', tx.muted)}>
+                            {companyName && (
+                                <span className="inline-flex items-center gap-1.5">
+                                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: getCompanyTheme(companyName).primary }} aria-hidden />
+                                    {companyName}
+                                </span>
                             )}
-                        </div>
-                    </div>
-
-                    {/* Title */}
-                    <h1 className="text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-slate-50 leading-[1.1]">
-                        {project.name}
-                    </h1>
-
-                    {/* Mission Statement (Interactive) */}
-                    <div className="relative bg-slate-50 dark:bg-slate-900 rounded-2xl p-6 border-l-4 transition-all duration-300" style={{ borderColor: theme.primary }}>
-                        <Quote className="absolute top-4 left-4 h-8 w-8 text-slate-200 dark:text-slate-800 -z-0" />
-                        <div className="relative z-10">
-                            <p className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2">Mission Statement</p>
-                            <div className={cn("text-sm text-slate-700 dark:text-slate-300 leading-relaxed font-medium transition-all", isExpanded ? "max-h-full" : "max-h-[120px] overflow-hidden relative")}>
-                                <p>
-                                    {project.description || 'Strategic infrastructure initiative designed to optimize regional operational throughput and enhance system reliability.'}
-                                </p>
-                                {!isExpanded && project.description && project.description.length > 200 && (
-                                    <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-slate-50 dark:from-slate-900 to-transparent" />
+                            <span className={cn('rounded-[6px] border border-line px-2 py-0.5 text-[12px] font-medium dark:border-slate-700', tx.ink)}>
+                                {STATUS_LABEL[project.status] ?? project.status}
+                            </span>
+                            {project.service_type && <span className="capitalize">{project.service_type}</span>}
+                            {project.creator?.name && <span>Created by {project.creator.name}</span>}
+                        </p>
+                        <h1 className={cn('text-[26px] font-semibold leading-tight tracking-tight md:text-[30px]', tx.ink)}>{project.name}</h1>
+                        {description ? (
+                            <div className="max-w-3xl">
+                                <p className={cn('text-[14px] leading-relaxed', tx.muted, !descExpanded && longDescription && 'line-clamp-3')}>{description}</p>
+                                {longDescription && (
+                                    <button type="button" onClick={() => setDescExpanded(v => !v)} aria-expanded={descExpanded} className={cn('mt-1 rounded-[4px] text-[13px] font-medium underline-offset-2 hover:underline', tx.ink, focusRing)}>
+                                        {descExpanded ? 'Show less' : 'Show more'}
+                                    </button>
                                 )}
                             </div>
-                            {project.description && project.description.length > 200 && (
-                                <button
-                                    onClick={() => setIsExpanded(!isExpanded)}
-                                    className="mt-2 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 hover:text-primary transition-colors flex items-center gap-1"
-                                >
-                                    {isExpanded ? 'Read Less' : 'Read More'}
-                                    <ChevronRight className={cn("h-3 w-3 transition-transform", isExpanded ? "-rotate-90" : "rotate-90")} />
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* 2. Metrics & Actions (Full Width Grid) */}
-                <div className="space-y-4">
-                    {/* Actions Toolbar */}
-                    <div className="flex items-center justify-end gap-3 w-full">
-                        {user?.role === 'lead' && (
-                            <>
-                                <Button
-                                    onClick={handleRequestTransition}
-                                    className="h-10 px-6 font-bold shadow-md hover:translate-y-[-2px] transition-all rounded-xl text-white border-0"
-                                    style={{ backgroundColor: theme.primary }}
-                                >
-                                    Update Stage
-                                </Button>
-                            </>
+                        ) : (
+                            <p className={cn('text-[14px]', tx.muted)}>No description yet.</p>
                         )}
                     </div>
 
-                    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                            {/* Valuation */}
-                            <div className="space-y-1">
-                                <div className="flex items-center gap-2 text-slate-400 text-[10px] font-bold uppercase tracking-wider">
-                                    <DollarSign className="h-3.5 w-3.5" />
-                                    <span>Valuation</span>
-                                </div>
-                                <p className="text-2xl font-bold text-slate-900 tracking-tight">
-                                    {formatCurrency(project.contract_value || 0)}
-                                </p>
-                            </div>
-
-                            {/* Timeline */}
-                            <div className="space-y-1">
-                                <div className="flex items-center gap-2 text-slate-400 text-[10px] font-bold uppercase tracking-wider">
-                                    <Calendar className="h-3.5 w-3.5" />
-                                    <span>Timeline</span>
-                                </div>
-                                <p className="text-sm font-bold text-slate-900 h-8 flex items-center">
-                                    {project.start_date && project.expected_handover
-                                        ? `${new Date(project.start_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} – ${new Date(project.expected_handover).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`
-                                        : project.expected_handover
-                                            ? `Due ${new Date(project.expected_handover).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`
-                                            : 'No timeline set'}
-                                </p>
-                            </div>
-
-                            {/* Project Lead */}
-                            <div className="space-y-1">
-                                <div className="flex items-center gap-2 text-slate-400 text-[10px] font-bold uppercase tracking-wider">
-                                    <Users className="h-3.5 w-3.5" />
-                                    <span>Project Lead</span>
-                                </div>
-                                <div className="flex items-center gap-2 h-8">
-                                    <div className="h-6 w-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-                                        {project.creator?.name?.[0] || 'JD'}
-                                    </div>
-                                    <span className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                                        {project.creator?.name || 'John Doe'}
-                                    </span>
-                                </div>
-                            </div>
-
-                            {/* Progress */}
-                            <div className="space-y-1">
-                                <div className="flex items-center gap-2 text-slate-400 text-[10px] font-bold uppercase tracking-wider">
-                                    <BarChart2 className="h-3.5 w-3.5" />
-                                    <span>Completion</span>
-                                </div>
-                                <div className="flex items-center gap-3 h-8">
-                                    <ProgressBar
-                                        value={progress}
-                                        size="md"
-                                        variant={progress >= 80 ? 'success' : progress >= 30 ? 'warning' : 'default'}
-                                        barClassName={progress >= 80 ? 'bg-green-500' : progress >= 30 ? 'bg-amber-500' : ''}
-                                        className="max-w-[120px]"
-                                    />
-                                    <span className="text-sm font-bold text-slate-900 tabular-nums">{progress}%</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    {canRequestCompletion && (
+                        <Button onClick={requestCompletion} disabled={createApproval.isPending} className={cn('shrink-0 gap-1.5', primaryBtn)}>
+                            <Check className="h-4 w-4" aria-hidden />
+                            {createApproval.isPending ? 'Sending…' : 'Request completion'}
+                        </Button>
+                    )}
                 </div>
-            </div>
 
-            {/* Minimal Navigation & Content Tabs */}
-            <Tabs defaultValue="overview" className="w-full space-y-8" onValueChange={setActiveTab}>
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800">
-                    <TabsList className="bg-transparent h-auto p-0 flex gap-1">
+                {/* Key figures: each fact appears once on the page. */}
+                <dl className={cn(card, 'grid grid-cols-2 gap-x-6 gap-y-5 p-5 lg:grid-cols-5')}>
+                    <Figure label="Contract value" value={contract > 0 ? formatCurrency(contract) : 'Not set'} faint={contract === 0} />
+                    <Figure
+                        label="Margin"
+                        value={margin === null ? 'No cost recorded' : `${margin.toFixed(1)}%`}
+                        faint={margin === null}
+                        danger={margin !== null && margin < 0}
+                        sub={margin !== null ? `${formatCurrencyCompact(cost)} cost to date` : undefined}
+                    />
+                    <Figure
+                        label="Dates"
+                        value={project.expected_handover ? `Handover ${formatDate(project.expected_handover)}` : 'No handover date'}
+                        faint={!project.expected_handover}
+                        sub={project.start_date ? `Started ${formatDate(project.start_date)}` : undefined}
+                    />
+                    <div className="min-w-0">
+                        <dt className={cn('text-[12px]', tx.muted)}>Tasks done</dt>
+                        <dd className="mt-0.5">
+                            {tasksLoading ? <span className={cn('text-[14px]', tx.muted)}>Loading…</span> : stats.total === 0 ? (
+                                <span className={cn('text-[14px]', tx.muted)}>No tasks yet</span>
+                            ) : (
+                                <>
+                                    <span className={cn('text-[15px] font-semibold tabular-nums', tx.ink)}>{stats.done} of {stats.total}</span>
+                                    <span className={cn('ml-1.5 text-[13px] tabular-nums', tx.muted)}>{stats.pct}%</span>
+                                    <div className="mt-2 h-1.5 max-w-[160px] overflow-hidden rounded-full bg-line dark:bg-slate-800" role="img" aria-label={`${stats.pct}% of tasks done`}>
+                                        <div className="h-full rounded-full bg-slate-600 dark:bg-slate-300" style={{ width: `${stats.pct}%` }} />
+                                    </div>
+                                </>
+                            )}
+                        </dd>
+                        {stats.blocked > 0 && <dd className="mt-1 text-[12.5px] font-semibold text-blocked dark:text-red-300">{stats.blocked} blocked</dd>}
+                    </div>
+                    <div className="min-w-0">
+                        <dt className={cn('text-[12px]', tx.muted)}>People</dt>
+                        <dd className="mt-1 flex items-center gap-2">
+                            {team.length === 0 ? <span className={cn('text-[14px]', tx.muted)}>No one assigned</span> : (
+                                <>
+                                    <span className="flex -space-x-1.5" aria-hidden>
+                                        {team.slice(0, 4).map(name => (
+                                            <span key={name} title={name} className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-surface bg-paper text-[10.5px] font-semibold text-ink dark:border-slate-900 dark:bg-slate-800 dark:text-slate-200">{initials(name)}</span>
+                                        ))}
+                                        {team.length > 4 && <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-surface bg-ink text-[10.5px] font-semibold text-white dark:border-slate-900">+{team.length - 4}</span>}
+                                    </span>
+                                    <span className={cn('truncate text-[13px]', tx.muted)} title={team.join(', ')}>{team.length} {team.length === 1 ? 'person' : 'people'}</span>
+                                </>
+                            )}
+                        </dd>
+                    </div>
+                </dl>
+            </header>
+
+            <Tabs value={tab} onValueChange={setTab} className="space-y-5">
+                {/* Scrolls sideways on narrow screens instead of clipping tabs off either edge. */}
+                <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
+                    <TabsList label="Project sections" className="flex w-max justify-start gap-1 rounded-[10px] border border-line bg-surface p-1 dark:border-slate-800 dark:bg-slate-900">
                         {[
-                            { id: 'overview', label: 'Overview', icon: BarChart2 },
-                            { id: 'tasks', label: 'Tasks', icon: CheckCircle2 },
-                            { id: 'comments', label: 'Discussion', icon: MessageSquare },
-                            { id: 'activity', label: 'Activity', icon: Clock },
-                            { id: 'attachments', label: 'Vault', icon: FileText }
-                        ].map(tab => (
+                            { id: 'overview', label: 'Overview' },
+                            { id: 'tasks', label: 'Tasks', count: tasks.length },
+                            { id: 'discussion', label: 'Discussion', count: comments.length },
+                            { id: 'activity', label: 'Activity' },
+                            { id: 'files', label: 'Files', count: attachments.length },
+                        ].map(t => (
                             <TabsTrigger
-                                key={tab.id}
-                                value={tab.id}
+                                key={t.id}
+                                value={t.id}
                                 className={cn(
-                                    "px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all duration-200 gap-2 border border-transparent",
-                                    activeTab === tab.id ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-none" : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-50 hover:bg-slate-50 dark:hover:bg-slate-800"
+                                    'rounded-[7px] px-3.5 py-2 text-[13.5px] font-medium gap-1.5 focus-visible:ring-progress',
+                                    tab === t.id ? cn(primaryBtn, 'shadow-none') : cn(tx.muted, 'hover:bg-paper hover:text-ink dark:hover:bg-slate-800 dark:hover:text-slate-100')
                                 )}
-                                style={activeTab === tab.id ? { backgroundColor: theme.primary } : {}}
                             >
-                                <tab.icon className="h-4 w-4" />
-                                {tab.label}
+                                {t.label}
+                                {!!t.count && <span className="tabular-nums opacity-70">{t.count}</span>}
                             </TabsTrigger>
                         ))}
                     </TabsList>
-
-                    <div className="flex items-center gap-4 px-4">
-                        {/* The real people with tasks on this project (this used to be placeholder avatars). */}
-                        <div className="flex -space-x-2" aria-label={`${team.length} people on this project`}>
-                            {team.slice(0, 4).map(name => (
-                                <div key={name} title={name} className="h-8 w-8 rounded-full border-2 border-white dark:border-slate-800 bg-paper flex items-center justify-center font-bold text-[10px] text-ink">
-                                    {name.split(/\s+/).map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-                                </div>
-                            ))}
-                            {team.length > 4 && <div className="h-8 w-8 rounded-full border-2 border-white bg-ink flex items-center justify-center font-bold text-[10px] text-white">+{team.length - 4}</div>}
-                        </div>
-                        <span className="text-[13px] text-ink-muted">{team.length === 0 ? 'No one assigned yet' : `${team.length} ${team.length === 1 ? 'person' : 'people'} on this project`}</span>
-                    </div>
                 </div>
 
-                {/* --- OVERVIEW TAB --- */}
-                <TabsContent value="overview" className="space-y-6 mt-0 outline-none">
-                    <ProjectTimeline
-                        currentStage={project.status}
-                        theme={theme}
-                        onRequestTransition={handleRequestTransition}
-                        taskProgress={taskProgress}
-                        totalTasks={totalTasks}
-                        completedTasks={completedTasks}
-                        milestoneProgress={milestoneProgress}
-                    />
+                {/* --- Overview --- */}
+                <TabsContent value="overview" className="mt-0 space-y-5 outline-none">
+                    <ProjectTimeline status={project.status} />
 
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <Card className="lg:col-span-2 rounded-2xl border-slate-200 dark:border-slate-800 shadow-none overflow-hidden bg-white dark:bg-slate-900">
-                            <CardHeader className="p-6 bg-slate-50/30 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-800 flex flex-row items-center justify-between">
+                    <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
+                        {/* Milestones */}
+                        <section aria-labelledby="ms-heading" className={cn(card, 'p-5 lg:col-span-3')}>
+                            <div className="flex items-center justify-between gap-3">
                                 <div>
-                                    <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50 tracking-tight">Executive Summary</h3>
-                                    <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-0.5">Key Performance Metrics</p>
+                                    <h2 id="ms-heading" className={cn('text-[15px] font-semibold', tx.ink)}>Milestones</h2>
+                                    {milestones.length > 0 && <p className={cn('text-[13px] tabular-nums', tx.muted)}>{milestonesDone} of {milestones.length} done</p>}
                                 </div>
-                                <ActivityBadge status={profitability.status} />
-                            </CardHeader>
-                            <CardContent className="p-8">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                    <MetricItem label="Financial Margin" value={`${profitability.percentage.toFixed(1)}%`} sub="Revenue Efficiency" color={profitability.status === 'healthy' ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"} />
-                                    <MetricItem label="Completion Rate" value={`${project.tasks && project.tasks.length > 0 ? Math.round((project.tasks.filter(t => t.stage === 'completed').length / project.tasks.length) * 100) : 0}%`} sub="Task Execution" color="text-slate-900 dark:text-slate-50" />
-                                    <MetricItem label="Liquidity" value={formatCurrency(Math.max(0, (project.contract_value || 0) - (project.actual_cost || 0)))} sub="Available Budget" color="text-slate-900 dark:text-slate-50" />
-                                </div>
-
-                                <div className="mt-10 pt-8 border-t border-slate-100">
-                                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Strategic Milestones</h4>
-
-                                    {/* Milestone progress summary */}
-                                    <div className="flex items-center gap-4 mb-6 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
-                                        <div className="flex items-center gap-2">
-                                            <Flag className="h-4 w-4 text-slate-400" />
-                                            <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">{milestoneCount} total</span>
-                                        </div>
-                                        <div className="w-px h-4 bg-slate-200 dark:bg-slate-700" />
-                                        <div className="flex items-center gap-2">
-                                            <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                            <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">{completedMilestones} done</span>
-                                        </div>
-                                        <div className="flex-1 max-w-[120px]">
-                                            <ProgressBar value={milestoneProgress} size="sm" variant={milestoneProgress >= 80 ? 'success' : 'warning'} showLabel />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <InfoStrip icon={Calendar} label="Kickoff Date" value={project.start_date ? new Date(project.start_date).toLocaleDateString() : 'Pending'} />
-                                        <InfoStrip icon={Clock} label="Expected Handover" value={project.expected_handover ? new Date(project.expected_handover).toLocaleDateString() : 'Pending'} />
-                                        <InfoStrip icon={Shield} label="Creator" value={project.creator?.name || 'Unassigned'} />
-                                        <InfoStrip icon={Users} label="Task Completion" value={`${completedTasks}/${totalTasks} tasks`} />
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <div className="space-y-6">
-                            <Card className="rounded-2xl border-slate-200 dark:border-slate-800 shadow-none bg-white dark:bg-slate-900">
-                                <CardHeader className="p-6 pb-2">
-                                    <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50 tracking-tight">Project Pulse</h3>
-                                    <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-0.5">Live Activity Feed</p>
-                                </CardHeader>
-                                <CardContent className="px-6 pb-6 pt-2">
-                                    <div className="space-y-5">
-                                        {tasks.slice(0, 5).map((task, i) => (
-                                            <PulseItem key={task.id} task={task} isLast={i === 4} theme={theme} />
-                                        ))}
-                                    </div>
-                                    <Button variant="ghost" className="w-full mt-6 font-bold text-[10px] uppercase tracking-wider text-slate-400 hover:text-slate-900 dark:text-slate-500 dark:hover:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" onClick={() => setActiveTab('tasks')}>
-                                        View All Tasks <ChevronRight className="h-3 w-3 ml-1" />
-                                    </Button>
-                                </CardContent>
-                            </Card>
-                        </div>
-                    </div>
-
-                    {/* --- Milestones Section --- */}
-                    <div className="space-y-4 pt-4">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="h-9 w-9 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center">
-                                    <Flag className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50 tracking-tight">Milestones</h3>
-                                    <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                                        {completedMilestones}/{milestoneCount} completed · {milestoneProgress}%
-                                    </p>
-                                </div>
+                                <Button size="sm" variant="outline" onClick={() => setIsMilestoneOpen(true)} className="gap-1.5">
+                                    <Plus className="h-4 w-4" aria-hidden /> Add milestone
+                                </Button>
                             </div>
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                className="rounded-xl border-slate-200 dark:border-slate-800 text-xs font-bold"
-                                onClick={() => {
-                                    const name = prompt('Milestone name:');
-                                    if (name) {
-                                        const description = prompt('Description (optional):') || undefined;
-                                        const due_date = prompt('Due date (YYYY-MM-DD, optional):') || undefined;
-                                        createMilestone.mutate({ project_id: id!, name, description, due_date }, {
-                                            onSuccess: () => toast.success('Milestone created'),
-                                            onError: () => toast.error('Failed to create milestone'),
-                                        });
-                                    }
-                                }}
-                            >
-                                <Plus className="h-3.5 w-3.5 mr-1.5" /> Add Milestone
-                            </Button>
-                        </div>
 
-                        {milestones.length > 0 ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {milestones.map((milestone) => {
-                                    const isCompleted = milestone.status === 'completed';
-                                    const isOverdue = milestone.status === 'overdue';
-
-                                    return (
-                                        <div
-                                            key={milestone.id}
-                                            className={cn(
-                                                "flex items-start gap-4 p-4 rounded-xl border transition-all group",
-                                                isCompleted
-                                                    ? "bg-green-50/50 dark:bg-green-900/10 border-green-200 dark:border-green-800/50"
-                                                    : isOverdue
-                                                        ? "bg-red-50/50 dark:bg-red-900/10 border-red-200 dark:border-red-800/50"
-                                                        : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
-                                            )}
-                                        >
-                                            <button
-                                                onClick={() => {
-                                                    updateMilestone.mutate({
-                                                        id: milestone.id,
-                                                        status: isCompleted ? 'in_progress' : 'completed',
-                                                        completed_date: isCompleted ? null : new Date().toISOString().split('T')[0],
-                                                    });
-                                                }}
-                                                className={cn(
-                                                    "h-6 w-6 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all",
-                                                    isCompleted
-                                                        ? "bg-green-500 border-green-500 text-white"
-                                                        : "border-slate-300 dark:border-slate-600 hover:border-green-400"
-                                                )}
-                                            >
-                                                {isCompleted && <CheckCircle2 className="h-3.5 w-3.5" />}
-                                            </button>
-
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-start justify-between gap-2">
-                                                    <div>
-                                                        <p className={cn(
-                                                            "text-sm font-semibold leading-tight",
-                                                            isCompleted
-                                                                ? "text-green-700 dark:text-green-400 line-through decoration-green-400"
-                                                                : "text-slate-900 dark:text-slate-50"
-                                                        )}>
-                                                            {milestone.name}
-                                                        </p>
-                                                        {milestone.description && (
-                                                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
-                                                                {milestone.description}
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                    <button
-                                                        onClick={() => {
-                                                            if (confirm('Delete this milestone?')) {
-                                                                deleteMilestone.mutate({ id: milestone.id, project_id: id! });
-                                                            }
-                                                        }}
-                                                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-red-50 text-slate-400 hover:text-red-500"
-                                                    >
-                                                        <Trash2 className="h-3.5 w-3.5" />
-                                                    </button>
-                                                </div>
-
-                                                <div className="flex items-center gap-3 mt-2">
-                                                    {milestone.due_date && (
-                                                        <span className={cn(
-                                                            "text-[10px] font-semibold flex items-center gap-1",
-                                                            isOverdue ? "text-red-500" : "text-slate-400"
-                                                        )}>
-                                                            {isOverdue && <AlertCircle className="h-3 w-3" />}
-                                                            Due {new Date(milestone.due_date).toLocaleDateString()}
-                                                        </span>
-                                                    )}
-                                                    {milestone.completed_date && (
-                                                        <span className="text-[10px] font-semibold text-green-500 flex items-center gap-1">
-                                                            <CheckCircle2 className="h-3 w-3" />
-                                                            Completed {new Date(milestone.completed_date).toLocaleDateString()}
-                                                        </span>
-                                                    )}
-                                                    <Badge
-                                                        variant="outline"
-                                                        className={cn(
-                                                            "text-[9px] px-1.5 py-0 font-bold uppercase tracking-wider",
-                                                            isCompleted
-                                                                ? "border-green-200 text-green-600 bg-green-50"
-                                                                : isOverdue
-                                                                    ? "border-red-200 text-red-600 bg-red-50"
-                                                                    : "border-slate-200 text-slate-500 bg-slate-50"
-                                                        )}
-                                                    >
-                                                        {milestone.status.replace('_', ' ')}
-                                                    </Badge>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <Card className="rounded-xl border-dashed border-2 border-slate-200 dark:border-slate-800 p-8 text-center bg-slate-50/50 dark:bg-slate-900/50">
-                                <div className="flex flex-col items-center gap-3">
-                                    <div className="p-3 rounded-full bg-slate-100 dark:bg-slate-800">
-                                        <Flag className="h-5 w-5 text-slate-400" />
-                                    </div>
-                                    <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">No milestones defined</p>
-                                    <p className="text-xs text-slate-400 dark:text-slate-500 max-w-sm">Track key delivery dates and phase completion targets for this project.</p>
-                                </div>
-                            </Card>
-                        )}
-                    </div>
-                </TabsContent>
-
-                {/* --- TASKS TAB --- */}
-                <TabsContent value="tasks" className="mt-0 outline-none animate-in fade-in duration-300">
-                    <div className="space-y-6">
-                        {/* Header with Stats */}
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                                <div className="flex items-center gap-2">
-                                    <ListTodo className="h-5 w-5 text-slate-400" />
-                                    <h3 className="text-lg font-bold text-slate-900">Project Tasks</h3>
-                                </div>
-                                <Badge variant="secondary" className="bg-slate-100 text-slate-600 font-semibold">
-                                    {tasks.length} total
-                                </Badge>
-                            </div>
-                            <Button
-                                onClick={() => setIsCreateTaskOpen(true)}
-                                size="sm"
-                                className="h-9"
-                                style={{ backgroundColor: theme.primary }}
-                            >
-                                <Plus className="h-4 w-4 mr-2" /> New Task
-                            </Button>
-                        </div>
-
-                        {/* Progress Overview */}
-                        {tasks.length > 0 && (
-                            <Card className="rounded-xl border-slate-200 dark:border-slate-800 shadow-none p-4 bg-gradient-to-br from-slate-50 to-white dark:from-slate-900 dark:to-slate-950">
-                                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                                    {[
-                                        { label: 'Talking Stage', stage: 'talking_stage', icon: MessageSquare, color: 'text-blue-600 bg-blue-50' },
-                                        { label: 'Yet to Start', stage: 'yet_to_start', icon: Circle, color: 'text-slate-500 bg-slate-100' },
-                                        { label: 'In Progress', stage: 'in_progress', icon: PlayCircle, color: 'text-primary bg-primary/10' },
-                                        { label: 'Blockers', stage: 'blockers', icon: XCircle, color: 'text-orange-600 bg-orange-50' },
-                                        { label: 'Completed', stage: 'completed', icon: CheckCircle2, color: 'text-green-600 bg-green-50' },
-                                    ].map(({ label, stage, icon: Icon, color }) => {
-                                        const count = tasks.filter((t: Task) => t.stage === stage).length;
-                                        return (
-                                            <div key={stage} className="flex items-center gap-2">
-                                                <div className={`p-2 rounded-lg ${color}`}>
-                                                    <Icon className="h-4 w-4" />
-                                                </div>
-                                                <div>
-                                                    <p className="text-xs text-slate-500">{label}</p>
-                                                    <p className="text-lg font-bold text-slate-900">{count}</p>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </Card>
-                        )}
-
-                        {/* Task List */}
-                        {tasks && tasks.length > 0 ? (
-                            <div className="space-y-2">
-                                {tasks.map((task: Task) => (
-                                    <div
-                                        key={task.id}
-                                        onClick={() => setSelectedTaskId(task.id)}
-                                        className="group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-sm transition-all cursor-pointer"
-                                    >
-                                        <div className="flex items-start justify-between gap-4">
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-3 mb-2">
-                                                    <h4 className="text-sm font-semibold text-slate-900 group-hover:text-primary transition-colors">
-                                                        {task.title}
-                                                    </h4>
-                                                    <Badge
-                                                        variant="outline"
-                                                        className={`text-xs font-medium ${task.priority === 'critical' ? 'border-red-200 bg-red-50 text-red-700' :
-                                                            task.priority === 'high' ? 'border-orange-200 bg-orange-50 text-orange-700' :
-                                                                task.priority === 'medium' ? 'border-blue-200 bg-blue-50 text-blue-700' :
-                                                                    'border-slate-200 bg-slate-50 text-slate-600'
-                                                            }`}
-                                                    >
-                                                        {task.priority}
-                                                    </Badge>
-                                                </div>
-                                                {task.description && (
-                                                    <p className="text-xs text-slate-500 line-clamp-1 mb-3">{task.description}</p>
-                                                )}
-                                                <div className="flex items-center gap-4 text-xs text-slate-500">
-                                                    <div className="flex items-center gap-1.5">
-                                                        <Clock className="h-3.5 w-3.5" />
-                                                        <span>{task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date'}</span>
-                                                    </div>
-                                                    {task.assignee && (
-                                                        <div className="flex items-center gap-1.5">
-                                                            <User className="h-3.5 w-3.5" />
-                                                            <span>{task.assignee.name}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <Badge
-                                                    className={`text-xs font-medium ${task.stage === 'completed' ? 'bg-green-100 text-green-700' :
-                                                        task.stage === 'in_progress' ? 'bg-blue-100 text-blue-700' :
-                                                            task.stage === 'blockers' ? 'bg-orange-100 text-orange-700' :
-                                                                'bg-slate-100 text-slate-600'
-                                                        }`}
-                                                >
-                                                    {task.stage.replace('_', ' ')}
-                                                </Badge>
-                                                <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors" />
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <Card className="rounded-xl border-dashed border-2 border-slate-200 p-12 text-center bg-slate-50/50">
-                                <div className="flex flex-col items-center gap-3">
-                                    <div className="p-4 rounded-full bg-slate-100">
-                                        <ListTodo className="h-8 w-8 text-slate-400" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-semibold text-slate-900 mb-1">No tasks yet</p>
-                                        <p className="text-xs text-slate-500">Create your first task to start tracking project work</p>
-                                    </div>
-                                    <Button
-                                        onClick={() => setIsCreateTaskOpen(true)}
-                                        size="sm"
-                                        className="mt-2"
-                                        style={{ backgroundColor: theme.primary }}
-                                    >
-                                        <Plus className="h-4 w-4 mr-2" /> Create Task
-                                    </Button>
-                                </div>
-                            </Card>
-                        )}
-                    </div>
-                </TabsContent>
-
-                {/* --- COMMENTS TAB --- */}
-                <TabsContent value="comments" className="mt-0 outline-none animate-in fade-in duration-300">
-                    <Card className="rounded-2xl border-slate-200 shadow-none overflow-hidden bg-white">
-                        <div className="grid grid-cols-1 lg:grid-cols-3">
-                            <div className="lg:col-span-2 p-8 space-y-8 border-r border-slate-100">
-                                <div className="flex items-center justify-between mb-6">
-                                    <h3 className="text-lg font-bold text-slate-900 tracking-tight">Collaboration Feed</h3>
-                                    <Badge variant="secondary" className="bg-slate-50 text-slate-400 rounded-full py-1 px-3 font-bold text-[10px] uppercase tracking-wider">{comments.length} Signals</Badge>
-                                </div>
-
-                                <div className="space-y-8 min-h-[400px]">
-                                    {comments.map((comment) => (
-                                        <CommentItem key={comment.id} comment={comment} />
-                                    ))}
-
-                                    {comments.length === 0 && (
-                                        <div className="h-full flex flex-col items-center justify-center py-20 text-center">
-                                            <div className="h-12 w-12 rounded-full bg-slate-50 flex items-center justify-center mb-4">
-                                                <MessageSquare className="h-6 w-6 text-slate-200" />
-                                            </div>
-                                            <p className="text-sm font-bold text-slate-300 uppercase tracking-wider">Awaiting first contribution</p>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="pt-8 border-t border-slate-100">
-                                    <div className="relative">
-                                        <textarea
-                                            placeholder="Secure message to team leads..."
-                                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-5 text-sm font-medium focus:ring-1 focus:ring-primary/20 min-h-[100px] transition-all resize-none"
-                                            value={commentText}
-                                            onChange={(e) => setCommentText(e.target.value)}
+                            {milestones.length > 0 ? (
+                                <ul className="mt-4 divide-y divide-line dark:divide-slate-800">
+                                    {milestones.map(m => (
+                                        <MilestoneRow
+                                            key={m.id}
+                                            milestone={m}
+                                            onToggle={() => updateMilestone.mutate({
+                                                id: m.id,
+                                                status: m.status === 'completed' ? 'in_progress' : 'completed',
+                                                completed_date: m.status === 'completed' ? null : today(),
+                                            }, { onError: () => toast.error("Couldn't update the milestone") })}
+                                            onDelete={() => {
+                                                if (confirm(`Delete the milestone "${m.name}"? This can't be undone.`)) {
+                                                    deleteMilestone.mutate({ id: m.id, project_id: id, name: m.name }, { onError: () => toast.error("Couldn't delete the milestone") });
+                                                }
+                                            }}
                                         />
-                                        <Button
-                                            onClick={handleAddComment}
-                                            className="absolute bottom-3 right-3 h-10 w-10 rounded-xl shadow-none"
-                                            style={{ backgroundColor: theme.primary }}
-                                        >
-                                            <Send className="h-4 w-4" />
-                                        </Button>
-                                    </div>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <div className="mt-4 rounded-[10px] border border-dashed border-line-strong px-4 py-8 text-center dark:border-slate-700">
+                                    <p className={cn('text-[14px] font-medium', tx.ink)}>No milestones yet</p>
+                                    <p className={cn('mx-auto mt-1 max-w-sm text-[13px]', tx.muted)}>Add the key delivery dates, like grid tie-in or handover, so everyone can see what's next.</p>
                                 </div>
-                            </div>
+                            )}
+                        </section>
 
-                            <div className="p-8 space-y-8 bg-slate-50/10">
-                                <section className="space-y-6">
-                                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Core Objectives</h4>
-                                    <div className="space-y-3">
-                                        {['Strategic alignment with Cypress Energy goals', 'Real-time logistics monitoring', 'Automated anomaly detection'].map((obj, _) => (
-                                            <div key={_} className="flex gap-3">
-                                                <div className="h-5 w-5 rounded-md bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500 shrink-0">
-                                                    {_ + 1}
-                                                </div>
-                                                <p className="text-xs font-medium text-slate-600 leading-relaxed">{obj}</p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </section>
-
-                                <section className="space-y-6">
-                                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Strategic Access</h4>
-                                    <div className="space-y-4">
-                                        {[
-                                            { name: 'Emmanuel S.', role: 'Senior Monitor', active: true },
-                                            { name: 'Sarah J.', role: 'Regional Lead', active: true },
-                                            { name: 'Kofi A.', role: 'Specialist', active: false }
-                                        ].map(u => (
-                                            <div key={u.name} className="flex items-center gap-3">
-                                                <div className="h-9 w-9 rounded-full bg-white border border-slate-100 flex items-center justify-center font-bold text-[10px] text-slate-700">{u.name[0]}</div>
-                                                <div>
-                                                    <p className="text-xs font-bold text-slate-900">{u.name}</p>
-                                                    <p className="text-[9px] font-semibold text-slate-400">{u.role}</p>
-                                                </div>
-                                                {u.active && <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 ml-auto" />}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </section>
-                            </div>
-                        </div>
-                    </Card>
+                        {/* Open tasks */}
+                        <section aria-labelledby="open-heading" className={cn(card, 'p-5 lg:col-span-2')}>
+                            <h2 id="open-heading" className={cn('text-[15px] font-semibold', tx.ink)}>Open tasks</h2>
+                            {tasksLoading ? (
+                                <p className={cn('mt-4 text-[13px]', tx.muted)}>Loading tasks…</p>
+                            ) : openTasks.length === 0 ? (
+                                <p className={cn('mt-4 text-[13px]', tx.muted)}>{stats.total === 0 ? 'No tasks yet.' : 'Every task is done.'}</p>
+                            ) : (
+                                <ul className="mt-3 space-y-1">
+                                    {openTasks.slice(0, 5).map(t => (
+                                        <li key={t.id}>
+                                            <button type="button" onClick={() => setSelectedTaskId(t.id)} className={cn('flex w-full items-center gap-3 rounded-[8px] px-2 py-2 text-left hover:bg-paper dark:hover:bg-slate-800', focusRing)}>
+                                                <span className="min-w-0 flex-1">
+                                                    <span className={cn('block truncate text-[14px] font-medium', tx.ink)}>{t.title}</span>
+                                                    <span className={cn('block text-[12.5px]', tx.muted)}>
+                                                        {[t.assignee?.name, t.due_date && `Due ${formatDate(t.due_date)}`].filter(Boolean).join(' · ') || 'Unassigned'}
+                                                    </span>
+                                                </span>
+                                                <StageTag stage={t.stage} overdue={isOverdue(t.due_date, false)} />
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                            {stats.total > 0 && (
+                                <button type="button" onClick={() => setTab('tasks')} className={cn('mt-3 inline-flex items-center gap-1 rounded-[6px] px-2 py-1 text-[13px] font-medium hover:bg-paper dark:hover:bg-slate-800', tx.ink, focusRing)}>
+                                    View all {stats.total} tasks <ChevronRight className="h-4 w-4" aria-hidden />
+                                </button>
+                            )}
+                        </section>
+                    </div>
                 </TabsContent>
 
-                {/* --- ACTIVITY TAB --- */}
-                <TabsContent value="activity" className="mt-0 outline-none animate-in fade-in duration-300">
-                    <Card className="rounded-2xl border-slate-200 dark:border-slate-800 shadow-none bg-white dark:bg-slate-900">
-                        <CardHeader className="p-6 pb-2">
-                            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50 tracking-tight">Change History</h3>
-                            <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-0.5">Audit Trail for this Project</p>
-                        </CardHeader>
-                        <CardContent className="p-6">
-                            <AuditFeed entityType="project" entityId={id!} />
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                {/* --- ATTACHMENTS TAB --- */}
-                <TabsContent value="attachments" className="mt-0 outline-none animate-in fade-in duration-300">
-                    <div className="space-y-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h3 className="text-xl font-bold text-slate-900 tracking-tight">Project Vault</h3>
-                                <p className="text-slate-500 text-xs font-medium mt-1">Centralized documentation for audit and technical reference</p>
-                            </div>
-                            <Button onClick={() => fileInput.current?.click()} disabled={uploading} className="h-10 px-5 rounded-[8px] font-semibold shadow-none" style={{ backgroundColor: theme.primary }}>
-                                <Plus className="h-4 w-4 mr-2" /> {uploading ? 'Uploading…' : 'Upload files'}
-                            </Button>
-                            <input ref={fileInput} type="file" multiple className="sr-only" onChange={e => uploadFiles(e.target.files)} />
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            {attachments.map((asset) => (
-                                <AttachmentCard key={asset.id} asset={asset} theme={theme} />
-                            ))}
-                            {attachments.length === 0 && (
-                                <p className="col-span-full rounded-[12px] border border-dashed border-line-strong p-8 text-center text-sm text-ink-muted">
-                                    No files yet. Upload contracts, drawings and site reports so everyone works from the same copy.
+                {/* --- Tasks --- */}
+                <TabsContent value="tasks" className="mt-0 space-y-4 outline-none">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h2 className={cn('text-[17px] font-semibold', tx.ink)}>Tasks</h2>
+                            {stats.total > 0 && (
+                                <p className={cn('text-[13px]', tx.muted)}>
+                                    {STAGE_ORDER.map(s => {
+                                        const n = tasks.filter(t => t.stage === s).length;
+                                        return n ? `${n} ${STAGE_LABEL[s].toLowerCase()}` : null;
+                                    }).filter(Boolean).join(' · ')}
                                 </p>
                             )}
                         </div>
+                        <Button onClick={() => setIsCreateTaskOpen(true)} className={cn('gap-1.5', primaryBtn)}>
+                            <Plus className="h-4 w-4" aria-hidden /> New task
+                        </Button>
                     </div>
+
+                    {tasksLoading ? (
+                        <p className={cn('py-8 text-center text-[14px]', tx.muted)}>Loading tasks…</p>
+                    ) : tasks.length > 0 ? (
+                        <ul className={cn(card, 'divide-y divide-line overflow-hidden dark:divide-slate-800')}>
+                            {tasks.map(task => {
+                                const overdue = isOverdue(task.due_date, task.stage === 'completed');
+                                return (
+                                    <li key={task.id}>
+                                        <button type="button" onClick={() => setSelectedTaskId(task.id)} className={cn('flex w-full items-start gap-4 px-4 py-3.5 text-left hover:bg-paper dark:hover:bg-slate-800/60', focusRing, '-outline-offset-2')}>
+                                            <span className="min-w-0 flex-1">
+                                                <span className={cn('block text-[14px] font-semibold', tx.ink, task.stage === 'completed' && 'font-medium')}>{task.title}</span>
+                                                {task.description && <span className={cn('mt-0.5 block truncate text-[13px]', tx.muted)}>{task.description}</span>}
+                                                <span className={cn('mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[12.5px]', tx.muted)}>
+                                                    <span className={cn(overdue && 'font-semibold text-blocked dark:text-red-300')}>
+                                                        {task.due_date ? `${overdue ? 'Overdue · was due' : 'Due'} ${formatDate(task.due_date)}` : 'No due date'}
+                                                    </span>
+                                                    <span>{task.assignee?.name ?? 'Unassigned'}</span>
+                                                    <span className={cn(task.priority === 'critical' && 'font-semibold text-blocked dark:text-red-300')}>{PRIORITY_LABEL[task.priority]} priority</span>
+                                                </span>
+                                            </span>
+                                            <span className="flex items-center gap-2">
+                                                <StageTag stage={task.stage} />
+                                                <ChevronRight className={cn('h-4 w-4', tx.muted)} aria-hidden />
+                                            </span>
+                                        </button>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    ) : (
+                        <div className="rounded-[14px] border border-dashed border-line-strong px-4 py-12 text-center dark:border-slate-700">
+                            <p className={cn('text-[14px] font-medium', tx.ink)}>No tasks yet</p>
+                            <p className={cn('mt-1 text-[13px]', tx.muted)}>Add the first task to start tracking work on this project.</p>
+                            <Button onClick={() => setIsCreateTaskOpen(true)} className={cn('mt-4 gap-1.5', primaryBtn)}>
+                                <Plus className="h-4 w-4" aria-hidden /> New task
+                            </Button>
+                        </div>
+                    )}
+                </TabsContent>
+
+                {/* --- Discussion --- */}
+                <TabsContent value="discussion" className="mt-0 outline-none">
+                    <section aria-labelledby="disc-heading" className={cn(card, 'max-w-3xl p-5 md:p-6')}>
+                        <h2 id="disc-heading" className={cn('text-[17px] font-semibold', tx.ink)}>Discussion</h2>
+
+                        <div className="mt-4 space-y-5">
+                            {commentsLoading ? (
+                                <p className={cn('text-[14px]', tx.muted)}>Loading comments…</p>
+                            ) : comments.length === 0 ? (
+                                <p className={cn('text-[14px]', tx.muted)}>No comments yet. Use this space for decisions and updates the whole project team should see.</p>
+                            ) : comments.map(c => <CommentItem key={c.id} comment={c} />)}
+                        </div>
+
+                        <form onSubmit={e => { e.preventDefault(); addComment(); }} className="mt-6 border-t border-line pt-5 dark:border-slate-800">
+                            <label htmlFor="comment" className={cn('mb-1.5 block text-[13px] font-medium', tx.ink)}>Add a comment</label>
+                            <textarea
+                                id="comment"
+                                rows={3}
+                                value={commentText}
+                                onChange={e => setCommentText(e.target.value)}
+                                onKeyDown={onCommentKey}
+                                aria-describedby="comment-hint"
+                                className="w-full resize-y rounded-[10px] border border-line-strong bg-surface px-3 py-2.5 text-[14px] text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-progress dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                            />
+                            <div className="mt-2 flex items-center justify-between gap-3">
+                                <p id="comment-hint" className={cn('text-[12.5px]', tx.muted)}>Everyone on the project can see this. Ctrl or ⌘ + Enter to post.</p>
+                                <Button type="submit" disabled={!commentText.trim() || createComment.isPending} className={primaryBtn}>
+                                    {createComment.isPending ? 'Posting…' : 'Post comment'}
+                                </Button>
+                            </div>
+                        </form>
+                    </section>
+                </TabsContent>
+
+                {/* --- Activity --- */}
+                <TabsContent value="activity" className="mt-0 outline-none">
+                    <section aria-labelledby="act-heading" className={cn(card, 'p-5 md:p-6')}>
+                        <h2 id="act-heading" className={cn('text-[17px] font-semibold', tx.ink)}>Change history</h2>
+                        <p className={cn('text-[13px]', tx.muted)}>Every change to this project and who made it.</p>
+                        <div className="mt-4"><AuditFeed entityType="project" entityId={id} /></div>
+                    </section>
+                </TabsContent>
+
+                {/* --- Files --- */}
+                <TabsContent value="files" className="mt-0 space-y-4 outline-none">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h2 className={cn('text-[17px] font-semibold', tx.ink)}>Files</h2>
+                            <p className={cn('text-[13px]', tx.muted)}>Contracts, drawings and site reports, up to 25 MB each.</p>
+                        </div>
+                        <Button onClick={() => fileInput.current?.click()} disabled={uploading} variant="outline" className="gap-1.5">
+                            <Upload className="h-4 w-4" aria-hidden /> {uploading ? 'Uploading…' : 'Upload files'}
+                        </Button>
+                        <input ref={fileInput} type="file" multiple className="sr-only" tabIndex={-1} aria-hidden onChange={e => uploadFiles(e.target.files)} />
+                    </div>
+
+                    {attachments.length > 0 ? (
+                        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                            {attachments.map(a => <li key={a.id}><AttachmentCard asset={a} /></li>)}
+                        </ul>
+                    ) : (
+                        <p className={cn('rounded-[14px] border border-dashed border-line-strong p-8 text-center text-[14px] dark:border-slate-700', tx.muted)}>
+                            No files yet. Upload contracts, drawings and site reports so everyone works from the same copy.
+                        </p>
+                    )}
                 </TabsContent>
             </Tabs>
-            <CreateTaskModal
-                open={isCreateTaskOpen}
-                onClose={() => setIsCreateTaskOpen(false)}
-                initialProjectId={id}
-            />
 
-            <TaskDetailModal
-                taskId={selectedTaskId}
-                open={!!selectedTaskId}
-                onClose={() => setSelectedTaskId(null)}
-            />
+            <CreateTaskModal open={isCreateTaskOpen} onClose={() => setIsCreateTaskOpen(false)} initialProjectId={id} />
+            <TaskDetailModal taskId={selectedTaskId} open={!!selectedTaskId} onClose={() => setSelectedTaskId(null)} />
+            <MilestoneDialog projectId={id} open={isMilestoneOpen} onClose={() => setIsMilestoneOpen(false)} />
         </div>
     );
 }
 
 // --- Sub-components ---
 
-function MetricItem({ label, value, sub, color }: { label: string, value: string, sub: string, color: string }) {
+function Figure({ label, value, sub, faint, danger }: { label: string; value: string; sub?: string; faint?: boolean; danger?: boolean }) {
     return (
-        <div className="space-y-1">
-            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">{label}</p>
-            <h4 className={cn("text-3xl font-bold tracking-tight", color)}>{value}</h4>
-            <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">{sub}</p>
+        <div className="min-w-0">
+            <dt className={cn('text-[12px]', tx.muted)}>{label}</dt>
+            {/* Figures wrap rather than truncate, so a value is never shown cut off. */}
+            <dd className={cn(
+                'mt-0.5 break-words tabular-nums',
+                faint ? cn('text-[14px]', tx.muted) : cn('text-[15px] font-semibold', danger ? 'text-blocked dark:text-red-300' : tx.ink)
+            )}>
+                {value}
+            </dd>
+            {sub && <dd className={cn('mt-0.5 break-words text-[12.5px] tabular-nums', tx.muted)}>{sub}</dd>}
         </div>
     );
 }
 
-function InfoStrip({ icon: Icon, label, value }: { icon: any, label: string, value: string }) {
+/** Neutral stage label; only blocked and overdue work gets colour, because it needs action. */
+function StageTag({ stage, overdue }: { stage: Task['stage']; overdue?: boolean }) {
+    const alert = stage === 'blockers' || overdue;
     return (
-        <div className="flex items-center gap-4 p-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-default">
-            <div className="h-9 w-9 rounded-lg bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 shrink-0"><Icon className="h-4 w-4" /></div>
-            <div className="min-w-0">
-                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">{label}</p>
-                <p className="text-sm font-bold text-slate-900 dark:text-slate-50 truncate">{value}</p>
-            </div>
-        </div>
+        <span className={cn(
+            'shrink-0 whitespace-nowrap rounded-[6px] border px-2 py-0.5 text-[12px] font-medium',
+            alert ? 'border-blocked/30 bg-blocked/5 text-blocked dark:border-red-400/40 dark:bg-red-950/40 dark:text-red-300' : cn('border-line dark:border-slate-700', tx.muted)
+        )}>
+            {stage === 'blockers' ? 'Blocked' : overdue ? 'Overdue' : STAGE_LABEL[stage] ?? stage}
+        </span>
     );
 }
 
-function PulseItem({ task, isLast, theme }: { task: any, isLast: boolean, theme: any }) {
+function MilestoneRow({ milestone: m, onToggle, onDelete }: { milestone: Milestone; onToggle: () => void; onDelete: () => void }) {
+    const done = m.status === 'completed';
+    const overdue = m.status === 'overdue' || isOverdue(m.due_date, done || m.status === 'cancelled');
     return (
-        <div className="flex gap-4 relative">
-            {!isLast && <div className="absolute left-[13px] top-[26px] bottom-[-20px] w-px bg-slate-100 dark:bg-slate-800" />}
-            <div className={cn(
-                "h-7 w-7 rounded-full flex items-center justify-center shrink-0 z-10 border border-white dark:border-slate-900",
-                task.stage === 'completed' ? "bg-emerald-500 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500"
-            )}
-                style={task.stage === 'in_progress' ? { backgroundColor: theme.primary, color: '#fff' } : {}}
+        <li className="flex items-start gap-3 py-3">
+            <button
+                type="button"
+                onClick={onToggle}
+                aria-pressed={done}
+                aria-label={done ? `Mark "${m.name}" as not done` : `Mark "${m.name}" as done`}
+                className={cn(
+                    'mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2',
+                    done ? 'border-ink bg-ink text-white dark:border-slate-200 dark:bg-slate-200 dark:text-slate-900' : 'border-line-strong hover:border-ink dark:border-slate-600 dark:hover:border-slate-300',
+                    focusRing
+                )}
             >
-                {task.stage === 'completed' ? <CheckCircle2 className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+                {done && <Check className="h-3.5 w-3.5" aria-hidden />}
+            </button>
+            <div className="min-w-0 flex-1">
+                <p className={cn('text-[14px] font-medium', done ? cn(tx.muted, 'line-through') : tx.ink)}>{m.name}</p>
+                {m.description && <p className={cn('mt-0.5 line-clamp-2 text-[13px]', tx.muted)}>{m.description}</p>}
+                <p className={cn('mt-1 text-[12.5px]', overdue ? 'font-semibold text-blocked dark:text-red-300' : tx.muted)}>
+                    {done
+                        ? `Done${m.completed_date ? ` ${formatDate(m.completed_date)}` : ''}`
+                        : m.due_date
+                            ? `${overdue ? 'Overdue · was due' : 'Due'} ${formatDate(m.due_date)}`
+                            : m.status === 'cancelled' ? 'Cancelled' : 'No due date'}
+                </p>
             </div>
-            <div className="min-w-0">
-                <p className="text-xs font-bold text-slate-900 dark:text-slate-50 truncate leading-tight">{task.title}</p>
-                <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-0.5">{task.stage.replace('_', ' ')}</p>
-            </div>
-        </div>
+            <button
+                type="button"
+                onClick={onDelete}
+                aria-label={`Delete milestone "${m.name}"`}
+                className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] hover:bg-paper hover:text-blocked dark:hover:bg-slate-800 dark:hover:text-red-300', tx.muted, focusRing)}
+            >
+                <Trash2 className="h-4 w-4" aria-hidden />
+            </button>
+        </li>
     );
 }
 
-function CommentItem({ comment }: { comment: any }) {
+function CommentItem({ comment }: { comment: ProjectComment }) {
+    const name = comment.user?.name ?? 'Former user';
     return (
-        <div className="flex gap-4">
-            <div className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-700 dark:text-slate-300 text-xs shrink-0">
-                {comment.user?.name[0]}
+        <article className="flex gap-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-paper text-[11px] font-semibold text-ink dark:bg-slate-800 dark:text-slate-200" aria-hidden>
+                {initials(name)}
+            </span>
+            <div className="min-w-0 flex-1">
+                <p className="flex flex-wrap items-baseline gap-x-2">
+                    <span className={cn('text-[13.5px] font-semibold', tx.ink)}>{name}</span>
+                    <time dateTime={comment.created_at} className={cn('text-[12.5px]', tx.muted)}>{formatDate(comment.created_at)}</time>
+                </p>
+                <p className={cn('mt-1 whitespace-pre-wrap break-words text-[14px] leading-relaxed', tx.ink)}>{comment.content}</p>
             </div>
-            <div className="flex-1 space-y-2">
-                <div className="flex items-center justify-between">
-                    <p className="text-xs font-bold text-slate-900 dark:text-slate-50">{comment.user?.name} <span className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 ml-1 uppercase">Monitor</span></p>
-                    <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">{new Date(comment.created_at).toLocaleDateString()}</p>
-                </div>
-                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
-                    <p className="text-sm font-medium text-slate-600 dark:text-slate-300 leading-relaxed italic">"{comment.content}"</p>
-                </div>
-            </div>
-        </div>
+        </article>
     );
 }
 
-function AttachmentCard({ asset, theme }: { asset: ProjectAttachment; theme: { primary: string } }) {
+function AttachmentCard({ asset }: { asset: ProjectAttachment }) {
     const open = async () => {
         if (!asset.url?.startsWith('storage://')) { window.open(asset.url, '_blank', 'noopener'); return; }
         const [, bucket, ...rest] = asset.url.replace('storage://', '/').split('/');
@@ -938,27 +610,12 @@ function AttachmentCard({ asset, theme }: { asset: ProjectAttachment; theme: { p
     };
     const size = asset.file_size ? `${(asset.file_size / 1024 / 1024).toFixed(1)} MB` : '';
     return (
-        <button onClick={open} className="p-4 text-left bg-surface border border-line rounded-[12px] hover:border-line-strong transition-colors">
-            <div className="h-9 w-9 rounded-[8px] flex items-center justify-center" style={{ backgroundColor: `${theme.primary}14`, color: theme.primary }}>
-                <FileText className="h-5 w-5" />
-            </div>
-            <p className="mt-3 text-sm font-semibold text-ink truncate">{asset.file_name}</p>
-            <p className="mt-1 text-[12px] text-ink-muted">{[size, asset.created_at ? new Date(asset.created_at).toLocaleDateString('en-GB') : ''].filter(Boolean).join(', ')}</p>
+        <button type="button" onClick={open} className={cn(card, 'block w-full p-4 text-left transition-colors hover:border-line-strong dark:hover:border-slate-700', focusRing)}>
+            <span className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-paper text-ink-muted dark:bg-slate-800 dark:text-slate-300">
+                <FileText className="h-5 w-5" aria-hidden />
+            </span>
+            <span className={cn('mt-3 block truncate text-[14px] font-semibold', tx.ink)} title={asset.file_name}>{asset.file_name}</span>
+            <span className={cn('mt-1 block text-[12.5px]', tx.muted)}>{[size, asset.created_at ? formatDate(asset.created_at) : ''].filter(Boolean).join(' · ')}</span>
         </button>
-    );
-}
-
-function ActivityBadge({ status }: { status: 'healthy' | 'at_risk' | 'critical' }) {
-    const configs = {
-        healthy: { border: 'border-emerald-100', text: 'text-emerald-700', label: 'Nominal' },
-        at_risk: { border: 'border-amber-100', text: 'text-amber-700', label: 'At Risk' },
-        critical: { border: 'border-rose-100', text: 'text-rose-700', label: 'Critical' }
-    };
-    const config = configs[status];
-    return (
-        <Badge variant="outline" className={cn("gap-1.5 px-3 py-1 rounded-full font-bold text-[9px] uppercase tracking-wider bg-white", config.border, config.text)}>
-            <div className={cn("h-1 w-1 rounded-full", config.text.replace('text', 'bg'))} />
-            {config.label}
-        </Badge>
     );
 }

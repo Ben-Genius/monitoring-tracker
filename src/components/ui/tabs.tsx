@@ -16,17 +16,21 @@ const useTabs = () => {
     return context
 }
 
-const Tabs = ({ children, defaultValue, className, onValueChange, style }: {
+// Pass `value` to control the selected tab from outside (for links that switch tabs);
+// otherwise the tabs keep their own state, starting at `defaultValue`.
+const Tabs = ({ children, defaultValue = '', value: controlled, className, onValueChange, style }: {
     children: React.ReactNode,
-    defaultValue: string,
+    defaultValue?: string,
+    value?: string,
     className?: string,
     onValueChange?: (value: string) => void,
     style?: React.CSSProperties
 }) => {
-    const [value, setValue] = React.useState(defaultValue)
+    const [internal, setInternal] = React.useState(defaultValue)
+    const value = controlled ?? internal
 
     const handleValueChange = (newValue: string) => {
-        setValue(newValue)
+        if (controlled === undefined) setInternal(newValue)
         onValueChange?.(newValue)
     }
 

@@ -1,155 +1,52 @@
-import { cn, DEFAULT_BRAND_COLOR } from '@/lib/utils';
-import {
-    CheckCircle2,
-    Clock,
-    ArrowRight,
-    Play,
-    Check,
-    ListTodo,
-    Flag
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Check, PauseCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { tx } from '@/features/dashboard/components/tokens';
+import type { Project } from '../hooks/useProjects';
 
-export interface TimelineEvent {
-    id: string;
-    stage: 'planning' | 'active' | 'completed' | 'on_hold' | 'cancelled';
-    label: string;
-    description: string;
-    date?: string;
-    status: 'completed' | 'current' | 'upcoming';
-}
+/** The three phases a project moves through, and which statuses belong to each. */
+const PHASES: { id: string; label: string; statuses: Project['status'][]; note: string }[] = [
+    { id: 'planning', label: 'Planning', statuses: ['bidding', 'scheduled'], note: 'Scope, budget and lead are being agreed before work starts.' },
+    { id: 'delivery', label: 'In delivery', statuses: ['active', 'on_hold'], note: 'Tasks are under way on site.' },
+    { id: 'handover', label: 'Handed over', statuses: ['completed'], note: 'Work is complete and the project has been handed over.' },
+];
 
-interface ProjectTimelineProps {
-    currentStage: string;
-    className?: string;
-    theme?: { primary: string; accent: string };
-    onRequestTransition?: () => void;
-    taskProgress?: number;
-    totalTasks?: number;
-    completedTasks?: number;
-    milestoneProgress?: number;
-}
-
-export default function ProjectTimeline({ currentStage, className, theme: customTheme, onRequestTransition, taskProgress, totalTasks, completedTasks, milestoneProgress }: ProjectTimelineProps) {
-    const defaultTheme = { primary: DEFAULT_BRAND_COLOR, accent: '#EA580C' };
-    const theme = customTheme || defaultTheme;
-
-    const stages = [
-        { id: 'planning', label: 'Planning', icon: Clock, color: 'text-blue-500', bg: 'bg-blue-50' },
-        { id: 'active', label: 'Active Execution', icon: Play, color: theme.primary, bg: `${theme.primary}10` },
-        { id: 'completed', label: 'Handover & Completion', icon: CheckCircle2, color: 'text-success', bg: 'bg-success/10' }
-    ];
-
-    // Determine status for each stage based on currentStage
-    const getStageStatus = (stageId: string) => {
-        const order = ['planning', 'active', 'completed'];
-        const currentIndex = order.indexOf(currentStage);
-        const stageIndex = order.indexOf(stageId);
-
-        if (stageIndex < currentIndex) return 'completed';
-        if (stageIndex === currentIndex) return 'current';
-        return 'upcoming';
-    };
+/**
+ * Where the project sits in its lifecycle. Figures and the stage-change action live
+ * in the page header, so this shows the stage only.
+ */
+export default function ProjectTimeline({ status, className }: { status: Project['status']; className?: string }) {
+    const current = Math.max(0, PHASES.findIndex(p => p.statuses.includes(status)));
+    const onHold = status === 'on_hold';
 
     return (
-        <div className={cn("relative p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800", className)}>
-            <div className="flex items-center justify-between mb-8">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50 tracking-tight">Project Lifecycle Timeline</h3>
-                <Badge variant="outline" className="font-bold border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500">End-to-End Tracking</Badge>
-            </div>
+        <section aria-labelledby="lifecycle-heading" className={cn('rounded-[14px] border border-line bg-surface p-5 dark:border-slate-800 dark:bg-slate-900', className)}>
+            <h2 id="lifecycle-heading" className={cn('text-[15px] font-semibold', tx.ink)}>Stage</h2>
 
-            <div className="relative flex justify-between items-start max-w-4xl mx-auto px-4">
-                {/* Connector Line */}
-                <div className="absolute top-5 left-0 right-0 h-0.5 bg-slate-100 dark:bg-slate-800 -z-0" />
-
-                {stages.map((stage) => {
-                    const status = getStageStatus(stage.id);
-                    const Icon = stage.icon;
-
+            <ol className="mt-4 grid grid-cols-3 gap-2">
+                {PHASES.map((phase, i) => {
+                    const state = i < current ? 'done' : i === current ? 'current' : 'upcoming';
                     return (
-                        <div key={stage.id} className="relative z-10 flex flex-col items-center w-1/3 text-center">
-                            <div className={cn(
-                                "h-10 w-10 rounded-full flex items-center justify-center border-2 transition-colors",
-                                status === 'completed' ? "bg-emerald-500 border-emerald-500 text-white" :
-                                    status === 'current' ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-50 shadow-none" :
-                                        "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-300 dark:text-slate-600"
-                            )}
-                                style={status === 'current' ? { borderColor: theme.primary, color: theme.primary } : {}}
-                            >
-                                {status === 'completed' ? <Check className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
+                        <li key={phase.id} className="min-w-0" aria-current={state === 'current' ? 'step' : undefined}>
+                            {/* One bar per phase: filled for passed phases, half for the current one. */}
+                            <div className="h-1.5 overflow-hidden rounded-full bg-line dark:bg-slate-800">
+                                <div className={cn('h-full rounded-full bg-ink dark:bg-slate-200', state === 'done' ? 'w-full' : state === 'current' ? 'w-1/2' : 'w-0')} />
                             </div>
-
-                            <div className="mt-4">
-                                <span className={cn(
-                                    "text-xs font-bold block",
-                                    status === 'upcoming' ? "text-slate-400 dark:text-slate-600" : "text-slate-900 dark:text-slate-50"
-                                )}>
-                                    {stage.label}
-                                </span>
-                                <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mt-0.5 block">
-                                    {status === 'completed' ? 'Finished' : status === 'current' ? 'In Progress' : 'Planned'}
-                                </span>
-                            </div>
-                        </div>
+                            <p className={cn('mt-2 flex items-center gap-1.5 text-[13px] font-semibold', state === 'upcoming' ? tx.muted : tx.ink)}>
+                                {state === 'done' && <Check className="h-3.5 w-3.5 shrink-0" aria-hidden />}
+                                <span className="truncate">{phase.label}</span>
+                            </p>
+                            <p className={cn('text-[12px]', tx.muted)}>
+                                {state === 'done' ? 'Done' : state === 'current' ? (onHold ? 'On hold' : 'Current') : 'Next'}
+                            </p>
+                        </li>
                     );
                 })}
-            </div>
+            </ol>
 
-            {/* Lifecycle Status Message */}
-            <div className="mt-12 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 flex flex-col md:flex-row items-start md:items-center gap-4">
-                <div className="h-9 w-9 rounded-lg bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 flex items-center justify-center shrink-0">
-                    {currentStage === 'planning' ? <Clock className="h-4 w-4 text-blue-500" /> :
-                        currentStage === 'active' ? <Play className="h-4 w-4" style={{ color: theme.primary }} /> :
-                            <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
-                </div>
-                <div className="flex-1">
-                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">Current Phase Insights</p>
-                    <p className="text-sm text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
-                        {currentStage === 'planning' ? "Focusing on project definition, resource allocation and lead assignment." :
-                            currentStage === 'active' ? "Executing tasks and monitoring daily performance vs budget." :
-                                "Project completed. Final review and handover documents are being finalized."}
-                    </p>
-                </div>
-                <div className="flex items-center gap-4">
-                    {totalTasks !== undefined && (
-                        <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                            <ListTodo className="h-3.5 w-3.5" />
-                            <span>{completedTasks ?? 0}/{totalTasks} tasks</span>
-                            <span className="text-slate-300 dark:text-slate-600">·</span>
-                            <span>{taskProgress ?? 0}%</span>
-                        </div>
-                    )}
-                    {milestoneProgress !== undefined && (
-                        <div className="flex items-center gap-1 text-xs font-semibold text-amber-500">
-                            <Flag className="h-3.5 w-3.5" />
-                            <span>{milestoneProgress}% milestones</span>
-                        </div>
-                    )}
-                </div>
-                {currentStage !== 'completed' && (
-                    <Button
-                        size="sm"
-                        variant="secondary"
-                        className="font-bold h-9 px-5 rounded-lg text-xs shrink-0"
-                        onClick={onRequestTransition}
-                    >
-                        Request Transition
-                        <ArrowRight className="h-3 w-3 ml-2" />
-                    </Button>
-                )}
-            </div>
-        </div>
-    );
-}
-
-function Badge({ children, variant, className }: { children: React.ReactNode, variant?: 'outline' | 'default', className?: string }) {
-    return (
-        <span className={cn(
-            "inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold transition-colors uppercase tracking-wider",
-            variant === 'outline' ? "border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900" : "bg-primary text-white",
-            className
-        )}>
-            {children}
-        </span>
+            <p className={cn('mt-4 flex items-start gap-2 text-[13px]', tx.muted)}>
+                {onHold && <PauseCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />}
+                {onHold ? 'Work is paused. Tasks stay open until the project resumes.' : PHASES[current].note}
+            </p>
+        </section>
     );
 }
