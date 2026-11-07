@@ -154,7 +154,16 @@ export default function UserManagementPage() {
 
             {data && data.invites.length > 0 && <InvitesCard invites={data.invites} />}
 
-            <PersonPanel person={opened} onClose={() => setOpenId(null)} isSelf={opened?.id === user?.id} canInvite onInvite={p => { setOpenId(null); inviteFor(p); }} />
+            <PersonPanel
+                key={opened?.id ?? 'none'}
+                person={opened}
+                onClose={() => setOpenId(null)}
+                isSelf={opened?.id === user?.id}
+                canInvite
+                onInvite={p => { setOpenId(null); inviteFor(p); }}
+                canManageAccess={isAdmin && !!data?.deactivationAvailable}
+                onAccessChanged={() => refetch()}
+            />
             <InviteDialog
                 open={invite.open}
                 initial={invite.initial}

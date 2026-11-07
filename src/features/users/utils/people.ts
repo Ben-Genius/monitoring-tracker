@@ -36,10 +36,11 @@ export const ACCESS: Record<Access, { label: string; hint: string }> = {
     quiet: { label: 'Has a login, quiet', hint: 'Has a login but has not signed in for 14+ days' },
     invited: { label: 'Invite waiting', hint: 'An invite link exists but has not been used' },
     no_login: { label: 'No login yet', hint: 'Added to Pulse360 but cannot sign in until invited' },
+    deactivated: { label: 'Deactivated', hint: 'An admin turned their access off; they cannot sign in' },
     unknown: { label: 'Not checked', hint: 'Sign-in status needs the access check installed' },
 };
 
-export const ACCESS_ORDER: Access[] = ['signed_in', 'quiet', 'invited', 'no_login'];
+export const ACCESS_ORDER: Access[] = ['signed_in', 'quiet', 'invited', 'no_login', 'deactivated'];
 
 export function initials(name: string) {
     return name.split(/\s+/).filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase();

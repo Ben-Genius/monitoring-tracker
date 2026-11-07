@@ -12,6 +12,8 @@ const SHADE: Record<Exclude<Access, 'unknown'>, string> = {
     quiet: 'bg-slate-500 dark:bg-slate-400',
     invited: 'bg-slate-300 dark:bg-slate-600',
     no_login: 'bg-blocked dark:bg-red-400',
+    // Deactivation is a decision, not a problem, so it stays neutral and striped.
+    deactivated: 'bg-[repeating-linear-gradient(45deg,#8A939D_0_3px,transparent_3px_6px)] dark:bg-[repeating-linear-gradient(45deg,#94A3B8_0_3px,transparent_3px_6px)]',
 };
 
 interface Props {
@@ -31,6 +33,8 @@ function byCompany(people: Person[]) {
 /** Who can actually get into Pulse360, as one bar from "signed in" to "cannot sign in". */
 export default function AccessPanel({ people, known, isAdmin, filter, onFilter }: Props) {
     const counts = Object.fromEntries(ACCESS_ORDER.map(a => [a, people.filter(p => p.access === a).length])) as Record<Access, number>;
+    // Deactivated only joins the legend once someone is deactivated.
+    const legend = ACCESS_ORDER.filter(a => a !== 'deactivated' || counts.deactivated > 0);
     const total = people.length || 1;
     const blocked = counts.no_login;
 
@@ -62,7 +66,7 @@ export default function AccessPanel({ people, known, isAdmin, filter, onFilter }
                         ))}
                     </div>
                     <ul className="mt-4 grid grid-cols-2 gap-1.5">
-                        {ACCESS_ORDER.map(a => {
+                        {legend.map(a => {
                             const on = filter === a;
                             return (
                                 <li key={a}>

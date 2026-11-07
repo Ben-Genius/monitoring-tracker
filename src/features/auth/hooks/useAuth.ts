@@ -7,7 +7,12 @@ interface User {
     name: string;
     role: 'admin' | 'executive' | 'pa' | 'lead' | 'employee';
     company_id: string;
+    /** Set when an admin turns off this person's access. */
+    deactivated_at?: string | null;
 }
+
+/** The ban on the login blocks new sign-ins; this ends a session that is still open. */
+const DEACTIVATED_MESSAGE = 'Your access to Pulse360 has been turned off. Ask an admin if you think this is a mistake.';
 
 interface AuthState {
     user: User | null;
@@ -44,6 +49,12 @@ export const useAuthStore = create<AuthState>((set) => ({
                     .select('*')
                     .eq('id', session.user.id)
                     .single();
+
+                if (profile && (profile as User).deactivated_at) {
+                    await supabase.auth.signOut();
+                    set({ user: null, loading: false, initialized: true, missingProfile: false });
+                    return;
+                }
 
                 if (profile) {
                     set({
@@ -98,7 +109,8 @@ export const useAuthStore = create<AuthState>((set) => ({
                 password,
             });
 
-            if (error) throw error;
+            // A deactivated login is banned at the auth server; say so plainly.
+            if (error) throw /banned/i.test(error.message) ? new Error(DEACTIVATED_MESSAGE) : error;
 
             if (data.user) {
                 const { data: profile } = await supabase
@@ -106,6 +118,12 @@ export const useAuthStore = create<AuthState>((set) => ({
                     .select('*')
                     .eq('id', data.user.id)
                     .single();
+
+                if (profile && (profile as User).deactivated_at) {
+                    await supabase.auth.signOut();
+                    set({ user: null, loading: false, missingProfile: false });
+                    throw new Error(DEACTIVATED_MESSAGE);
+                }
 
                 if (profile) {
                     set({ user: profile as User, loading: false, missingProfile: false });

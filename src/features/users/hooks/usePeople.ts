@@ -8,6 +8,7 @@ export type Access =
     | 'quiet'       // has a login but has not used it lately
     | 'invited'     // no login yet, an invite link is waiting
     | 'no_login'    // no login and no invite: they cannot get in
+    | 'deactivated' // an admin turned their access off
     | 'unknown';    // the access check is not installed, so we do not guess
 
 export interface Invite {
@@ -39,6 +40,7 @@ export interface Person {
     activity: { summary: string; created_at: string }[];
     access: Access;
     lastSignIn: string | null;
+    deactivatedAt: string | null;
     invite: Invite | null;
 }
 
@@ -48,6 +50,8 @@ export interface PeopleData {
     companies: { id: string; name: string }[];
     /** False until the people_access() migration is applied. */
     accessKnown: boolean;
+    /** False until the deactivation migration is applied; hides the controls rather than offering a broken one. */
+    deactivationAvailable: boolean;
     unassignedOpen: number;
 }
 
@@ -86,7 +90,10 @@ export function usePeople({ companyId, enabled = true }: Options) {
             const now = Date.now();
 
             // Missing function (migration not applied) or no permission: say "unknown", never guess.
-            const accessRows = accessR.error ? null : (accessR.data as { user_id: string; has_login: boolean; last_sign_in_at: string | null }[]);
+            type AccessRow = { user_id: string; has_login: boolean; last_sign_in_at: string | null; deactivated_at?: string | null };
+            const accessRows = accessR.error ? null : (accessR.data as AccessRow[]);
+            // The newer function also returns deactivated_at; its presence means set_user_access exists too.
+            const deactivationAvailable = !!accessRows?.length && 'deactivated_at' in accessRows[0];
             const access = new Map(accessRows?.map(a => [a.user_id, a]) ?? []);
 
             type InviteRow = Omit<Invite, 'company_name' | 'invited_by_name'> & { invited_by: string | null; company: { name: string } | null };
@@ -132,7 +139,9 @@ export function usePeople({ companyId, enabled = true }: Options) {
                 const invite = inviteByEmail.get(u.email.toLowerCase()) ?? null;
                 let state: Access = 'unknown';
                 if (accessRows) {
-                    if (a?.has_login) {
+                    if (a?.deactivated_at) {
+                        state = 'deactivated';
+                    } else if (a?.has_login) {
                         const recent = a.last_sign_in_at && now - new Date(a.last_sign_in_at).getTime() < RECENT_SIGN_IN_DAYS * DAY;
                         state = recent ? 'signed_in' : 'quiet';
                     } else {
@@ -144,7 +153,7 @@ export function usePeople({ companyId, enabled = true }: Options) {
                     company_name: u.company?.name ?? null, created_at: u.created_at,
                     open: l.open, blocked: l.blocked, overdue: l.overdue, doneLast30: l.done,
                     lastActivity: acts[0]?.created_at ?? null, activity: acts,
-                    access: state, lastSignIn: a?.last_sign_in_at ?? null, invite,
+                    access: state, lastSignIn: a?.last_sign_in_at ?? null, deactivatedAt: a?.deactivated_at ?? null, invite,
                 };
             });
 
@@ -153,6 +162,7 @@ export function usePeople({ companyId, enabled = true }: Options) {
                 invites,
                 companies: (companiesR.data ?? []) as { id: string; name: string }[],
                 accessKnown: !!accessRows,
+                deactivationAvailable,
                 unassignedOpen,
             };
         },
@@ -176,6 +186,21 @@ export async function createInvite(input: { name: string; email: string; role: R
         );
     }
     return data as { id: string; token: string; expires_at: string | null };
+}
+
+/** Turns a person's sign-in off or back on. The database enforces who may do this. */
+export async function setUserAccess(userId: string, active: boolean) {
+    const { error } = await supabase.rpc('set_user_access', { p_user: userId, p_active: active });
+    if (error) {
+        const msg = error.message ?? '';
+        throw new Error(
+            /own account/i.test(msg) ? 'You cannot deactivate your own account.'
+                : /one admin/i.test(msg) ? 'At least one admin must keep access, so this admin cannot be deactivated.'
+                    : /only an admin/i.test(msg) ? 'Only an admin can change who can sign in.'
+                        : /fetch|network|failed to/i.test(msg) ? 'Pulse360 could not reach the server, so nothing changed. Try again.'
+                            : 'Access could not be changed. Try again.'
+        );
+    }
 }
 
 export const inviteLink = (token: string) => `${window.location.origin}/signup?token=${token}`;
