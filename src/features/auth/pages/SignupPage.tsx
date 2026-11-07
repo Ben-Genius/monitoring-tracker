@@ -107,6 +107,11 @@ export default function SignupPage() {
 
             if (profileError) {
                 console.error('Profile creation failed', profileError);
+                // A deactivated person's new login must not stay signed in.
+                if (/deactivated/i.test(profileError.message)) {
+                    await supabase.auth.signOut();
+                    throw new Error('This account has been deactivated, so the invite can no longer be used. Ask an admin to restore access.');
+                }
                 throw new Error(profileError.message);
             }
 
