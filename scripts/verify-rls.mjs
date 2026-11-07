@@ -11,18 +11,7 @@
  *
  *   node scripts/verify-rls.mjs
  */
-import { readFileSync } from 'node:fs';
-
-// Load .env without adding a dependency
-try {
-    for (const line of readFileSync(new URL('../.env', import.meta.url), 'utf8').split('\n')) {
-        const m = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
-        if (m && !process.env[m[1]]) process.env[m[1]] = (m[2] || '').replace(/^["']|["']$/g, '');
-    }
-} catch {
-    // no .env — fall back to real environment
-}
-
+// Use process.env directly without touching .env
 const URL_BASE = process.env.VITE_SUPABASE_URL;
 const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY;
 

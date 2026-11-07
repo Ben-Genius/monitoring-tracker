@@ -183,3 +183,75 @@
   - Charts and trend visualizations
   - Task completion rates over time
   - Team performance metrics
+
+---
+
+## Epic 2: ECAS Accountability Loop & Operational Governance
+
+### US-16: Real-Time Account Deactivation & Session Purge
+**As an** Administrator,  
+**I want** to deactivate an account with immediate effect,  
+**So that** departed or reassigned personnel cannot access confidential company data or submit changes.
+
+- **Acceptance Criteria:**
+  - `set_user_access` RPC updates `deactivated_at` and `deactivated_by`
+  - Sets `auth.users.banned_until` to `2999-12-31`, preventing token refresh or new logins
+  - Purges all active sessions in `auth.sessions`
+  - Prevents an admin from deactivating themselves
+  - Prevents deactivating the last active administrator
+  - Appends an entry into `public.audit_log` with entity_type `'user'`
+
+### US-17: Secure Invite Redemption with Cascading FKs
+**As an** Invited Employee or Lead,  
+**I want** to accept my invitation and repoint my pre-imported profile to my authenticated account,  
+**So that** my historical tasks, assignments, and notifications carry over seamlessly without database constraint errors.
+
+- **Acceptance Criteria:**
+  - `accept_invite` RPC strictly checks that `deactivated_at IS NULL`
+  - Rejects deactivated profiles and signs them out on the frontend
+  - Foreign keys on `tasks.acknowledged_by`, `tasks.blocked_by`, `notifications.actor_id`, `notifications.user_id`, and `brief_items.added_by` use `ON UPDATE CASCADE`
+
+### US-18: Project Stage Transition Approvals Engine
+**As an** Administrator or Project Director,  
+**I want** to review, audit, and approve project stage transitions submitted by team leads,  
+**So that** projects only move forward when deliverables and compliance checks are verified.
+
+- **Acceptance Criteria:**
+  - Centralized Approvals page with 4-tile KPI ribbon (Pending, Approved, Declined, Total)
+  - Interactive multi-status filter tabs with live count badges
+  - Search filter by project, requester, or request type
+  - Decision drawer with mandatory/optional audit justification notes
+  - Approving a stage transition automatically promotes project status (`planning` → `active` → `completed`)
+  - Zero-CLS skeleton loaders during data fetching
+
+### US-19: Task Accountability & Explicit Acknowledgment
+**As a** Project Lead or Assignee,  
+**I want** tasks to require explicit acknowledgment, velocity tracking, and blocker explanations,  
+**So that** bottlenecks are surfaced proactively within 24–48 hours.
+
+- **Acceptance Criteria:**
+  - Assignees explicitly acknowledge tasks (`acknowledged_at`, `acknowledged_by`)
+  - Blocker logging with reason description (`blocked_by`, `blocker_description`)
+  - Next update due date and velocity tracking (`next_update_due`, `last_movement_at`)
+  - Dispatch notifications to leads upon blocker registration
+
+### US-20: Executive Morning Brief (Exception-Based Reporting)
+**As an** Executive or Executive Assistant (PA),  
+**I want** a consolidated daily brief showing only high-priority exceptions across all ventures,  
+**So that** leadership attention is directed strictly where intervention is needed.
+
+- **Acceptance Criteria:**
+  - Morning brief categories strictly ordered by priority: urgent > blocked > stuck > overdue > unaccepted
+  - PA can curate and add daily priority focus items into `public.brief_items`
+  - Scoped venture views and high-contrast accessibility
+
+### US-21: People Directory & Workload Load-Balancing
+**As an** Administrator or Lead,  
+**I want** to view all team members, their assigned workload, and access states in one directory,  
+**So that** I can balance task assignments and issue customized invite links.
+
+- **Acceptance Criteria:**
+  - Directory search and filter by role (`admin`, `lead`, `employee`) and access (`active`, `invited`, `deactivated`)
+  - Sort by Workload (open tasks count, overdue count)
+  - Interactive side panel for user details and access management
+  - Shareable invite generation with scoped company and role permissions
