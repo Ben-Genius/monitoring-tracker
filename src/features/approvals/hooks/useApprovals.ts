@@ -51,7 +51,7 @@ export function useApprovals(companyId?: string) {
     return useQuery({
         queryKey: ['approvals', companyId],
         queryFn: async () => {
-            let query = supabase
+            const query = supabase
                 .from('approvals')
                 .select(`
                     *,
@@ -60,13 +60,11 @@ export function useApprovals(companyId?: string) {
                 `)
                 .order('created_at', { ascending: false });
 
-            if (companyId && companyId !== 'all') {
-                query = query.eq('project.company_id', companyId);
-            }
-
             const { data, error } = await query;
             if (error) throw error;
-            return data as Approval[];
+            // Filter here: .eq('project.company_id') on a non-inner embed never removed rows.
+            const rows = (data ?? []) as (Approval & { project?: { company_id?: string } | null })[];
+            return (companyId && companyId !== 'all' ? rows.filter(a => a.project?.company_id === companyId) : rows) as Approval[];
         },
     });
 }

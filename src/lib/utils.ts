@@ -5,6 +5,16 @@ export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs))
 }
 
+/** Short form for stat tiles: GHS 240.6M. */
+export function formatCurrencyCompact(amount: number): string {
+    return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'GHS',
+        notation: 'compact',
+        maximumFractionDigits: 1,
+    }).format(amount);
+}
+
 export function formatCurrency(amount: number): string {
     return new Intl.NumberFormat('en-US', {
         style: 'currency',
@@ -33,6 +43,9 @@ export function formatRelativeTime(date: string | Date): string {
     return formatDate(date);
 }
 
+// Default brand color: Orange (#F58220) and White
+export const DEFAULT_BRAND_COLOR = '#F58220';
+
 export function getCompanyColor(companyName: string): string {
     const colors: Record<string, string> = {
         'MacWest': '#8B0000',
@@ -41,7 +54,7 @@ export function getCompanyColor(companyName: string): string {
     };
     // Case-insensitive fallback
     const key = Object.keys(colors).find(k => companyName.toLowerCase().includes(k.toLowerCase().split(' ')[0]));
-    return (key ? colors[key] : null) || colors[companyName] || '#64748b';
+    return (key ? colors[key] : null) || colors[companyName] || DEFAULT_BRAND_COLOR;
 }
 
 export function getCompanyTheme(companyName: string) {
@@ -51,7 +64,7 @@ export function getCompanyTheme(companyName: string) {
         'Northbrook LRD': { primary: '#1E3A8A', secondary: '#334155', accent: '#38BDF8' },
     };
     const key = Object.keys(themes).find(k => companyName.toLowerCase().includes(k.toLowerCase().split(' ')[0]));
-    return (key ? themes[key] : null) || themes[companyName] || { primary: '#6366f1', secondary: '#475569', accent: '#818cf8' };
+    return (key ? themes[key] : null) || themes[companyName] || { primary: DEFAULT_BRAND_COLOR, secondary: '#EA580C', accent: '#FED7AA' };
 }
 
 export function getPriorityColor(priority: string): string {

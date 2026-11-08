@@ -5,23 +5,39 @@ interface User {
     id: string;
     email: string;
     name: string;
-    role: 'admin' | 'lead' | 'employee';
+    role: 'admin' | 'executive' | 'pa' | 'lead' | 'employee';
     company_id: string;
+    /** Set when an admin turns off this person's access. */
+    deactivated_at?: string | null;
 }
+
+/** The ban on the login blocks new sign-ins; this ends a session that is still open. */
+const DEACTIVATED_MESSAGE = 'Your access to Pulse360 has been turned off. Ask an admin if you think this is a mistake.';
 
 interface AuthState {
     user: User | null;
     loading: boolean;
     initialized: boolean;
+    /**
+     * Set when Supabase authenticated the person but no matching row exists in
+     * public.users. Without this the app looked signed-out while the session
+     * was alive, so ProtectedRoute bounced to /login, App re-checked the
+     * session, and the loop repeated. Surfacing it lets the UI say what is
+     * actually wrong.
+     */
+    missingProfile: boolean;
     signIn: (email: string, password: string) => Promise<void>;
     signOut: () => Promise<void>;
     checkSession: () => Promise<void>;
+    /** Subscribes to Supabase auth events. Returns an unsubscribe function. */
+    subscribe: () => () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
     user: null,
     loading: true,
     initialized: false,
+    missingProfile: false,
 
     checkSession: async () => {
         try {
@@ -34,15 +50,55 @@ export const useAuthStore = create<AuthState>((set) => ({
                     .eq('id', session.user.id)
                     .single();
 
-                if (profile) {
-                    set({ user: profile as User, loading: false, initialized: true });
+                if (profile && (profile as User).deactivated_at) {
+                    await supabase.auth.signOut();
+                    set({ user: null, loading: false, initialized: true, missingProfile: false });
                     return;
                 }
+
+                if (profile) {
+                    set({
+                        user: profile as User,
+                        loading: false,
+                        initialized: true,
+                        missingProfile: false,
+                    });
+                    return;
+                }
+
+                // Authenticated, but no profile row: a real state, not a
+                // signed-out one. Redirecting to /login here would loop.
+                set({
+                    user: null,
+                    loading: false,
+                    initialized: true,
+                    missingProfile: true,
+                });
+                return;
             }
         } catch (error) {
             console.error('Session check failed:', error);
         }
-        set({ user: null, loading: false, initialized: true });
+        set({ user: null, loading: false, initialized: true, missingProfile: false });
+    },
+
+    subscribe: () => {
+        const { data } = supabase.auth.onAuthStateChange((event, session) => {
+            // Supabase warns against awaiting inside this callback — it runs on
+            // the internal lock and can deadlock. Defer any async work.
+            if (event === 'SIGNED_OUT' || !session) {
+                set({ user: null, loading: false, initialized: true, missingProfile: false });
+                return;
+            }
+
+            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+                setTimeout(() => {
+                    void useAuthStore.getState().checkSession();
+                }, 0);
+            }
+        });
+
+        return () => data.subscription.unsubscribe();
     },
 
     signIn: async (email: string, password: string) => {
@@ -53,7 +109,8 @@ export const useAuthStore = create<AuthState>((set) => ({
                 password,
             });
 
-            if (error) throw error;
+            // A deactivated login is banned at the auth server; say so plainly.
+            if (error) throw /banned/i.test(error.message) ? new Error(DEACTIVATED_MESSAGE) : error;
 
             if (data.user) {
                 const { data: profile } = await supabase
@@ -62,10 +119,22 @@ export const useAuthStore = create<AuthState>((set) => ({
                     .eq('id', data.user.id)
                     .single();
 
+                if (profile && (profile as User).deactivated_at) {
+                    await supabase.auth.signOut();
+                    set({ user: null, loading: false, missingProfile: false });
+                    throw new Error(DEACTIVATED_MESSAGE);
+                }
+
                 if (profile) {
-                    set({ user: profile as User, loading: false });
+                    set({ user: profile as User, loading: false, missingProfile: false });
                 } else {
-                    set({ loading: false }); // User authenticated but no profile
+                    // Signed in with no profile row. Reported explicitly rather
+                    // than leaving the caller on a login screen that appears to
+                    // have silently failed.
+                    set({ loading: false, missingProfile: true });
+                    throw new Error(
+                        'Your account exists but has no profile in this workspace. Ask an admin to invite you.',
+                    );
                 }
             }
         } catch (error) {
@@ -77,7 +146,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     signOut: async () => {
         set({ loading: true });
         await supabase.auth.signOut();
-        set({ user: null, loading: false });
+        set({ user: null, loading: false, missingProfile: false });
     },
 }));
 

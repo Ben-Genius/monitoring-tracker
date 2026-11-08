@@ -1,0 +1,33 @@
+{
+    // Typechecks the Vercel serverless functions in api/.
+    //
+    // Deliberately NOT extending tsconfig.json: that file uses
+    // moduleResolution "bundler" for Vite, which permits extensionless
+    // relative imports. These functions run as real Node ESM (package.json
+    // sets "type": "module"), where a missing .js extension is a runtime
+    // crash — ERR_MODULE_NOT_FOUND — that "bundler" mode cannot see.
+    //
+    // "nodenext" mirrors the deployed runtime, so the check is meaningful.
+    "compilerOptions": {
+        "target": "ES2022",
+        "lib": [
+            "ES2022"
+        ],
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
+        "types": [
+            "node"
+        ],
+        "skipLibCheck": true,
+        "resolveJsonModule": true,
+        "isolatedModules": true,
+        "noEmit": true,
+        "strict": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noFallthroughCasesInSwitch": true
+    },
+    "include": [
+        "api"
+    ]
+}

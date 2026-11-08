@@ -1,84 +1,134 @@
-import { Bell, Search, Building2 } from 'lucide-react';
-import { Input } from '../ui/input';
-import { Badge } from '../ui/badge';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Menu, ChevronDown } from 'lucide-react';
+import { CheckIcon } from '@radix-ui/react-icons';
+import NotificationsBell from '@/features/notifications/components/NotificationsBell';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useCompanies } from '@/features/projects/hooks/useProjects';
 import { useCompanyStore } from '@/hooks/useCompanyStore';
-import { useEffect } from 'react';
-import { getCompanyTheme } from '@/lib/utils';
+import { getCompanyTheme, DEFAULT_BRAND_COLOR, cn } from '@/lib/utils';
+import { canViewAllCompanies } from '@/lib/permissions';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
-export default function Header() {
+interface HeaderProps {
+    onMenuClick: () => void;
+}
+
+export default function Header({ onMenuClick }: HeaderProps) {
     const { user } = useAuth();
-    const { data: companies = [], isLoading } = useCompanies();
+    const navigate = useNavigate();
+    const { data: companies = [] } = useCompanies();
     const { selectedCompanyId, setSelectedCompanyId } = useCompanyStore();
+    const [q, setQ] = useState('');
 
     useEffect(() => {
-        if (user && user.role !== 'admin' && selectedCompanyId !== user.company_id) {
+        if (user && !canViewAllCompanies(user) && selectedCompanyId !== user.company_id) {
             setSelectedCompanyId(user.company_id);
         }
     }, [user, selectedCompanyId, setSelectedCompanyId]);
 
-    const isAdmin = user?.role === 'admin';
-    const currentCompany = selectedCompanyId === 'all'
-        ? { name: 'Global View', id: 'all' }
-        : companies.find(c => c.id === selectedCompanyId) || { name: 'Loading...', id: selectedCompanyId };
+    const canSwitch = canViewAllCompanies(user);
+    const current = selectedCompanyId === 'all' ? null : companies.find(c => c.id === selectedCompanyId);
+    const dot = current ? getCompanyTheme(current.name).primary : DEFAULT_BRAND_COLOR;
 
-    const theme = getCompanyTheme(currentCompany?.name || '');
+    const search = (e: React.FormEvent) => {
+        e.preventDefault();
+        const term = q.trim();
+        navigate(term ? `/tasks?q=${encodeURIComponent(term)}` : '/tasks');
+    };
 
     return (
-        <header className="h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-gray-200/60 dark:border-slate-700/60 flex items-center justify-between px-6 sticky top-0 z-50 transition-colors duration-300">
-            <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2">
-                    <Building2 className="h-5 w-5 text-gray-500 dark:text-slate-400" />
-                    {isAdmin ? (
-                        <select
-                            value={selectedCompanyId}
-                            onChange={(e) => setSelectedCompanyId(e.target.value)}
-                            className="border-none bg-transparent text-lg font-semibold text-gray-900 dark:text-slate-50 focus:outline-none focus:ring-0 cursor-pointer"
+        <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-line bg-surface px-3 dark:border-slate-800 dark:bg-slate-900 sm:px-5">
+            <button type="button" onClick={onMenuClick} className="flex h-10 w-10 items-center justify-center rounded-[8px] text-ink dark:text-slate-100 md:hidden" aria-label="Open navigation menu">
+                <Menu className="h-5 w-5" />
+            </button>
+
+            {canSwitch ? (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <button
+                            type="button"
+                            className="flex items-center gap-2 rounded-lg border border-line bg-surface hover:bg-paper dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800 px-2.5 sm:px-3 py-1.5 text-[14px] font-semibold text-ink shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
                         >
-                            <option value="all">Global View</option>
-                            {companies.map((company) => (
-                                <option key={company.id} value={company.id}>
-                                    {company.name}
-                                </option>
-                            ))}
-                        </select>
-                    ) : (
-                        <span className="text-lg font-semibold text-gray-900 dark:text-slate-50">
-                            {currentCompany?.name || 'Loading...'}
-                        </span>
-                    )}
+                            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: dot }} aria-hidden />
+                            <span className="truncate max-w-[9rem] sm:max-w-[14rem]">
+                                {current ? current.name : 'All companies'}
+                            </span>
+                            <ChevronDown className="-me-1 ms-1 h-4 w-4 shrink-0 text-ink-faint opacity-70" aria-hidden="true" />
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-56 p-1">
+                        <DropdownMenuLabel className="text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
+                            Switch workspace
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                            onClick={() => setSelectedCompanyId('all')}
+                            className={cn(
+                                "flex items-center justify-between cursor-pointer py-2 px-2.5 rounded-md text-[13px] font-medium transition-colors",
+                                selectedCompanyId === 'all' && "bg-accent font-semibold text-accent-foreground"
+                            )}
+                        >
+                            <div className="flex items-center gap-2.5">
+                                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: DEFAULT_BRAND_COLOR }} />
+                                <span>All companies</span>
+                            </div>
+                            {selectedCompanyId === 'all' && (
+                                <CheckIcon className="h-4 w-4 text-ink shrink-0 ml-2" />
+                            )}
+                        </DropdownMenuItem>
+                        {companies.map(c => {
+                            const cColor = getCompanyTheme(c.name).primary;
+                            const isSelected = selectedCompanyId === c.id;
+                            return (
+                                <DropdownMenuItem
+                                    key={c.id}
+                                    onClick={() => setSelectedCompanyId(c.id)}
+                                    className={cn(
+                                        "flex items-center justify-between cursor-pointer py-2 px-2.5 rounded-md text-[13px] font-medium transition-colors",
+                                        isSelected && "bg-accent font-semibold text-accent-foreground"
+                                    )}
+                                >
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: cColor }} />
+                                        <span className="truncate">{c.name}</span>
+                                    </div>
+                                    {isSelected && (
+                                        <CheckIcon className="h-4 w-4 text-ink shrink-0 ml-2" />
+                                    )}
+                                </DropdownMenuItem>
+                            );
+                        })}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            ) : (
+                <div className="flex items-center gap-2 pl-1 pr-1">
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: dot }} aria-hidden />
+                    <span className="truncate text-[14px] font-semibold text-ink dark:text-slate-100">{current?.name ?? ''}</span>
                 </div>
-                {!isLoading && (
-                    <Badge
-                        variant="outline"
-                        style={selectedCompanyId !== 'all' ? {
-                            color: theme.primary,
-                            backgroundColor: `${theme.primary}10`,
-                            borderColor: `${theme.primary}20`,
-                            fontWeight: 'bold'
-                        } : {}}
-                    >
-                        {currentCompany?.name}
-                    </Badge>
-                )}
-            </div>
+            )}
 
-            <div className="flex items-center space-x-4">
-                <div className="relative w-64">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                        type="search"
-                        placeholder="Search tasks, projects..."
-                        className="pl-10 bg-gray-50/50 dark:bg-slate-800/50 border-gray-200/60 dark:border-slate-700/60"
-                    />
-                </div>
+            <div className="flex-1" />
 
-                <button className="relative icon-btn">
-                    <Bell className="h-5 w-5 text-gray-600 dark:text-slate-400" />
-                    <span className="absolute top-1 right-1 h-2 w-2 bg-error rounded-full"></span>
-                </button>
-            </div>
+            <form onSubmit={search} role="search" className="relative hidden lg:block w-72">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" />
+                <input
+                    type="search"
+                    value={q}
+                    onChange={e => setQ(e.target.value)}
+                    placeholder="Search tasks and people"
+                    aria-label="Search tasks"
+                    className="h-9 w-full rounded-[8px] border border-line bg-paper pl-9 pr-3 text-sm text-ink outline-none placeholder:text-ink-muted focus:border-progress focus:bg-surface dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-400 dark:focus:bg-slate-900"
+                />
+            </form>
+            <NotificationsBell />
         </header>
     );
 }

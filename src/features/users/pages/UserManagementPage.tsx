@@ -1,529 +1,285 @@
-import { useState, useEffect, useMemo } from 'react';
-import { supabase } from '@/lib/supabase';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Users, UserPlus, Copy, Check, Search, Briefcase, Mail, Shield, Activity } from 'lucide-react';
-import { Skeleton } from '@/components/common/Skeleton';
-import { useAuth } from '@/features/auth/hooks/useAuth';
+import { useMemo, useState } from 'react';
+import { Check, ChevronDown, Copy, Mail, MessageSquareText, Search, UserPlus, Users } from 'lucide-react';
 import { cn, getCompanyTheme } from '@/lib/utils';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useCompanyStore } from '@/hooks/useCompanyStore';
-import { useCompanies } from '@/features/projects/hooks/useProjects';
+import { canAdminister, canViewAllCompanies, type Role } from '@/lib/permissions';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardHeader } from '@/features/dashboard/components/primitives';
+import { tx } from '@/features/dashboard/components/tokens';
+import { usePeople, inviteLink, type Access, type Invite, type Person } from '../hooks/usePeople';
+import { ACCESS, ROLES, ROLE_ORDER, ago, expiry, initials, inviteMessage } from '../utils/people';
+import AccessPanel from '../components/AccessPanel';
+import WorkloadPanel from '../components/WorkloadPanel';
+import PersonPanel from '../components/PersonPanel';
+import InviteDialog, { type InviteDraft } from '../components/InviteDialog';
 
-interface User {
-    id: string;
-    email: string;
-    name: string;
-    role: string;
-    company_id: string;
-    is_active: boolean;
-    company?: {
-        id: string;
-        name: string;
-    };
-}
+type Sort = 'name' | 'load' | 'recent';
+const PAGE = 25;
 
-interface Company {
-    id: string;
-    name: string;
-}
-
-interface PendingInvite {
-    id: string;
-    email: string;
-    role: string;
-    token: string;
-    created_at: string;
-    company?: {
-        name: string;
-    };
-}
+const control = 'h-10 rounded-[8px] border border-line bg-surface text-sm text-ink outline-none focus:border-progress dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100';
 
 export default function UserManagementPage() {
-    const { user: currentUser } = useAuth();
+    const { user } = useAuth();
     const { selectedCompanyId } = useCompanyStore();
-    const { data: companiesFromStore = [] } = useCompanies();
-    const isAdmin = currentUser?.role === 'admin';
+    const isAdmin = canAdminister(user);
+    const seesAll = canViewAllCompanies(user);
+    // Leads see only their own company; everyone else follows the header's company switch.
+    const scopeId = seesAll ? (selectedCompanyId === 'all' ? null : selectedCompanyId) : user?.company_id ?? null;
+    const { data, isLoading, error, refetch } = usePeople({ companyId: scopeId, enabled: !!user });
 
-    const [users, setUsers] = useState<User[]>([]);
-    const [companies, setCompanies] = useState<Company[]>([]);
-    const [invites, setInvites] = useState<PendingInvite[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [q, setQ] = useState('');
+    const [roleF, setRoleF] = useState<Role | 'all'>('all');
+    const [accessF, setAccessF] = useState<Access | null>(null);
+    const [sort, setSort] = useState<Sort>('name');
+    const [limit, setLimit] = useState(PAGE);
+    const [openId, setOpenId] = useState<string | null>(null);
+    const [invite, setInvite] = useState<{ open: boolean; initial?: Partial<InviteDraft> }>({ open: false });
 
-    // Filtering
-    const [searchTerm, setSearchTerm] = useState('');
-    const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string>('all');
+    const people = useMemo(() => data?.people ?? [], [data]);
+    const allowedRoles: Role[] = isAdmin ? ROLE_ORDER : ['lead', 'employee'];
+    const scopeName = scopeId ? data?.companies.find(c => c.id === scopeId)?.name ?? 'your company' : 'all companies';
 
-    // Form State
-    const [formData, setFormData] = useState({
-        email: '',
-        name: '',
-        role: 'lead',
-        company_id: '',
-    });
+    const shown = useMemo(() => {
+        const term = q.trim().toLowerCase();
+        const list = people.filter(p =>
+            (roleF === 'all' || p.role === roleF) &&
+            (!accessF || p.access === accessF) &&
+            (!term || p.name.toLowerCase().includes(term) || p.email.toLowerCase().includes(term) || (p.company_name ?? '').toLowerCase().includes(term)));
+        const by: Record<Sort, (a: Person, b: Person) => number> = {
+            name: (a, b) => a.name.localeCompare(b.name),
+            load: (a, b) => b.open - a.open || b.overdue - a.overdue || a.name.localeCompare(b.name),
+            recent: (a, b) => (b.lastActivity ?? '').localeCompare(a.lastActivity ?? '') || a.name.localeCompare(b.name),
+        };
+        return list.sort(by[sort]);
+    }, [people, q, roleF, accessF, sort]);
 
-    const [inviteLink, setInviteLink] = useState<string | null>(null);
-    const [copied, setCopied] = useState(false);
+    const filtering = !!q.trim() || roleF !== 'all' || !!accessF;
+    const resetFilters = () => { setQ(''); setRoleF('all'); setAccessF(null); setLimit(PAGE); };
+    const roleCounts = useMemo(() => Object.fromEntries(ROLE_ORDER.map(r => [r, people.filter(p => p.role === r).length])), [people]);
+    const opened = people.find(p => p.id === openId) ?? null;
 
-    const currentCompanyName = useMemo(() => {
-        if (selectedCompanyId === 'all') return 'Global View';
-        return companiesFromStore.find(c => c.id === selectedCompanyId)?.name || '';
-    }, [selectedCompanyId, companiesFromStore]);
-
-    const theme = getCompanyTheme(currentCompanyName);
-
-    useEffect(() => {
-        fetchData();
-    }, []);
-
-    async function fetchData() {
-        setLoading(true);
-        let usersQuery = supabase.from('users').select('*, company:companies(id, name)').order('created_at', { ascending: false });
-        let invitesQuery = supabase.from('pending_invites').select('*, company:companies(name)').eq('used', false);
-
-        // Filter by company if lead
-        if (!isAdmin && currentUser?.company_id) {
-            usersQuery = usersQuery.eq('company_id', currentUser.company_id);
-            invitesQuery = invitesQuery.eq('company_id', currentUser.company_id);
-        }
-
-        const { data: usersData } = await usersQuery;
-        const { data: companiesData } = await supabase.from('companies').select('*');
-        const { data: invitesData } = await invitesQuery;
-
-        if (usersData) setUsers(usersData);
-        if (companiesData) setCompanies(companiesData);
-        if (invitesData) setInvites(invitesData);
-        setLoading(false);
-    }
-
-    async function handleInvite() {
-        if (!formData.email || !formData.company_id || !formData.name) return;
-
-        try {
-            const { data, error } = await supabase
-                .from('pending_invites')
-                .insert({
-                    email: formData.email,
-                    name: formData.name,
-                    role: formData.role,
-                    company_id: formData.company_id,
-                })
-                .select()
-                .single();
-
-            if (error) throw error;
-
-            if (data) {
-                const link = `${window.location.origin}/signup?token=${data.token}`;
-                setInviteLink(link);
-                fetchData();
-            }
-        } catch (error) {
-            console.error('Error creating invite:', error);
-            alert('Failed to create invite');
-        }
-    }
-
-    async function toggleUserStatus(userId: string, currentStatus: boolean) {
-        if (!confirm(`Are you sure you want to ${currentStatus ? 'deactivate' : 'activate'} this user?`)) return;
-
-        try {
-            const { error } = await supabase
-                .from('users')
-                .update({ is_active: !currentStatus })
-                .eq('id', userId);
-
-            if (error) throw error;
-
-            // Optimistic update
-            setUsers(users.map(u => u.id === userId ? { ...u, is_active: !currentStatus } : u));
-        } catch (error) {
-            console.error('Error updating user status:', error);
-            alert('Failed to update status');
-        }
-    }
-
-    const filteredUsers = users.filter(user => {
-        const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            user.email.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesCompany = selectedCompanyFilter === 'all' || user.company_id === selectedCompanyFilter;
-        return matchesSearch && matchesCompany;
+    const inviteFor = (p?: Person) => setInvite({
+        open: true,
+        initial: p ? { name: p.name, email: p.email, role: p.role, company_id: p.company_id ?? '' } : { company_id: scopeId ?? '' },
     });
 
     return (
-        <div className="space-y-6 animate-fade-in">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="mx-auto w-full max-w-[1440px] space-y-5 pb-16">
+            {/* Title, scope and the one primary action */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <h1 className="text-3xl font-black text-slate-900 tracking-tight">Identity & Access</h1>
-                    <p className="text-slate-500 mt-1 font-medium italic">Manage team members and roles for {currentCompanyName}</p>
+                    <h1 className={cn('text-[26px] font-bold tracking-tight', tx.ink)}>People</h1>
+                    <p className={cn('mt-0.5 text-sm', tx.muted)}>
+                        {isLoading ? 'Loading people…' : `${people.length} ${people.length === 1 ? 'person' : 'people'} across ${scopeName}: who can get in, who is carrying the work, and what each role allows.`}
+                    </p>
                 </div>
-                <Button
-                    className="font-black uppercase text-[10px] tracking-widest px-6 h-11 hover:scale-105 transition-transform"
-                    style={{ backgroundColor: theme.primary }}
-                    onClick={() => {
-                        // Pre-select company if lead
-                        if (!isAdmin && currentUser?.company_id) {
-                            setFormData(prev => ({ ...prev, company_id: currentUser.company_id }));
-                        }
-                        setIsDialogOpen(true);
-                    }}
-                >
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Invite Member
-                </Button>
+                <button type="button" onClick={() => inviteFor()} className="inline-flex h-10 shrink-0 items-center gap-2 self-start rounded-[8px] bg-ink px-3.5 text-sm font-semibold text-white hover:bg-ink/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-progress dark:bg-white dark:text-ink dark:hover:bg-white/90 sm:self-auto">
+                    <UserPlus className="h-4 w-4" aria-hidden /> Invite someone
+                </button>
             </div>
 
-            {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-4">
-                <div className="relative flex-1 group">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" style={{ color: searchTerm ? theme.primary : undefined }} />
-                    <Input
-                        placeholder="Search operators..."
-                        className="pl-10 h-12 bg-white border-slate-200 focus-visible:ring-primary/20"
-                        style={{ '--tw-ring-color': theme.primary } as any}
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-                {isAdmin && (
-                    <div className="relative w-full sm:w-[240px] group">
-                        <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
-                        <select
-                            className="w-full h-12 pl-10 pr-4 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all appearance-none"
-                            style={{ '--tw-ring-color': theme.primary } as any}
-                            value={selectedCompanyFilter}
-                            onChange={(e) => setSelectedCompanyFilter(e.target.value)}
-                        >
-                            <option value="all">All Organizations</option>
-                            {companies.map(c => (
-                                <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                        </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            {/* Invite Modal */}
-            {isDialogOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 animate-in fade-in zoom-in-95 duration-300">
-                        <div className="flex justify-between items-center mb-8">
-                            <div>
-                                <h2 className="text-2xl font-black text-slate-900 tracking-tight">Provision Member</h2>
-                                <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">New System Access Request</p>
-                            </div>
-                            <button onClick={() => { setIsDialogOpen(false); setInviteLink(null); }} className="h-10 w-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
-                                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
-
-                        {!inviteLink ? (
-                            <div className="space-y-6">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Legal Name</label>
-                                    <Input
-                                        className="h-12 rounded-xl focus-visible:ring-primary/20"
-                                        style={{ '--tw-ring-color': theme.primary } as any}
-                                        value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        placeholder="Full legal name"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Work Email</label>
-                                    <Input
-                                        type="email"
-                                        className="h-12 rounded-xl focus-visible:ring-primary/20"
-                                        style={{ '--tw-ring-color': theme.primary } as any}
-                                        value={formData.email}
-                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                        placeholder="institutional@domain.com"
-                                    />
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Clearance Level</label>
-                                        <select
-                                            className="w-full h-12 px-4 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none"
-                                            style={{ '--tw-ring-color': theme.primary } as any}
-                                            value={formData.role}
-                                            onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                                        >
-                                            <option value="lead">Project Lead</option>
-                                            <option value="employee">Specialist</option>
-                                            <option value="employee">Finance</option>
-                                            <option value="employee">IT</option>
-                                            <option value="employee">HR</option>
-                                            <option value="employee">Legal</option>
-                                            <option value="employee">Project Manager</option>
-                                            <option value="employee">Administrator</option>
-
-
-                                            {isAdmin && <option value="admin">Administrator</option>}
-                                        </select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Organization</label>
-                                        <select
-                                            className="w-full h-12 px-4 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none"
-                                            style={{ '--tw-ring-color': theme.primary } as any}
-                                            value={formData.company_id}
-                                            onChange={(e) => setFormData({ ...formData, company_id: e.target.value })}
-                                        >
-                                            <option value="">Select Division</option>
-                                            {companies.map(c => (
-                                                <option key={c.id} value={c.id}>{c.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-                                <div className="flex flex-col gap-3 pt-4">
-                                    <Button
-                                        className="h-12 rounded-xl font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/25"
-                                        style={{ backgroundColor: theme.primary }}
-                                        onClick={handleInvite}
-                                    >
-                                        Generate Access Link
-                                    </Button>
-                                    <Button variant="ghost" className="h-12 rounded-xl font-bold text-slate-400" onClick={() => setIsDialogOpen(false)}>Discard</Button>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="space-y-6">
-                                <div className="p-8 bg-green-50 rounded-3xl border border-green-100/50 text-center animate-in zoom-in-95 duration-500">
-                                    <div className="mx-auto w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-4 transition-transform hover:rotate-6">
-                                        <Shield className="h-8 w-8 text-green-500" />
-                                    </div>
-                                    <p className="text-lg font-black text-slate-900 tracking-tight mb-1">Provisioning Successful</p>
-                                    <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-6 leading-relaxed">System access token has been generated.</p>
-
-                                    <div className="flex items-center space-x-2 bg-white p-2 rounded-2xl border border-slate-100 shadow-inner group">
-                                        <Input value={inviteLink} readOnly className="font-mono text-[10px] flex-1 border-0 shadow-none focus-visible:ring-0 bg-transparent text-slate-500" />
-                                        <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="h-10 w-10 text-primary hover:bg-primary/5 rounded-xl transition-all"
-                                            style={{ color: theme.primary }}
-                                            onClick={() => {
-                                                navigator.clipboard.writeText(inviteLink);
-                                                setCopied(true);
-                                                setTimeout(() => setCopied(false), 2000);
-                                            }}
-                                        >
-                                            {copied ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
-                                        </Button>
-                                    </div>
-                                </div>
-                                <Button
-                                    className="w-full h-12 rounded-xl font-black uppercase text-xs tracking-widest bg-slate-900 shadow-xl shadow-slate-900/20"
-                                    onClick={() => {
-                                        setIsDialogOpen(false);
-                                        setInviteLink(null);
-                                        setFormData({ email: '', name: '', role: 'lead', company_id: '' });
-                                    }}
-                                >
-                                    Dismiss
-                                </Button>
-                            </div>
-                        )}
-                    </div>
+            {error && (
+                <div role="alert" className="rounded-[10px] border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+                    People could not be loaded. <button type="button" onClick={() => refetch()} className="font-semibold underline">Try again</button>
                 </div>
             )}
 
-            {/* Users List */}
-            <Card className="border-slate-200/60 shadow-xl shadow-slate-200/20 rounded-3xl overflow-hidden border-none">
-                <CardHeader className="bg-slate-50/30 border-b border-slate-50 p-8">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                            <div className="h-12 w-12 rounded-2xl flex items-center justify-center bg-white shadow-sm" style={{ color: theme.primary }}>
-                                <Users className="h-6 w-6" />
-                            </div>
-                            <div>
-                                <CardTitle className="text-xl font-semibold text-slate-900 tracking-tight">Active Personnel</CardTitle>
-                                <p className="text-xs font-medium text-slate-400 uppercase tracking-widest">Master Workforce Directory</p>
-                            </div>
-                        </div>
-                        <Badge variant="secondary" className="px-5 py-2 rounded-full font-black text-[10px] bg-white border border-slate-100 shadow-sm text-slate-600 uppercase tracking-widest">{filteredUsers.length} Active</Badge>
-                    </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                    {loading ? (
-                        <div className="p-8 space-y-4">
-                            {[1, 2, 3].map((i) => (
-                                <div key={i} className="flex items-center justify-between p-6 border-b border-slate-50 last:border-0">
-                                    <div className="flex items-center space-x-5">
-                                        <Skeleton variant="circle" width={48} height={48} />
-                                        <div className="space-y-3">
-                                            <Skeleton variant="text" width={200} />
-                                            <Skeleton variant="text" width={120} />
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead className="bg-slate-50/50">
-                                    <tr className="text-left">
-                                        <th className="p-6 font-black text-[11px] text-slate-400 uppercase tracking-widest">Name & Verification</th>
-                                        <th className="p-6 font-black text-[11px] text-slate-400 uppercase tracking-widest">Role Clearance</th>
-                                        {isAdmin && <th className="p-6 font-black text-[11px] text-slate-400 uppercase tracking-widest">Associated Firm</th>}
-                                        <th className="p-6 font-black text-[11px] text-slate-400 uppercase tracking-widest text-center">Security Status</th>
-                                        <th className="p-6 font-black text-[11px] text-slate-400 uppercase tracking-widest text-right">Administrative</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-50">
-                                    {filteredUsers.map(user => (
-                                        <tr key={user.id} className="hover:bg-slate-50/20 group transition-colors">
-                                            <td className="p-6">
-                                                <div className="flex items-center gap-4">
-                                                    <div
-                                                        className="h-10 w-10 rounded-full flex items-center justify-center font-black text-white text-[11px] shadow-md transition-transform group-hover:scale-105"
-                                                        style={{ backgroundColor: user.is_active ? theme.primary : '#94a3b8' }}
-                                                    >
-                                                        {user.name.split(' ').map(n => n[0]).join('')}
-                                                    </div>
-                                                    <div>
-                                                        <div className="font-sans text-slate-900 text-base tracking-tight">{user.name}</div>
-                                                        <div className="flex items-center gap-1.5 mt-0.5">
-                                                            <Mail className="h-3 w-3 text-slate-300" />
-                                                            <div className="text-xs font-mono text-slate-400">{user.email}</div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="p-6">
-                                                <Badge variant="outline" className={cn(
-                                                    "capitalize px-3 py-1 font-black text-[9px] uppercase tracking-widest rounded-md h-7",
-                                                    user.role === 'admin' ? "bg-purple-50 text-purple-700 border-purple-100 shadow-sm shadow-purple-900/5" :
-                                                        user.role === 'lead' ? "bg-indigo-50 text-indigo-700 border-indigo-100 shadow-sm shadow-indigo-900/5" :
-                                                            "bg-slate-50 text-slate-500 border-slate-100"
-                                                )}
-                                                    style={user.role === 'lead' ? { backgroundColor: `${theme.primary}10`, color: theme.primary, borderColor: `${theme.primary}20` } : undefined}
-                                                >{user.role}</Badge>
-                                            </td>
-                                            {isAdmin && (
-                                                <td className="p-6">
-                                                    <div className="flex items-center gap-2.5 font-semibold text-slate-600">
-                                                        <div className="h-6 w-6 rounded-md bg-slate-100 flex items-center justify-center">
-                                                            <Briefcase className="h-3.5 w-3.5 text-slate-400" />
-                                                        </div>
-                                                        {user.company?.name || 'Unassigned'}
-                                                    </div>
-                                                </td>
-                                            )}
-                                            <td className="p-6 text-center">
-                                                <div className="flex justify-center">
-                                                    <Badge variant="secondary" className={cn(
-                                                        "px-3 py-1 font-black text-[9px] uppercase tracking-widest h-7 rounded-md shadow-sm border",
-                                                        user.is_active
-                                                            ? "bg-emerald-50 text-emerald-600 border-emerald-100"
-                                                            : "bg-rose-50 text-rose-600 border-rose-100"
-                                                    )}>
-                                                        <Activity className="h-2.5 w-2.5 mr-1.5 animate-pulse" />
-                                                        {user.is_active ? 'Active' : 'Locked'}
-                                                    </Badge>
-                                                </div>
-                                            </td>
-                                            <td className="p-6 text-right">
-                                                <div className="flex justify-end gap-2">
-                                                    {isAdmin && user.id !== currentUser?.id && (
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className={cn(
-                                                                "h-9 px-4 rounded-xl font-black uppercase text-[11px] tracking-widest transition-all",
-                                                                user.is_active ? "text-rose-600 hover:text-rose-700 hover:bg-rose-50" : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                                                            )}
-                                                            onClick={() => toggleUserStatus(user.id, user.is_active)}
-                                                        >
-                                                            {user.is_active ? 'Terminate' : 'Restore Access'}
-                                                        </Button>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {filteredUsers.length === 0 && (
-                                        <tr><td colSpan={5} className="p-16 text-center">
-                                            <div className="flex flex-col items-center">
-                                                <div className="h-16 w-16 rounded-3xl bg-slate-100 flex items-center justify-center mb-6 shadow-inner">
-                                                    <Users className="h-8 w-8 text-slate-300" />
-                                                </div>
-                                                <p className="font-black text-slate-900 text-xl tracking-tight">No Results Found</p>
-                                                <p className="text-slate-500 font-medium mt-1">No personnel record matches your current search filters.</p>
-                                            </div>
-                                        </td></tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
+            {/* The two questions this page answers, before the list */}
+            {isLoading ? (
+                <div className="grid gap-5 lg:grid-cols-2"><Skeleton className="h-[260px] rounded-[14px]" /><Skeleton className="h-[260px] rounded-[14px]" /></div>
+            ) : data && (
+                <div className="grid items-stretch gap-5 lg:grid-cols-2">
+                    <AccessPanel people={people} known={data.accessKnown} isAdmin={isAdmin} filter={accessF} onFilter={a => { setAccessF(a); setLimit(PAGE); }} />
+                    <WorkloadPanel people={people} unassigned={data.unassignedOpen} onOpen={p => setOpenId(p.id)} />
+                </div>
+            )}
+
+            {/* Directory */}
+            <Card aria-labelledby="dir-heading">
+                <CardHeader
+                    id="dir-heading"
+                    icon={Users}
+                    title="Everyone"
+                    count={isLoading ? undefined : shown.length}
+                    action={filtering ? <button type="button" onClick={resetFilters} className="text-[13px] font-semibold text-progress hover:underline dark:text-blue-300">Clear filters</button> : undefined}
+                />
+                <div className="flex flex-wrap items-center gap-2 border-t border-line px-5 py-3 dark:border-slate-800">
+                    <label className="relative min-w-0 flex-1 basis-full sm:basis-auto sm:max-w-xs">
+                        <span className="sr-only">Search people</span>
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted dark:text-slate-400" aria-hidden />
+                        <input type="search" value={q} onChange={e => { setQ(e.target.value); setLimit(PAGE); }} placeholder="Search name, email or company" className={cn(control, 'w-full pl-9 pr-3 placeholder:text-ink-muted dark:placeholder:text-slate-400')} />
+                    </label>
+                    <Select label="Role" value={roleF} onChange={v => { setRoleF(v as Role | 'all'); setLimit(PAGE); }}
+                        options={[['all', `All roles (${people.length})`], ...ROLE_ORDER.filter(r => roleCounts[r]).map(r => [r, `${ROLES[r].label} (${roleCounts[r]})`] as [string, string])]} />
+                    <Select label="Sort" value={sort} onChange={v => setSort(v as Sort)}
+                        options={[['name', 'Name A–Z'], ['load', 'Most open tasks'], ['recent', 'Recently active']]} />
+                    {accessF && (
+                        <button type="button" onClick={() => setAccessF(null)} className="inline-flex h-10 items-center gap-1.5 rounded-[8px] border border-ink bg-paper px-3 text-[13px] font-semibold text-ink dark:border-slate-200 dark:bg-slate-800 dark:text-slate-100" aria-label={`Remove filter: ${ACCESS[accessF].label}`}>
+                            {ACCESS[accessF].label} <span aria-hidden>×</span>
+                        </button>
                     )}
-                </CardContent>
+                </div>
+
+                {isLoading ? (
+                    <div className="space-y-3 border-t border-line p-5 dark:border-slate-800">{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+                ) : shown.length === 0 ? (
+                    <div className="border-t border-line px-5 py-12 text-center dark:border-slate-800">
+                        <p className={cn('text-[15px] font-semibold', tx.ink)}>{filtering ? 'No one matches these filters.' : 'No people here yet.'}</p>
+                        <div className="mt-3">
+                            {filtering
+                                ? <button type="button" onClick={resetFilters} className="text-[13px] font-semibold text-progress hover:underline dark:text-blue-300">Clear filters</button>
+                                : <button type="button" onClick={() => inviteFor()} className="text-[13px] font-semibold text-progress hover:underline dark:text-blue-300">Invite the first person</button>}
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        {/* Column labels for wide screens; rows reflow into cards on phones. */}
+                        <div className={cn('hidden border-y border-line px-5 py-2.5 text-[12px] font-medium dark:border-slate-800 lg:grid lg:grid-cols-[minmax(0,2.2fr)_minmax(0,1.3fr)_minmax(0,1.1fr)_minmax(0,1.3fr)_7.5rem_minmax(0,1.3fr)] lg:gap-4', tx.muted)} aria-hidden>
+                            <span>Person</span><span>Role</span><span>Company</span><span>Open work</span><span>Last active</span><span>Access</span>
+                        </div>
+                        <ul className="divide-y divide-line border-t border-line dark:divide-slate-800 dark:border-slate-800 lg:border-t-0">
+                            {shown.slice(0, limit).map(p => (
+                                <PersonRow key={p.id} p={p} isSelf={p.id === user?.id} showCompany={!scopeId} maxOpen={Math.max(1, ...people.map(x => x.open))} onOpen={() => setOpenId(p.id)} onInvite={() => inviteFor(p)} />
+                            ))}
+                        </ul>
+                        {shown.length > limit && (
+                            <button type="button" onClick={() => setLimit(l => l + PAGE)} className="w-full border-t border-line py-3 text-[13px] font-semibold text-progress hover:bg-paper/70 dark:border-slate-800 dark:text-blue-300 dark:hover:bg-slate-800/50">
+                                Show {Math.min(PAGE, shown.length - limit)} more of {shown.length - limit}
+                            </button>
+                        )}
+                    </>
+                )}
             </Card>
 
-            {/* Pending Invites Section - Only for Leads/Admins */}
-            {invites.length > 0 && (
-                <Card className="border-slate-200/60 shadow-xl shadow-slate-200/20 rounded-3xl overflow-hidden animate-in slide-in-from-bottom-6 duration-700 border-none">
-                    <CardHeader className="bg-slate-50/30 border-b border-slate-50 p-8">
-                        <div className="flex items-center space-x-3">
-                            <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-white shadow-sm text-amber-500">
-                                <Mail className="h-5 w-5" />
-                            </div>
-                            <CardTitle className="text-lg font-semibold text-slate-900 tracking-tight">Pending Authorizations</CardTitle>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead className="bg-slate-50/50">
-                                    <tr className="text-left">
-                                        <th className="p-6 font-semibold text-[11px] text-slate-400 uppercase tracking-widest">Awaiting Email</th>
-                                        <th className="p-6 font-semibold text-[11px] text-slate-400 uppercase tracking-widest">Target Role</th>
-                                        {isAdmin && <th className="p-6 font-semibold text-[11px] text-slate-400 uppercase tracking-widest">Entity</th>}
-                                        <th className="p-6 font-semibold text-[11px] text-slate-400 uppercase tracking-widest text-right">Access Link</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-50">
-                                    {invites.map(invite => (
-                                        <tr key={invite.id} className="hover:bg-slate-50/20 transition-colors">
-                                            <td className="p-6 text-slate-900 font-semibold tracking-tight">{invite.email}</td>
-                                            <td className="p-6">
-                                                <Badge variant="secondary" className="bg-slate-50 text-slate-400 px-3 py-1 font-black text-[9px] uppercase tracking-widest border border-slate-100">{invite.role}</Badge>
-                                            </td>
-                                            {isAdmin && <td className="p-6 text-slate-500 font-semibold">{invite.company?.name}</td>}
-                                            <td className="p-6 text-right">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-10 px-6 rounded-xl font-black uppercase text-[11px] tracking-widest transition-all hover:bg-primary/5 hover:text-primary"
-                                                    style={{ '--tw-hover-text-primary': theme.primary } as any}
-                                                    onClick={() => {
-                                                        const link = `${window.location.origin}/signup?token=${invite.token}`;
-                                                        navigator.clipboard.writeText(link);
-                                                        alert('Direct link secured and copied to clipboard.');
-                                                    }}
-                                                >
-                                                    Copy Token
-                                                </Button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
+            {data && data.invites.length > 0 && <InvitesCard invites={data.invites} />}
+
+            <PersonPanel
+                key={opened?.id ?? 'none'}
+                person={opened}
+                onClose={() => setOpenId(null)}
+                isSelf={opened?.id === user?.id}
+                canInvite
+                onInvite={p => { setOpenId(null); inviteFor(p); }}
+                canManageAccess={isAdmin && !!data?.deactivationAvailable}
+                onAccessChanged={() => refetch()}
+            />
+            <InviteDialog
+                open={invite.open}
+                initial={invite.initial}
+                onClose={() => setInvite({ open: false })}
+                onCreated={() => refetch()}
+                companies={data?.companies ?? []}
+                allowedRoles={allowedRoles}
+                lockedCompanyId={seesAll ? null : user?.company_id}
+            />
         </div>
+    );
+}
+
+function Select({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: [string, string][] }) {
+    return (
+        <label className="relative">
+            <span className="sr-only">{label}</span>
+            <select value={value} onChange={e => onChange(e.target.value)} className={cn(control, 'cursor-pointer appearance-none pl-3 pr-9 font-medium')}>
+                {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted dark:text-slate-400" aria-hidden />
+        </label>
+    );
+}
+
+function PersonRow({ p, isSelf, showCompany, maxOpen, onOpen, onInvite }: { p: Person; isSelf: boolean; showCompany: boolean; maxOpen: number; onOpen: () => void; onInvite: () => void }) {
+    const role = ROLES[p.role] ?? ROLES.employee;
+    const blockedOut = p.access === 'no_login';
+    return (
+        <li className="relative grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1.5 px-5 py-3.5 hover:bg-paper/70 focus-within:bg-paper/70 dark:hover:bg-slate-800/50 dark:focus-within:bg-slate-800/50 lg:grid-cols-[minmax(0,2.2fr)_minmax(0,1.3fr)_minmax(0,1.1fr)_minmax(0,1.3fr)_7.5rem_minmax(0,1.3fr)] lg:items-center lg:gap-4">
+            <div className="flex min-w-0 items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-paper text-[12px] font-bold text-ink dark:bg-slate-800 dark:text-slate-100" aria-hidden>{initials(p.name)}</span>
+                <div className="min-w-0">
+                    {/* The name is the row's one link; its stretched area opens the panel from anywhere on the row. */}
+                    <button type="button" onClick={onOpen} className={cn('block max-w-full truncate text-left text-sm font-semibold outline-none after:absolute after:inset-0 after:content-[\'\'] focus-visible:underline', tx.ink)}>
+                        {p.name}{isSelf && <span className={cn('ml-1.5 text-[12px] font-medium', tx.muted)}>(you)</span>}
+                    </button>
+                    <p className={cn('truncate text-[12.5px]', tx.muted)}>{p.email}</p>
+                </div>
+            </div>
+            <div className="col-start-1 min-w-0 pl-12 lg:col-start-auto lg:pl-0">
+                <p className={cn('text-[13px] font-medium', tx.ink)} title={role.summary}>{role.label}</p>
+            </div>
+            <p className={cn('col-start-1 hidden min-w-0 items-center gap-1.5 truncate text-[13px] lg:col-start-auto lg:flex', tx.ink)}>
+                {p.company_name ? (<>{showCompany && <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: getCompanyTheme(p.company_name).primary }} aria-hidden />}{p.company_name}</>) : <span className={tx.muted}>No company</span>}
+            </p>
+            <div className="col-start-1 min-w-0 pl-12 lg:col-start-auto lg:pl-0">
+                {p.open === 0 ? <span className={cn('text-[13px]', tx.muted)}>No open tasks</span> : (
+                    <span className="flex items-center gap-2">
+                        <span className="h-1.5 w-14 shrink-0 overflow-hidden rounded-full bg-line dark:bg-slate-800" aria-hidden>
+                            <span className="flex h-full" style={{ width: `${(p.open / maxOpen) * 100}%` }}>
+                                <span className="h-full bg-slate-600 dark:bg-slate-300" style={{ width: `${((p.open - p.overdue) / p.open) * 100}%` }} />
+                                <span className="h-full bg-blocked dark:bg-red-400" style={{ width: `${(p.overdue / p.open) * 100}%` }} />
+                            </span>
+                        </span>
+                        <span className={cn('whitespace-nowrap text-[13px] tabular-nums', tx.ink)}>
+                            <span className="font-semibold">{p.open}</span> open{p.overdue > 0 && <span className="text-blocked dark:text-red-300"> · {p.overdue} late</span>}
+                        </span>
+                    </span>
+                )}
+            </div>
+            <p className={cn('hidden text-[13px] lg:block', tx.muted)}>
+                {p.lastActivity ? ago(p.lastActivity) : <><span aria-hidden>—</span><span className="sr-only">No activity recorded</span></>}
+            </p>
+            <div className="col-start-2 row-span-2 row-start-1 flex items-center justify-end gap-2 lg:col-start-auto lg:row-span-1 lg:row-start-auto lg:justify-start">
+                {p.access === 'unknown' ? <span className={cn('text-[13px]', tx.muted)}>—</span> : (
+                    // Red lives in the summary bar; on rows the Invite button is the call to action.
+                    <span className={cn('text-[13px]', blockedOut ? tx.muted : cn('font-medium', tx.ink))}>{ACCESS[p.access].label}</span>
+                )}
+                {blockedOut && (
+                    <button type="button" onClick={onInvite} className="relative z-10 inline-flex h-8 shrink-0 items-center gap-1 rounded-[7px] border border-line bg-surface px-2.5 text-[12px] font-semibold text-ink hover:border-ink/30 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100" aria-label={`Invite ${p.name}`}>
+                        <UserPlus className="h-3.5 w-3.5" aria-hidden /> Invite
+                    </button>
+                )}
+            </div>
+        </li>
+    );
+}
+
+function InvitesCard({ invites }: { invites: Invite[] }) {
+    const [copied, setCopied] = useState<string | null>(null);
+    const copy = async (inv: Invite, what: 'link' | 'message') => {
+        const link = inviteLink(inv.token);
+        const text = what === 'link' ? link : inviteMessage({ name: inv.name, role: inv.role, company: inv.company_name }, link, inv.expires_at);
+        try { await navigator.clipboard.writeText(text); setCopied(inv.id + what); setTimeout(() => setCopied(null), 2000); } catch { /* clipboard blocked */ }
+    };
+    return (
+        <Card aria-labelledby="inv-heading">
+            <CardHeader id="inv-heading" icon={Mail} title="Invites waiting" count={invites.length} />
+            <ul className="divide-y divide-line border-t border-line dark:divide-slate-800 dark:border-slate-800">
+                {invites.map(inv => {
+                    const exp = expiry(inv.expires_at);
+                    return (
+                        <li key={inv.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5">
+                            <div className="min-w-0 flex-1">
+                                <p className={cn('truncate text-sm font-semibold', tx.ink)}>{inv.name || inv.email}</p>
+                                <p className={cn('truncate text-[12.5px]', tx.muted)}>
+                                    {inv.name ? `${inv.email} · ` : ''}{ROLES[inv.role]?.label ?? inv.role}{inv.company_name ? ` · ${inv.company_name}` : ''}
+                                </p>
+                            </div>
+                            <p className={cn('text-[12.5px]', exp?.expired ? 'font-semibold text-blocked dark:text-red-300' : tx.muted)}>
+                                Sent {ago(inv.created_at).toLowerCase()}{inv.invited_by_name ? ` by ${inv.invited_by_name}` : ''}{exp ? ` · ${exp.text}` : ''}
+                            </p>
+                            <div className="flex gap-2">
+                                <button type="button" onClick={() => copy(inv, 'link')} className="inline-flex h-8 items-center gap-1.5 rounded-[7px] border border-line px-2.5 text-[12px] font-semibold text-ink hover:border-ink/30 dark:border-slate-700 dark:text-slate-100" aria-label={`Copy invite link for ${inv.name || inv.email}`}>
+                                    {copied === inv.id + 'link' ? <Check className="h-3.5 w-3.5" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />} {copied === inv.id + 'link' ? 'Copied' : 'Link'}
+                                </button>
+                                <button type="button" onClick={() => copy(inv, 'message')} className="inline-flex h-8 items-center gap-1.5 rounded-[7px] border border-line px-2.5 text-[12px] font-semibold text-ink hover:border-ink/30 dark:border-slate-700 dark:text-slate-100" aria-label={`Copy invite message for ${inv.name || inv.email}`}>
+                                    {copied === inv.id + 'message' ? <Check className="h-3.5 w-3.5" aria-hidden /> : <MessageSquareText className="h-3.5 w-3.5" aria-hidden />} {copied === inv.id + 'message' ? 'Copied' : 'Message'}
+                                </button>
+                            </div>
+                        </li>
+                    );
+                })}
+            </ul>
+            <p className="sr-only" role="status">{copied ? 'Copied to clipboard' : ''}</p>
+        </Card>
     );
 }

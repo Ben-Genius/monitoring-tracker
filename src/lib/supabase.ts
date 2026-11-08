@@ -37,7 +37,7 @@ export type Database = {
                     id: string;
                     email: string;
                     name: string;
-                    role: 'admin' | 'lead' | 'employee';
+                    role: 'admin' | 'executive' | 'pa' | 'lead' | 'employee';
                     company_id: string;
                     created_at: string;
                 };
@@ -45,7 +45,7 @@ export type Database = {
                     id?: string;
                     email: string;
                     name: string;
-                    role: 'admin' | 'lead' | 'employee';
+                    role: 'admin' | 'executive' | 'pa' | 'lead' | 'employee';
                     company_id: string;
                     created_at?: string;
                 };
@@ -53,7 +53,7 @@ export type Database = {
                     id?: string;
                     email?: string;
                     name?: string;
-                    role?: 'admin' | 'lead' | 'employee';
+                    role?: 'admin' | 'executive' | 'pa' | 'lead' | 'employee';
                     company_id?: string;
                     created_at?: string;
                 };
@@ -104,6 +104,12 @@ export type Database = {
                     created_at: string;
                     updated_at: string;
                     completed_at: string | null;
+                    progress_percent: number;
+                    acknowledged_at: string | null;
+                    acknowledged_by: string | null;
+                    next_update_due: string | null;
+                    last_movement_at: string;
+                    is_urgent: boolean;
                 };
                 Insert: {
                     id?: string;
@@ -118,6 +124,12 @@ export type Database = {
                     created_at?: string;
                     updated_at?: string;
                     completed_at?: string | null;
+                    progress_percent?: number;
+                    acknowledged_at?: string | null;
+                    acknowledged_by?: string | null;
+                    next_update_due?: string | null;
+                    last_movement_at?: string;
+                    is_urgent?: boolean;
                 };
                 Update: {
                     id?: string;
@@ -132,6 +144,12 @@ export type Database = {
                     created_at?: string;
                     updated_at?: string;
                     completed_at?: string | null;
+                    progress_percent?: number;
+                    acknowledged_at?: string | null;
+                    acknowledged_by?: string | null;
+                    next_update_due?: string | null;
+                    last_movement_at?: string;
+                    is_urgent?: boolean;
                 };
             };
         };

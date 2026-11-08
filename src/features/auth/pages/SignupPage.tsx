@@ -1,10 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { roleLabel } from '@/lib/roles';
+import { useAuthStore } from '@/features/auth/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Loader2, UserPlus, Mail, Lock, ArrowLeft } from 'lucide-react';
+
+/** Shape returned by the get_invite(p_token) database function. */
+interface Invite {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+    company_id: string;
+    company_name: string;
+}
 
 export default function SignupPage() {
     const [searchParams] = useSearchParams();
@@ -14,7 +26,8 @@ export default function SignupPage() {
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [inviteData, setInviteData] = useState<any>(null);
+    const [submitError, setSubmitError] = useState<string | null>(null);
+    const [inviteData, setInviteData] = useState<Invite | null>(null);
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');
 
@@ -28,21 +41,23 @@ export default function SignupPage() {
 
     async function checkToken() {
         try {
+            // Read through get_invite() rather than the table: pending_invites
+            // is closed to anon so that invites cannot be enumerated. The
+            // function returns only the row matching this exact token.
             const { data, error } = await supabase
-                .from('pending_invites')
-                .select('*, company:companies(name)')
-                .eq('token', token)
-                .eq('used', false)
-                .single();
+                .rpc('get_invite', { p_token: token })
+                .maybeSingle();
 
-            if (error || !data) {
+            const invite = data as Invite | null;
+
+            if (error || !invite) {
                 setError('Invalid or expired invitation link.');
                 setLoading(false);
                 return;
             }
 
-            setInviteData(data);
-            setName(data.name || '');
+            setInviteData(invite);
+            setName(invite.name || '');
             setLoading(false);
         } catch (err) {
             setError('Failed to validate invitation.');
@@ -52,47 +67,62 @@ export default function SignupPage() {
 
     async function handleSignup(e: React.FormEvent) {
         e.preventDefault();
+        if (!inviteData) return;
         setSubmitting(true);
-        setError(null);
+        setSubmitError(null);
 
         try {
-            const { data: authData, error: authError } = await supabase.auth.signUp({
+            // The login is created server-side, already confirmed: a browser
+            // signUp() would return no session (the project requires email
+            // confirmation), so accept_invite below would be refused.
+            const res = await fetch('/api/accept-invite', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token, password, name }),
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(body.error || 'Failed to create your account');
+
+            const { error: signInError } = await supabase.auth.signInWithPassword({
                 email: inviteData.email,
                 password,
-                options: {
-                    data: { full_name: name }
-                }
+            });
+            if (signInError) throw signInError;
+
+            // One server-side call claims-or-creates the profile and consumes
+            // the invite together.
+            //
+            // Claiming matters for engineers mirrored from Baserow: they
+            // already have a users row keyed by a placeholder uuid, so a plain
+            // insert would collide on users_email_key. accept_invite repoints
+            // that row at the new auth id, and the foreign keys cascade so
+            // their existing task assignments follow.
+            //
+            // Role and company come from the invite inside the function rather
+            // than from this form, so the browser cannot choose its own role.
+            const { error: profileError } = await supabase.rpc('accept_invite', {
+                p_token: token,
+                p_name: name,
             });
 
-            if (authError) throw authError;
-            if (!authData.user) throw new Error("Signup failed");
-
-            const { error: profileError } = await supabase
-                .from('users')
-                .insert({
-                    id: authData.user.id,
-                    email: inviteData.email,
-                    name: name,
-                    role: inviteData.role,
-                    company_id: inviteData.company_id
-                });
-
             if (profileError) {
-                console.error("Profile creation failed", profileError);
-                throw new Error("Failed to create user profile: " + profileError.message);
+                console.error('Profile creation failed', profileError);
+                // A deactivated person's new login must not stay signed in.
+                if (/deactivated/i.test(profileError.message)) {
+                    await supabase.auth.signOut();
+                    throw new Error('This account has been deactivated, so the invite can no longer be used. Ask an admin to restore access.');
+                }
+                throw new Error(profileError.message);
             }
 
-            await supabase
-                .from('pending_invites')
-                .update({ used: true })
-                .eq('id', inviteData.id);
-
-            setTimeout(() => {
-                navigate('/dashboard');
-            }, 1000);
+            // Signing in already ran a session check, which may have raced
+            // ahead of accept_invite and found no profile. Re-check now that
+            // the profile exists, so the dashboard opens signed in.
+            await useAuthStore.getState().checkSession();
+            navigate('/dashboard');
         } catch (err: any) {
             console.error('Signup error:', err);
-            setError(err.message || 'Failed to sign up');
+            setSubmitError(err.message || 'Failed to sign up');
         } finally {
             setSubmitting(false);
         }
@@ -128,6 +158,9 @@ export default function SignupPage() {
         </div>
     );
 
+    // Neither loading nor errored, but no invite resolved — nothing to render.
+    if (!inviteData) return null;
+
     return (
         <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-950 p-4">
             <div className="w-full max-w-md animate-spring-up">
@@ -138,7 +171,7 @@ export default function SignupPage() {
                         </div>
                         <CardTitle className="text-2xl font-bold text-center tracking-tight">Accept Invitation</CardTitle>
                         <p className="text-center text-sm text-gray-500 dark:text-slate-400">
-                            Join <strong>{inviteData.company?.name || 'the team'}</strong> as a <strong className="capitalize">{inviteData.role}</strong>
+                            Join <strong>{inviteData.company_name || 'the team'}</strong> as <strong>{roleLabel(inviteData.role)}</strong>
                         </p>
                     </CardHeader>
                     <CardContent>
@@ -179,9 +212,9 @@ export default function SignupPage() {
                                 </div>
                             </div>
 
-                            {error && (
+                            {submitError && (
                                 <div className="bg-error/10 border border-error/20 text-error text-sm p-4 rounded-2xl">
-                                    {error}
+                                    {submitError}
                                 </div>
                             )}
 

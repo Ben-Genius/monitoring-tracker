@@ -215,14 +215,33 @@ CREATE TRIGGER update_task_stage_timestamps_trigger BEFORE UPDATE ON tasks
 -- ROW LEVEL SECURITY (RLS)
 -- =====================================================
 
--- Helper functions to avoid infinite recursion in RLS
-CREATE OR REPLACE FUNCTION get_auth_company_id() RETURNS uuid AS $$
-  SELECT company_id FROM users WHERE id = auth.uid();
-$$ LANGUAGE sql SECURITY DEFINER SET search_path = public;
+-- Helper functions in private schema to avoid infinite recursion in RLS
+create schema if not exists private;
 
-CREATE OR REPLACE FUNCTION get_auth_role() RETURNS text AS $$
-  SELECT role FROM users WHERE id = auth.uid();
-$$ LANGUAGE sql SECURITY DEFINER SET search_path = public;
+create or replace function private.current_company_id()
+returns uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select company_id from public.users where id = auth.uid();
+$$;
+
+create or replace function private.current_user_role()
+returns text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select role from public.users where id = auth.uid();
+$$;
+
+revoke execute on function private.current_company_id() from public, anon;
+revoke execute on function private.current_user_role() from public, anon;
+grant execute on function private.current_company_id() to authenticated;
+grant execute on function private.current_user_role() to authenticated;
 
 -- Enable RLS on all tables
 ALTER TABLE companies ENABLE ROW LEVEL SECURITY;
@@ -233,82 +252,224 @@ ALTER TABLE task_comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pipeline_projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
--- Companies: Everyone can read
-CREATE POLICY "Companies are viewable by everyone" ON companies
-  FOR SELECT USING (true);
+-- Companies: Members can read their own company
+CREATE POLICY "Users can view their own company" ON companies
+  FOR SELECT TO authenticated
+  USING (id = private.current_company_id());
+
+-- Companies: Admins can update their own company
+CREATE POLICY "Admins can update their own company" ON companies
+  FOR UPDATE TO authenticated
+  USING (
+    id = private.current_company_id()
+    AND private.current_user_role() = 'admin'
+  )
+  WITH CHECK (
+    id = private.current_company_id()
+    AND private.current_user_role() = 'admin'
+  );
+
+-- Companies: Admins can delete their own company
+CREATE POLICY "Admins can delete their own company" ON companies
+  FOR DELETE TO authenticated
+  USING (
+    id = private.current_company_id()
+    AND private.current_user_role() = 'admin'
+  );
 
 -- Users: Can view users in their company (or all if admin)
 CREATE POLICY "Users can view users in their company" ON users
-  FOR SELECT USING (
+  FOR SELECT TO authenticated
+  USING (
     auth.uid() = id OR
-    company_id = get_auth_company_id() OR
-    get_auth_role() = 'admin'
+    company_id = private.current_company_id() OR
+    private.current_user_role() = 'admin'
+  );
+
+-- Users: Users can create their own profile
+CREATE POLICY "Users can create their own profile" ON users
+  FOR INSERT TO authenticated
+  WITH CHECK (id = auth.uid());
+
+-- Users: Users can update themselves, admins update their own company
+CREATE POLICY "Users can update themselves, admins update their company" ON users
+  FOR UPDATE TO authenticated
+  USING (
+    id = auth.uid()
+    OR (
+      company_id = private.current_company_id()
+      AND private.current_user_role() = 'admin'
+    )
+  )
+  WITH CHECK (
+    id = auth.uid()
+    OR (
+      company_id = private.current_company_id()
+      AND private.current_user_role() = 'admin'
+    )
+  );
+
+-- Users: Admins can delete users in their company
+CREATE POLICY "Admins can delete users in their company" ON users
+  FOR DELETE TO authenticated
+  USING (
+    company_id = private.current_company_id()
+    AND private.current_user_role() = 'admin'
   );
 
 -- Projects: Can view projects in their company (or all if admin)
 CREATE POLICY "Users can view projects in their company" ON projects
-  FOR SELECT USING (
-    company_id = get_auth_company_id() OR
-    get_auth_role() = 'admin'
+  FOR SELECT TO authenticated
+  USING (
+    company_id = private.current_company_id() OR
+    private.current_user_role() = 'admin'
   );
 
 CREATE POLICY "Users can create projects in their company" ON projects
-  FOR INSERT WITH CHECK (
-    company_id = get_auth_company_id()
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    company_id = private.current_company_id()
   );
 
-CREATE POLICY "Leads and admins can update projects" ON projects
-  FOR UPDATE USING (
-    get_auth_role() IN ('lead', 'admin')
+CREATE POLICY "Leads and admins can update their company projects" ON projects
+  FOR UPDATE TO authenticated
+  USING (
+    company_id = private.current_company_id()
+    AND private.current_user_role() IN ('lead', 'admin')
+  )
+  WITH CHECK (
+    company_id = private.current_company_id()
+    AND private.current_user_role() IN ('lead', 'admin')
+  );
+
+CREATE POLICY "Leads and admins can delete their company projects" ON projects
+  FOR DELETE TO authenticated
+  USING (
+    company_id = private.current_company_id()
+    AND private.current_user_role() IN ('lead', 'admin')
   );
 
 -- Tasks: Can view tasks in their company's projects
 CREATE POLICY "Users can view tasks in their company" ON tasks
-  FOR SELECT USING (
-    project_id IN (
-      SELECT id FROM projects WHERE company_id = get_auth_company_id()
+  FOR SELECT TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = tasks.project_id
+        AND p.company_id = private.current_company_id()
     ) OR
-    get_auth_role() = 'admin'
+    private.current_user_role() = 'admin'
   );
 
-CREATE POLICY "Users can create tasks" ON tasks
-  FOR INSERT WITH CHECK (
-    project_id IN (
-      SELECT id FROM projects WHERE company_id = get_auth_company_id()
+CREATE POLICY "Users can create tasks in their company" ON tasks
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM projects p
+      WHERE p.id = tasks.project_id
+        AND p.company_id = private.current_company_id()
     )
   );
 
 CREATE POLICY "Users can update their assigned tasks" ON tasks
-  FOR UPDATE USING (
-    assignee_id = auth.uid() OR
-    created_by = auth.uid() OR
-    get_auth_role() IN ('lead', 'admin')
+  FOR UPDATE TO authenticated
+  USING (
+    assignee_id = auth.uid()
+    OR created_by = auth.uid()
+    OR private.current_user_role() IN ('lead', 'admin')
+  )
+  WITH CHECK (
+    assignee_id = auth.uid()
+    OR created_by = auth.uid()
+    OR private.current_user_role() IN ('lead', 'admin')
   );
 
--- Task Comments: Can view comments on tasks they can see
+CREATE POLICY "Users can delete their own tasks" ON tasks
+  FOR DELETE TO authenticated
+  USING (
+    created_by = auth.uid()
+    OR private.current_user_role() = 'admin'
+  );
+
+-- Task Comments: Can view comments on tasks in their company
 CREATE POLICY "Users can view comments on accessible tasks" ON task_comments
-  FOR SELECT USING (
-    task_id IN (SELECT id FROM tasks)
+  FOR SELECT TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM tasks t
+      JOIN projects p ON p.id = t.project_id
+      WHERE t.id = task_comments.task_id
+        AND p.company_id = private.current_company_id()
+    ) OR
+    private.current_user_role() = 'admin'
   );
 
-CREATE POLICY "Users can create comments" ON task_comments
-  FOR INSERT WITH CHECK (
-    task_id IN (SELECT id FROM tasks)
+CREATE POLICY "Users can create comments on accessible tasks" ON task_comments
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    user_id = auth.uid()
+    AND EXISTS (
+      SELECT 1 FROM tasks t
+      JOIN projects p ON p.id = t.project_id
+      WHERE t.id = task_comments.task_id
+        AND p.company_id = private.current_company_id()
+    )
   );
+
+CREATE POLICY "Users can update their own comments" ON task_comments
+  FOR UPDATE TO authenticated
+  USING (user_id = auth.uid())
+  WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users can delete their own comments" ON task_comments
+  FOR DELETE TO authenticated
+  USING (user_id = auth.uid());
 
 -- Pipeline Projects: Same as projects
 CREATE POLICY "Users can view pipeline in their company" ON pipeline_projects
-  FOR SELECT USING (
-    company_id = get_auth_company_id() OR
-    get_auth_role() = 'admin'
+  FOR SELECT TO authenticated
+  USING (
+    company_id = private.current_company_id() OR
+    private.current_user_role() = 'admin'
+  );
+
+CREATE POLICY "Users can create pipeline projects in their company" ON pipeline_projects
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    company_id = private.current_company_id()
+  );
+
+CREATE POLICY "Leads and admins can update pipeline projects" ON pipeline_projects
+  FOR UPDATE TO authenticated
+  USING (
+    company_id = private.current_company_id()
+    AND private.current_user_role() IN ('lead', 'admin')
+  )
+  WITH CHECK (
+    company_id = private.current_company_id()
+    AND private.current_user_role() IN ('lead', 'admin')
+  );
+
+CREATE POLICY "Leads and admins can delete pipeline projects" ON pipeline_projects
+  FOR DELETE TO authenticated
+  USING (
+    company_id = private.current_company_id()
+    AND private.current_user_role() IN ('lead', 'admin')
   );
 
 -- Notifications: Users can only see their own
 CREATE POLICY "Users can view their own notifications" ON notifications
-  FOR SELECT USING (user_id = auth.uid());
+  FOR SELECT TO authenticated
+  USING (user_id = auth.uid());
 
 CREATE POLICY "Users can update their own notifications" ON notifications
-  FOR UPDATE USING (user_id = auth.uid());
+  FOR UPDATE TO authenticated
+  USING (user_id = auth.uid())
+  WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users can delete their own notifications" ON notifications
+  FOR DELETE TO authenticated
+  USING (user_id = auth.uid());
 
 -- =====================================================
 -- SEED DATA FOR TESTING

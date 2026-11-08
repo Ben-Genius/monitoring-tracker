@@ -94,7 +94,7 @@ export function useImport() {
                 const record: Record<string, any> = {};
 
                 for (const map of columnMap) {
-                    let val = row[map.csvColumn];
+                    const val = row[map.csvColumn];
                     if (val === '' || val === undefined) continue;
                     record[map.dbField] = val;
                 }
