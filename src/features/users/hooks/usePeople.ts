@@ -203,4 +203,24 @@ export async function setUserAccess(userId: string, active: boolean) {
     }
 }
 
+/**
+ * Asks the server to email an existing invite. Never throws: the link is
+ * already created and shown, so a failed email only means "send it by hand".
+ */
+export async function emailInvite(inviteId: string): Promise<{ ok: true } | { ok: false; reason: string }> {
+    try {
+        const { data } = await supabase.auth.getSession();
+        const res = await fetch('/api/send-invite', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session?.access_token ?? ''}` },
+            body: JSON.stringify({ invite_id: inviteId }),
+        });
+        if (res.ok) return { ok: true };
+        const body = await res.json().catch(() => ({}));
+        return { ok: false, reason: res.status === 501 ? 'Email is not set up yet.' : body.error || 'The email could not be sent.' };
+    } catch {
+        return { ok: false, reason: 'The email could not be sent.' };
+    }
+}
+
 export const inviteLink = (token: string) => `${window.location.origin}/signup?token=${token}`;

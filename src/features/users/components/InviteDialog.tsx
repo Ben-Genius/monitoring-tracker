@@ -3,7 +3,7 @@ import { AlertCircle, Check, Copy, MessageSquareText } from 'lucide-react';
 import { DialogShell } from '@/components/ui/dialog-shell';
 import { cn } from '@/lib/utils';
 import type { Role } from '@/lib/permissions';
-import { createInvite, inviteLink } from '../hooks/usePeople';
+import { createInvite, emailInvite, inviteLink } from '../hooks/usePeople';
 import { ROLES, ROLE_ORDER, expiry, inviteMessage } from '../utils/people';
 
 export interface InviteDraft {
@@ -36,7 +36,7 @@ export default function InviteDialog({ open, onClose, onCreated, companies, allo
     const [errors, setErrors] = useState<Partial<Record<keyof InviteDraft, string>>>({});
     const [saving, setSaving] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
-    const [made, setMade] = useState<{ link: string; expires: string | null } | null>(null);
+    const [made, setMade] = useState<{ link: string; expires: string | null; email: { ok: true } | { ok: false; reason: string } | null } | null>(null);
     const [copied, setCopied] = useState<'link' | 'message' | null>(null);
 
     useEffect(() => {
@@ -62,8 +62,10 @@ export default function InviteDialog({ open, onClose, onCreated, companies, allo
         setSaving(true); setSaveError(null);
         try {
             const r = await createInvite(draft);
-            setMade({ link: inviteLink(r.token), expires: r.expires_at });
+            setMade({ link: inviteLink(r.token), expires: r.expires_at, email: null });
             onCreated();
+            const email = await emailInvite(r.id);
+            setMade(m => (m ? { ...m, email } : m));
         } catch (err) {
             setSaveError(err instanceof Error ? err.message : 'The invite could not be created.');
         } finally {
@@ -84,7 +86,7 @@ export default function InviteDialog({ open, onClose, onCreated, companies, allo
             open={open}
             onClose={onClose}
             title={made ? `Invite ready for ${draft.name.split(' ')[0]}` : 'Invite someone'}
-            description={made ? 'Send them the link. They choose a password and can sign in straight away.' : 'Creates a single-use signup link. Nothing is emailed automatically.'}
+            description={made ? (made.email?.ok ? `We emailed ${draft.email.trim()}. You can also share the link yourself.` : 'Send them the link. They choose a password and can sign in straight away.') : 'Creates a single-use signup link and emails it to them.'}
             className="max-w-xl"
         >
             {made ? (
@@ -94,6 +96,9 @@ export default function InviteDialog({ open, onClose, onCreated, companies, allo
                         <input id="invite-link" readOnly value={made.link} onFocus={e => e.target.select()} className="mt-1 w-full truncate bg-transparent font-mono text-[13px] text-ink outline-none dark:text-slate-100" />
                         {expiry(made.expires) && <p className="mt-1 text-[12.5px] text-ink-muted dark:text-slate-400">{expiry(made.expires)!.text}</p>}
                     </div>
+                    <p role="status" className="text-[13px] text-ink-muted dark:text-slate-400">
+                        {made.email === null ? `Emailing ${draft.email.trim()}…` : made.email.ok ? `Emailed to ${draft.email.trim()}.` : `Not emailed: ${made.email.reason} Send the link yourself.`}
+                    </p>
                     <div className="grid gap-2 sm:grid-cols-2">
                         <button type="button" onClick={() => copy('link')} className="inline-flex h-11 items-center justify-center gap-2 rounded-[8px] border border-line bg-surface text-sm font-semibold text-ink hover:border-ink/30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
                             {copied === 'link' ? <Check className="h-4 w-4" aria-hidden /> : <Copy className="h-4 w-4" aria-hidden />} {copied === 'link' ? 'Link copied' : 'Copy link'}
