@@ -186,22 +186,41 @@
   animation: progress-fill 1.2s var(--ease-spring);
 }
 
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+:root {
+  --scrollbar-thumb: rgba(120, 120, 128, 0.25);
+  --scrollbar-thumb-hover: rgba(120, 120, 128, 0.4);
+  --scrollbar-track: transparent;
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
+/* scrollbar-width is not inherited, so it has to reach every scroller */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
-::-webkit-scrollbar-thumb {
-  background: rgba(120, 120, 128, 0.25);
-  border-radius: 3px;
-}
+/* Legacy WebKit fallback; only for browsers without scrollbar-color */
+@supports not (scrollbar-color: auto) {
+  * {
+    scrollbar-width: auto;
+  }
 
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(120, 120, 128, 0.4);
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

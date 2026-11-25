@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, Check, X, Paperclip, Link2, FileText, Image as ImageIcon, Loader2, AlertTriangle, ChevronDown } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { cn } from '@/lib/utils';
+import { cn, isImeComposing } from '@/lib/utils';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useUsers } from '@/features/users/hooks/useUsers';
 import { supabase } from '@/lib/supabase';
@@ -307,7 +307,7 @@ function StatusUpdateSheet({ task, initialTarget, onClose }: { task: MovableTask
                                     <input ref={fileInput} type="file" multiple accept={EVIDENCE_ACCEPT} className="sr-only" onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
                                     <div className="flex flex-1 gap-2">
                                         <input value={linkDraft} onChange={e => { setLinkDraft(e.target.value); setError(null); }}
-                                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addLink(); } }}
+                                            onKeyDown={e => { if (e.key === 'Enter' && !isImeComposing(e)) { e.preventDefault(); addLink(); } }}
                                             placeholder="Paste a link (Drive, OneDrive…)"
                                             className="h-10 min-w-0 flex-1 rounded-[8px] border border-line px-3 text-sm outline-none placeholder:text-ink-faint focus:border-progress" />
                                         <button type="button" onClick={addLink} disabled={!linkDraft.trim()} aria-label="Add link"

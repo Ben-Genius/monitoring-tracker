@@ -50,7 +50,7 @@ VITE_SUPABASE_ANON_KEY=your-anon-key-here
 2. Click "Add user" → "Create new user"
 3. Fill in:
    - **Email**: admin@test.com
-   - **Password**: Test123!
+   - **Password**: choose one and keep it out of the repo
    - **Auto Confirm User**: ✅ (check this)
 4. Click "Create user"
 5. Copy the User ID (UUID)
@@ -100,7 +100,7 @@ npm run dev
 
 4. Login with your test credentials:
    - Email: admin@test.com
-   - Password: Test123!
+   - Password: the one you chose in step 3
 
 5. After login, you should see:
    - Dashboard with stats

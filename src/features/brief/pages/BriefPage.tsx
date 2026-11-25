@@ -15,11 +15,13 @@ import { addressAs, greeting } from '../utils/briefMeta';
 import AttentionSummary from '../components/AttentionSummary';
 import FullView from '../components/FullView';
 import CuratedView from '../components/CuratedView';
+import { useExecutiveTitle } from '../hooks/useExecutiveTitle';
 
 type View = 'curated' | 'full';
 
 export default function BriefPage() {
     const { user } = useAuth();
+    const exec = useExecutiveTitle();
     const { selectedCompanyId } = useCompanyStore();
     const { data: companies = [] } = useCompanies();
     const { data: brief, isLoading, isFetching, refetch, error } = useBrief(selectedCompanyId);
@@ -39,12 +41,12 @@ export default function BriefPage() {
     if (!canReadBrief(user)) return <Navigate to="/dashboard" replace />;
 
     const now = brief?.generatedAt ?? new Date();
-    const scope = selectedCompanyId === 'all' ? 'All three companies' : companyName[selectedCompanyId] ?? '';
+    const scope = selectedCompanyId === 'all' ? 'All companies' : companyName[selectedCompanyId] ?? '';
     const fullLabel = isExecutive ? 'Full picture' : 'Prepare today’s brief';
 
     const tabs = (isExecutive
         ? [['curated', 'My brief', Send], ['full', 'Full picture', ListChecks]]
-        : [['full', 'Prepare today’s brief', ListChecks], ['curated', 'Preview Mr Blay’s view', Eye]]
+        : [['full', 'Prepare today’s brief', ListChecks], ['curated', `Preview ${exec}’s view`, Eye]]
     ) as [View, string, typeof Send][];
 
     // The summary card carries the figures, so the subtitle says only the scope and the job.
@@ -52,7 +54,7 @@ export default function BriefPage() {
         ? 'What needs a decision, a nudge or a thank-you today.'
         : isExecutive
             ? `${scope}: everything that needs attention.`
-            : `${scope}. Pick what Mr Blay should see and add a line for each.`;
+            : `${scope}. Pick what ${exec} should see and add a line for each.`;
 
     const handleTabKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {

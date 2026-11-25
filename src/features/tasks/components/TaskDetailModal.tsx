@@ -13,7 +13,7 @@ import { openEvidence } from '../hooks/useEvidence';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useProjects } from '@/features/projects/hooks/useProjects';
 import { useUsers } from '@/features/users/hooks/useUsers';
-import { cn, formatDate, formatRelativeTime } from '@/lib/utils';
+import { cn, formatDate, formatRelativeTime, isImeComposing } from '@/lib/utils';
 import { canCoordinate } from '@/lib/permissions';
 import { taskProgress, isStale, daysSinceMovement, isUpdateOverdue } from '../utils/accountability';
 import { stageDef } from '../utils/stages';
@@ -175,7 +175,7 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                             rows={1}
                             onChange={e => setTitle(e.target.value)}
                             onBlur={saveTitle}
-                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLTextAreaElement).blur(); } }}
+                            onKeyDown={e => { if (e.key === 'Enter' && !isImeComposing(e)) { e.preventDefault(); (e.target as HTMLTextAreaElement).blur(); } }}
                             className="w-full resize-none bg-transparent text-xl font-bold leading-snug text-ink dark:text-slate-50 outline-none rounded-md hover:bg-paper dark:hover:bg-slate-800/50 focus:bg-paper px-1 -mx-1 [field-sizing:content]"
                             aria-label="Task title"
                         />
@@ -344,7 +344,7 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                                                         value={editingStep.title}
                                                         onChange={e => setEditingStep({ id: s.id, title: e.target.value })}
                                                         onBlur={() => { const t = editingStep.title.trim(); if (t && t !== s.title) updateSubtask.mutate({ id: s.id, title: t }); setEditingStep(null); }}
-                                                        onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setEditingStep(null); }}
+                                                        onKeyDown={e => { if (e.key === 'Enter' && !isImeComposing(e)) (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setEditingStep(null); }}
                                                         className="w-full rounded-md border border-blue-300 px-2 py-0.5 text-sm outline-none"
                                                     />
                                                 ) : (

@@ -39,3 +39,7 @@ cron-jobs.txt
 .mcp.json
 .mt-snapshot.tgz
 .git-corrupt-backup.*/
+
+# Local-only: test logins and browser-automation snapshots (can contain passwords)
+LOGIN_CREDENTIALS.md
+.playwright-mcp/

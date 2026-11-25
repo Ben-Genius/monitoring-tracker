@@ -5,6 +5,15 @@ export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs))
 }
 
+/**
+ * True while Enter is confirming an IME candidate (Chinese, Japanese, Korean
+ * input) rather than meaning "submit". keyCode 229 covers Safari, which clears
+ * isComposing before the confirming keydown reaches script.
+ */
+export function isImeComposing(e: { nativeEvent: KeyboardEvent; keyCode: number }): boolean {
+    return e.nativeEvent.isComposing || e.keyCode === 229;
+}
+
 /** Short form for stat tiles: GHS 240.6M. */
 export function formatCurrencyCompact(amount: number): string {
     return new Intl.NumberFormat('en-US', {
@@ -46,25 +55,45 @@ export function formatRelativeTime(date: string | Date): string {
 // Default brand color: Orange (#F58220) and White
 export const DEFAULT_BRAND_COLOR = '#F58220';
 
-export function getCompanyColor(companyName: string): string {
-    const colors: Record<string, string> = {
-        'MacWest': '#8B0000',
-        'CypressEnergy': '#006837',
-        'Northbrook LRD': '#1E3A8A',
-    };
-    // Case-insensitive fallback
-    const key = Object.keys(colors).find(k => companyName.toLowerCase().includes(k.toLowerCase().split(' ')[0]));
-    return (key ? colors[key] : null) || colors[companyName] || DEFAULT_BRAND_COLOR;
+export interface CompanyTheme { primary: string; secondary: string; accent: string }
+
+const DEFAULT_THEME: CompanyTheme = { primary: DEFAULT_BRAND_COLOR, secondary: '#EA580C', accent: '#FED7AA' };
+
+/** Company colours come from the companies table (brand_* columns), loaded by useCompanies(). */
+const companyThemes = new Map<string, CompanyTheme>();
+
+interface BrandedCompany {
+    name: string;
+    brand_primary?: string | null;
+    brand_secondary?: string | null;
+    brand_accent?: string | null;
 }
 
-export function getCompanyTheme(companyName: string) {
-    const themes: Record<string, { primary: string; secondary: string; accent: string }> = {
-        'MacWest': { primary: '#8B0000', secondary: '#000000', accent: '#FCA311' },
-        'CypressEnergy': { primary: '#006837', secondary: '#F58220', accent: '#4ADE80' },
-        'Northbrook LRD': { primary: '#1E3A8A', secondary: '#334155', accent: '#38BDF8' },
-    };
-    const key = Object.keys(themes).find(k => companyName.toLowerCase().includes(k.toLowerCase().split(' ')[0]));
-    return (key ? themes[key] : null) || themes[companyName] || { primary: DEFAULT_BRAND_COLOR, secondary: '#EA580C', accent: '#FED7AA' };
+export function registerCompanyThemes(companies: BrandedCompany[]) {
+    companyThemes.clear();
+    for (const c of companies) {
+        if (!c.brand_primary) continue;
+        companyThemes.set(c.name, {
+            primary: c.brand_primary,
+            secondary: c.brand_secondary || DEFAULT_THEME.secondary,
+            accent: c.brand_accent || DEFAULT_THEME.accent,
+        });
+    }
+}
+
+export function getCompanyTheme(companyName: string): CompanyTheme {
+    const exact = companyThemes.get(companyName);
+    if (exact) return exact;
+    // Loose match on the first word ("Northbrook" finds "Northbrook LRD"), as before.
+    const lower = companyName.toLowerCase();
+    for (const [name, theme] of companyThemes) {
+        if (lower.includes(name.toLowerCase().split(' ')[0])) return theme;
+    }
+    return DEFAULT_THEME;
+}
+
+export function getCompanyColor(companyName: string): string {
+    return getCompanyTheme(companyName).primary;
 }
 
 export function getPriorityColor(priority: string): string {

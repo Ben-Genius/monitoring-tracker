@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabaseLog } from '@/features/audit/utils/log';
+import { registerCompanyThemes } from '@/lib/utils';
 
 export interface Project {
     id: string;
@@ -189,6 +190,7 @@ export function useCompanies() {
                 .select('*')
                 .order('name');
             if (error) throw error;
+            registerCompanyThemes(data ?? []);
             return data;
         },
     });

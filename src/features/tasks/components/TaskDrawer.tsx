@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Drawer } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import { MultiSelect } from '@/components/ui/multi-select';
+import { isImeComposing } from '@/lib/utils';
 import {
     Calendar,
     User,
@@ -88,7 +89,7 @@ export default function TaskDrawer({ taskId, open, onClose }: TaskDrawerProps) {
                                 onChange={(e) => setTitle(e.target.value)}
                                 onBlur={handleTitleBlur}
                                 onKeyDown={(e) => {
-                                    if (e.key === 'Enter') handleTitleBlur();
+                                    if (e.key === 'Enter' && !isImeComposing(e)) handleTitleBlur();
                                     if (e.key === 'Escape') {
                                         setTitle(task.title);
                                         setIsEditingTitle(false);
