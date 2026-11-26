@@ -26,10 +26,10 @@ export const SECTIONS: SectionMeta[] = [
 ];
 
 const HONORIFICS = /^(mr|mrs|ms|miss|dr|prof|rev|hon|sir|madam)\.?$/i;
-/** "Mr Blay" stays "Mr Blay"; "Ama Owusu" becomes "Ama". */
+/** "Mr Blay" and "Mr Kwame Blay" are "Mr Blay"; "Ama Owusu" becomes "Ama". */
 export function addressAs(name: string) {
     const parts = name.trim().split(/\s+/);
-    return parts.length > 1 && HONORIFICS.test(parts[0]) ? `${parts[0]} ${parts[1]}` : parts[0];
+    return parts.length > 1 && HONORIFICS.test(parts[0]) ? `${parts[0]} ${parts[parts.length - 1]}` : parts[0];
 }
 
 export function greeting(d: Date) {

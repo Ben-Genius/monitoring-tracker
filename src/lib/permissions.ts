@@ -33,6 +33,16 @@ export function canApprove(user: Actor): boolean {
     return user?.role === 'admin' || user?.role === 'lead';
 }
 
+/** Has tasks of their own to report on (executives oversee; they don't move tasks). */
+export function canReportWork(user: Actor): boolean {
+    return !!user && user.role !== 'executive';
+}
+
+/** Sees everyone's workload (leads, PAs, admins, executives; not staff). */
+export function canSeeWorkload(user: Actor): boolean {
+    return !!user && user.role !== 'employee';
+}
+
 /** Reads the morning brief. */
 export function canReadBrief(user: Actor): boolean {
     return !!user && GLOBAL_VIEW.includes(user.role);
@@ -40,5 +50,8 @@ export function canReadBrief(user: Actor): boolean {
 
 /** Where a user lands after signing in: the executive and PA start on the brief. */
 export function homePath(user: Actor): string {
-    return user?.role === 'executive' || user?.role === 'pa' ? '/brief' : '/dashboard';
+    if (user?.role === 'executive' || user?.role === 'pa') return '/brief';
+    // Staff mostly come in to report on their own tasks, often from a phone.
+    if (user?.role === 'employee') return '/my-work';
+    return '/dashboard';
 }

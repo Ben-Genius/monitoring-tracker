@@ -1,19 +1,162 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/avif" href="/logo.avif" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
-    <link rel="shortcut icon" href="/favicon.ico" />
-    <link rel="apple-touch-icon" href="/logo.avif" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pulse360 - Project & Productivity Management</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Commit · Projects planned. Work done. Everyone accountable.</title>
+  <meta name="description" content="Project management, productivity and accountability in one place: boards, timelines and workload, live updates, WhatsApp updates from the field, and work that escalates itself when it goes quiet. Start free." />
+  <meta property="og:title" content="Commit · Projects planned. Work done. Everyone accountable." />
+  <meta property="og:description" content="Project management, productivity and accountability in one place: boards, timelines and workload, live updates, WhatsApp updates from the field, and work that escalates itself when it goes quiet. Start free." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="/icons/app-512.png" />
+  <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0A0A0A" media="(prefers-color-scheme: dark)" />
+  <link rel="icon" type="image/png" sizes="64x64" href="/brand/commit-64.png" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script>
+    // Motion is on: hide the first screen's text until it animates in. If the
+    // animation code never runs (blocked, offline), show everything after 3s.
+    try {
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        document.documentElement.classList.add('js');
+        setTimeout(function () { if (!window.__commitMotion) document.documentElement.classList.remove('js'); }, 3000);
+      }
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="/src/styles/landing.css" />
+</head>
+<body>
+  <header class="site">
+    <div class="rail">
+      <a class="brand" href="/"><img src="/brand/commit-mark.png" alt="" width="24" height="24" /><b>Commit</b><i>.</i></a>
+      <nav class="links" aria-label="Main">
+        <a class="text hide-sm" href="/features">Features</a>
+        <a class="text hide-sm" href="/pricing">Pricing</a>
+        <a class="text" href="/login" data-login>Log in</a>
+        <a class="btn btn-primary" href="/start">Start free</a>
+      </nav>
+    </div>
+    <i class="progress" aria-hidden="true"></i>
+  </header>
+
+  <main class="rail">
+    <section class="sec hero" aria-labelledby="hero-h">
+      <div>
+        <p class="label" data-in>Projects planned. Work done. Everyone accountable.</p>
+        <h1 id="hero-h">Plan the work. <span class="dim">See it move.</span> Nothing goes quiet.</h1>
+        <p class="lead" data-in>Commit is where your projects, tasks and teams live. Plan on boards and timelines, update from any phone, and let work that stalls bring itself to the right person’s attention.</p>
+        <div class="ctas" data-in>
+          <a class="btn btn-primary" href="/start">Start free <span class="arrow" aria-hidden="true">→</span></a>
+          <a class="btn btn-ghost" href="/features">See all features</a>
+        </div>
+
+        <div class="tabs" data-tabs data-in>
+          <div role="tablist" aria-label="Ways to update a task">
+            <button role="tab" id="t-web" aria-controls="p-web" aria-selected="true">Web</button>
+            <button role="tab" id="t-phone" aria-controls="p-phone" aria-selected="false" tabindex="-1">Phone</button>
+            <button role="tab" id="t-wa" aria-controls="p-wa" aria-selected="false" tabindex="-1">WhatsApp</button>
+            <button role="tab" id="t-email" aria-controls="p-email" aria-selected="false" tabindex="-1">Email</button>
+            <i class="tab-prog" aria-hidden="true"></i>
+          </div>
+          <div role="tabpanel" id="p-web" aria-labelledby="t-web"><span class="p">→</span><span>Drag “Roof trusses” to Friday <span class="r">· deadline moved</span></span></div>
+          <div role="tabpanel" id="p-phone" aria-labelledby="t-phone" hidden><span class="p">→</span><span>My work › Mark 50% done <span class="r">· one tap</span></span></div>
+          <div role="tabpanel" id="p-wa" aria-labelledby="t-wa" hidden><span class="p">$</span><span>2 50% formwork up <span class="r">· task 2 updated</span></span></div>
+          <div role="tabpanel" id="p-email" aria-labelledby="t-email" hidden><span class="p">@</span><span>7:00 brief › 3 need you today <span class="r">· in your inbox</span></span></div>
+        </div>
+      </div>
+
+      <div>
+        <figure class="window" aria-label="Example: a project's timeline, with a live update arriving" style="margin:0">
+          <div class="win-bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="url">commit / projects / warehouse-extension</span></div>
+          <div class="win-tabs" aria-hidden="true"><span>Board</span><span>List</span><span>Calendar</span><span class="on">Timeline</span></div>
+          <div class="win-body">
+            <div class="proj"><b>Warehouse extension</b><span><span data-count="62">62</span>% · handover 14 Feb</span></div>
+            <div class="meter"><i></i></div>
+            <ul class="tl" aria-hidden="true">
+              <li><span class="lbl">Foundations</span><span class="track"><span class="bar done" style="left:0;width:34%"></span></span></li>
+              <li><span class="lbl">Floor slab</span><span class="track"><span class="bar red" style="left:22%;width:30%"><em style="width:40%"></em></span></span></li>
+              <li><span class="lbl">Roof trusses</span><span class="track"><span class="bar" style="left:44%;width:36%"><em style="width:50%"></em></span></span></li>
+              <li><span class="lbl">Electrical fit-out</span><span class="track"><span class="bar" style="left:62%;width:26%"></span></span></li>
+              <li><span class="lbl">Handover</span><span class="track"><span class="bar" style="left:88%;width:12%"></span></span></li>
+              <i class="today"></i>
+            </ul>
+            <div class="toast">
+              <span class="av" aria-hidden="true">YB</span>
+              <span class="t">Yaw moved <b>Roof trusses</b> to 50% <span>via WhatsApp</span></span>
+              <span class="live">LIVE</span>
+            </div>
+          </div>
+        </figure>
+      </div>
+    </section>
+
+    <section class="sec" id="why" aria-labelledby="why-h">
+      <div class="pad">
+        <div class="head">
+          <p class="label"><span class="idx">01</span>Why Commit</p>
+          <h2 id="why-h">Three things your current tool doesn’t do.</h2>
+          <p>Boards and timelines are table stakes. These are why teams switch.</p>
+        </div>
+      </div>
+      <div class="grid">
+        <article class="cell">
+          <span class="n">01</span>
+          <h3>Updates over WhatsApp.</h3>
+          <p>Field teams reply with a number and a percentage. A photo marks it done.</p>
+          <div class="viz chat" aria-hidden="true">
+            <p class="me">2 50% formwork up</p>
+            <p class="bot">“Roof trusses” is now 50% done. Your lead can see it.</p>
+          </div>
+        </article>
+        <article class="cell">
+          <span class="n">02</span>
+          <h3>Nothing stays quiet.</h3>
+          <p>Stalled work climbs from owner to lead to leadership, on its own.</p>
+          <div class="viz" aria-hidden="true">
+            <ul class="ladder">
+              <li><span class="d">day 2</span><span>Owner nudged</span><span class="s">sent</span></li>
+              <li><span class="d">day 4</span><span>Lead + assigner</span><span class="s">sent</span></li>
+              <li class="hot"><span class="d">day 7</span><span>Leadership</span><span class="s">today</span></li>
+            </ul>
+          </div>
+        </article>
+        <article class="cell">
+          <span class="n">03</span>
+          <h3>Many companies, kept apart.</h3>
+          <p>Run several businesses in one place. Each one’s data stays separate.</p>
+          <div class="viz" aria-hidden="true">
+            <div class="orgs"><span>A</span><span>B</span><span>C</span><span class="add">+</span></div>
+            <div class="roles"><span class="chip">executive</span><span class="chip">lead</span><span class="chip">staff</span><span class="chip">pa</span></div>
+          </div>
+        </article>
+      </div>
+      <a class="more" href="/features"><span>All features: views, My work, workload, dependencies and more</span><span class="arrow" aria-hidden="true">→</span></a>
+    </section>
+
+    <section class="sec closing" aria-labelledby="close-h">
+      <h2 id="close-h">Commit to the work.</h2>
+      <p>Set up in about a minute, with a sample project to explore.</p>
+      <div class="ctas">
+        <a class="btn btn-primary" href="/start">Start free <span class="arrow" aria-hidden="true">→</span></a>
+        <a class="btn btn-ghost" href="/login" data-login>Log in</a>
+      </div>
+      <p class="fine">Free for your whole team. No per-person fees. <a href="/pricing">See pricing</a></p>
+    </section>
+  </main>
+
+  <footer class="site">
+    <div class="rail">
+      <span>© <span data-year>2026</span> Commit</span>
+      <a href="/features">Features</a>
+      <a href="/pricing">Pricing</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+    </div>
+  </footer>
+
+  <script type="module" src="/src/landing/main.js"></script>
+</body>
 </html>

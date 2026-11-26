@@ -30,7 +30,7 @@ function byCompany(people: Person[]) {
     return [...m.entries()].sort((a, b) => b[1] - a[1]);
 }
 
-/** Who can actually get into Pulse360, as one bar from "signed in" to "cannot sign in". */
+/** Who can actually get into Commit, as one bar from "signed in" to "cannot sign in". */
 export default function AccessPanel({ people, known, isAdmin, filter, onFilter }: Props) {
     const counts = Object.fromEntries(ACCESS_ORDER.map(a => [a, people.filter(p => p.access === a).length])) as Record<Access, number>;
     // Deactivated only joins the legend once someone is deactivated.

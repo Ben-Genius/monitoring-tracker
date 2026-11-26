@@ -7,6 +7,7 @@ import { tx } from '@/features/dashboard/components/tokens';
 import type { Brief, BriefSection, BriefTask } from '../hooks/useBrief';
 import { useBriefDay, useBriefDayMutation, useBriefItems, useBriefMutations, type BriefDay } from '../hooks/useBriefItems';
 import { SECTIONS } from '../utils/briefMeta';
+import { capitalise, useExecutiveTitle } from '../hooks/useExecutiveTitle';
 import BriefSectionCard from './BriefSectionCard';
 
 interface Props {
@@ -25,6 +26,7 @@ const primaryBtn = 'inline-flex h-10 items-center justify-center gap-2 rounded-[
 export default function FullView({ brief, companies, companyName, allCompanies, curate, onOpen }: Props) {
     const [expanded, setExpanded] = useState<Partial<Record<BriefSection, boolean>>>({});
     const [searchQuery, setSearchQuery] = useState('');
+    const exec = useExecutiveTitle();
     const { data: today } = useBriefItems();
     const { data: day } = useBriefDay();
     const setReady = useBriefDayMutation();
@@ -37,7 +39,7 @@ export default function FullView({ brief, companies, companyName, allCompanies, 
         else add.mutate({ taskId: t.id }, { onError: (e: Error) => toast.error(e.message) });
     };
     const markReady = (ready: boolean) => setReady.mutate(ready, {
-        onSuccess: () => toast.success(ready ? 'Marked ready. Mr Blay will see it as today’s brief.' : 'Reopened. Mr Blay will see it as still being prepared.'),
+        onSuccess: () => toast.success(ready ? `Marked ready. ${capitalise(exec)} will see it as today’s brief.` : `Reopened. ${capitalise(exec)} will see it as still being prepared.`),
         onError: (e: Error) => toast.error(`Couldn’t update the brief: ${e.message}`),
     });
 
@@ -171,14 +173,15 @@ export default function FullView({ brief, companies, companyName, allCompanies, 
 function BriefBuilder({ picked, withNote, day, pending, onReady }: {
     picked: number; withNote: number; day?: BriefDay; pending: boolean; onReady: (ready: boolean) => void;
 }) {
+    const exec = useExecutiveTitle();
     const ready = !!day?.readyAt;
     const steps = [
-        { done: picked > 0, label: picked ? `${picked} item${picked === 1 ? '' : 's'} picked` : 'Pick what Mr Blay should see', hint: 'Tap + on any item below' },
+        { done: picked > 0, label: picked ? `${picked} item${picked === 1 ? '' : 's'} picked` : `Pick what ${exec} should see`, hint: 'Tap + on any item below' },
         { done: picked > 0 && withNote === picked, label: picked ? `${withNote} of ${picked} with a note` : 'Add a line in your words', hint: 'One sentence on what’s happening' },
     ];
     return (
         <Card aria-labelledby="builder-heading" className="hidden shadow-card xl:block dark:shadow-none">
-            <CardHeader id="builder-heading" icon={Send} title="Today’s brief for Mr Blay" action={ready ? <span className="inline-flex items-center gap-1 rounded-full bg-done/10 px-2.5 py-1 text-[12.5px] font-semibold text-done dark:bg-emerald-400/10 dark:text-emerald-300"><CheckCircle2 className="h-3.5 w-3.5" aria-hidden /> Ready</span> : undefined} />
+            <CardHeader id="builder-heading" icon={Send} title={`Today’s brief for ${exec}`} action={ready ? <span className="inline-flex items-center gap-1 rounded-full bg-done/10 px-2.5 py-1 text-[12.5px] font-semibold text-done dark:bg-emerald-400/10 dark:text-emerald-300"><CheckCircle2 className="h-3.5 w-3.5" aria-hidden /> Ready</span> : undefined} />
             <div className="border-t border-line px-5 py-5 dark:border-slate-800">
                 <ol className="space-y-3.5">
                     {steps.map((s, i) => (
@@ -200,7 +203,7 @@ function BriefBuilder({ picked, withNote, day, pending, onReady }: {
                         {ready ? (
                             <>
                                 <p className={cn('text-[13px]', tx.muted)}>
-                                    Marked ready {new Date(day.readyAt!).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}{day.readyBy ? ` by ${day.readyBy}` : ''}. Changes you make now show to Mr Blay straight away.
+                                    Marked ready {new Date(day.readyAt!).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}{day.readyBy ? ` by ${day.readyBy}` : ''}. Changes you make now show to {exec} straight away.
                                 </p>
                                 <button type="button" onClick={() => onReady(false)} disabled={pending} className={cn(primaryBtn, 'mt-3 w-full border border-line-strong text-ink hover:bg-paper dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800')}>
                                     Reopen to keep editing
@@ -209,17 +212,17 @@ function BriefBuilder({ picked, withNote, day, pending, onReady }: {
                         ) : (
                             <>
                                 <button type="button" onClick={() => onReady(true)} disabled={pending || picked === 0} className={cn(primaryBtn, 'w-full bg-ink text-white hover:bg-ink/90 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white')}>
-                                    <Send className="h-4 w-4" aria-hidden /> {pending ? 'Saving…' : 'Mark ready for Mr Blay'}
+                                    <Send className="h-4 w-4" aria-hidden /> {pending ? 'Saving…' : `Mark ready for ${exec}`}
                                 </button>
                                 <p className={cn('mt-2 text-[13px] leading-snug', tx.muted)}>
-                                    {picked === 0 ? 'Pick at least one item first.' : 'Until then, he sees it labelled as still being prepared.'}
+                                    {picked === 0 ? 'Pick at least one item first.' : 'Until then, it shows as still being prepared.'}
                                 </p>
                             </>
                         )}
                     </div>
                 ) : (
                     <p className={cn('mt-5 border-t border-line pt-4 text-[13px] leading-snug dark:border-slate-800', tx.muted)}>
-                        Items you pick show to Mr Blay straight away.
+                        Items you pick show to {exec} straight away.
                     </p>
                 )}
             </div>

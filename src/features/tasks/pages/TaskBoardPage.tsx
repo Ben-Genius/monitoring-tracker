@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
     DndContext,
@@ -13,8 +13,9 @@ import {
     type Announcements,
 } from '@dnd-kit/core';
 import { subDays } from 'date-fns';
-import { Plus, Search, List, LayoutGrid, UserRound } from 'lucide-react';
-import { useTasks, Task } from '../hooks/useTasks';
+import { Plus, Search, List, LayoutGrid, UserRound, CalendarDays, GanttChart, Download } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import { useTasks, useRescheduleTask, Task } from '../hooks/useTasks';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
 import TaskCard from '../components/TaskCard';
@@ -22,12 +23,18 @@ import TaskListView from '../components/TaskListView';
 import TaskDetailModal from '../components/TaskDetailModal';
 import CreateTaskModal from '../components/CreateTaskModal';
 import { useTaskMover, TASK_MOVED_EVENT, type TaskMovedDetail } from '../components/TaskMover';
-import { STAGES, type StageDef } from '../utils/stages';
+import { STAGES, stageDef, type StageDef } from '../utils/stages';
 import { cn } from '@/lib/utils';
 import { useCompanyStore } from '@/hooks/useCompanyStore';
 import { canCoordinate } from '@/lib/permissions';
+import { day, downloadCsv } from '@/lib/exportCsv';
 
-type View = 'board' | 'list';
+type View = 'board' | 'list' | 'calendar' | 'timeline';
+const VIEWS: View[] = ['board', 'list', 'calendar', 'timeline'];
+
+// Calendar and timeline load only when chosen.
+const TaskCalendar = lazy(() => import('@/features/schedule/components/TaskCalendar'));
+const TaskTimeline = lazy(() => import('@/features/schedule/components/TaskTimeline'));
 const VIEW_KEY = 'tasks-view';
 /** Done shows recent finishes only; older ones are one click away. */
 const RECENT_DONE_DAYS = 14;
@@ -37,7 +44,7 @@ const COLUMN_LIMIT = 25;
 function initialView(): View {
     try {
         const saved = localStorage.getItem(VIEW_KEY);
-        if (saved === 'board' || saved === 'list') return saved;
+        if (VIEWS.includes(saved as View)) return saved as View;
     } catch { /* storage blocked: use the default */ }
     return 'board';
 }
@@ -60,10 +67,23 @@ export default function TaskBoardPage() {
 
     const [searchParams, setSearchParams] = useSearchParams();
     const selectedTaskId = searchParams.get('task');
-    const openTask = (id: string | null) => {
+    const openTask = useCallback((id: string | null) => {
         const next = new URLSearchParams(searchParams);
         if (id) next.set('task', id); else next.delete('task');
         setSearchParams(next, { replace: !id });
+    }, [searchParams, setSearchParams]);
+    const openTaskById = useCallback((id: string) => openTask(id), [openTask]);
+
+    // Calendar drag: coordinators and leads move any deadline they can see;
+    // staff move their own. The database has the final say.
+    const rescheduleTask = useRescheduleTask();
+    const canReschedule = useCallback((t: Task) => !!user && user.role !== 'executive' && t.stage !== 'completed'
+        && (canCoordinate(user) || user.role === 'lead' || t.assignee_id === user.id), [user]);
+    const reschedule = (t: Task, day: string) => {
+        rescheduleTask.mutate({ task: t, due_date: day }, {
+            onSuccess: () => toast.success(`Deadline moved to ${new Date(day + 'T00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`),
+            onError: (err) => toast.error((err as Error).message || 'Couldn’t move the deadline.'),
+        });
     };
 
     const [activeTask, setActiveTask] = useState<Task | null>(null);
@@ -232,6 +252,20 @@ export default function TaskBoardPage() {
                         <p className="mt-0.5 max-w-2xl text-sm text-ink-muted dark:text-slate-400">Every task across the companies you can see.</p>
                     )}
                 </div>
+                <div className="flex shrink-0 gap-2">
+                <button type="button" disabled={!visibleTasks.length}
+                    title="Download the tasks shown, with your filters, as a spreadsheet"
+                    onClick={() => void downloadCsv('commit-tasks', visibleTasks.map(t => ({
+                        Task: t.title, Project: t.project?.name ?? '', Company: t.project?.company?.name ?? '',
+                        Owner: t.assignee?.name ?? '', Status: stageDef(t.stage).label, 'Progress %': t.stage === 'completed' ? 100 : t.progress_percent || 0,
+                        Priority: t.priority, Urgent: t.is_urgent ? 'Yes' : '', Accepted: t.acknowledged_at ? 'Yes' : 'No',
+                        Start: day(t.start_date ?? t.started_at), Deadline: day(t.due_date), 'Next update due': day(t.next_update_due),
+                        'Last movement': day(t.last_movement_at), Completed: day(t.completed_at),
+                        'Blocked because': t.stage === 'blockers' ? t.blocker_description ?? '' : '', Repeats: t.repeat ?? '',
+                    })), 'tasks')}
+                    className="inline-flex h-10 items-center gap-1.5 rounded-[8px] border border-line bg-surface px-3 text-sm font-semibold text-ink hover:border-ink/30 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
+                    <Download className="h-4 w-4" aria-hidden /> <span className="hidden sm:inline">Export</span><span className="sr-only sm:hidden">Export tasks</span>
+                </button>
                 {canCreateTask && (
                     <button
                         type="button"
@@ -241,6 +275,7 @@ export default function TaskBoardPage() {
                         <Plus className="h-4 w-4" aria-hidden /> New task
                     </button>
                 )}
+                </div>
             </div>
 
             {/* One toolbar row: search, then filters and layout */}
@@ -274,12 +309,24 @@ export default function TaskBoardPage() {
                     <button type="button" aria-pressed={view === 'list'} onClick={() => setView('list')} className={segBtn(view === 'list')}>
                         <List className="h-4 w-4" aria-hidden /> List
                     </button>
+                    <button type="button" aria-pressed={view === 'calendar'} onClick={() => setView('calendar')} className={segBtn(view === 'calendar')}>
+                        <CalendarDays className="h-4 w-4" aria-hidden /> Calendar
+                    </button>
+                    <button type="button" aria-pressed={view === 'timeline'} onClick={() => setView('timeline')} className={segBtn(view === 'timeline')}>
+                        <GanttChart className="h-4 w-4" aria-hidden /> Timeline
+                    </button>
                 </div>
             </div>
 
             {/* Content Area */}
             <div className="min-h-0 flex-1">
-                {view === 'list' ? (
+                {view === 'calendar' || view === 'timeline' ? (
+                    <Suspense fallback={<Skeleton className="h-[480px] w-full rounded-[12px]" />}>
+                        {view === 'calendar'
+                            ? <TaskCalendar tasks={visibleTasks} onOpen={openTaskById} canReschedule={canReschedule} onReschedule={reschedule} />
+                            : <TaskTimeline tasks={visibleTasks} onOpen={openTaskById} />}
+                    </Suspense>
+                ) : view === 'list' ? (
                     <div className="h-full overflow-auto">
                         <TaskListView tasks={visibleTasks} onTaskClick={openTask} onTaskComplete={handleTaskComplete} hiddenDone={hiddenDone} onShowAllDone={() => setShowAllDone(true)} />
                     </div>
@@ -361,7 +408,7 @@ export default function TaskBoardPage() {
             </div>
 
             <CreateTaskModal open={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} />
-            <TaskDetailModal taskId={selectedTaskId} open={!!selectedTaskId} onClose={() => openTask(null)} />
+            <TaskDetailModal taskId={selectedTaskId} open={!!selectedTaskId} onClose={() => openTask(null)} onOpenTask={openTask} />
             {mover.dialog}
         </div>
     );

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, Check, X, Paperclip, Link2, FileText, Image as ImageIcon, Loader2, AlertTriangle, ChevronDown } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { cn } from '@/lib/utils';
+import { cn, isImeComposing } from '@/lib/utils';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useUsers } from '@/features/users/hooks/useUsers';
 import { supabase } from '@/lib/supabase';
@@ -12,6 +12,9 @@ import { movePatch, type MoveTaskInput, type Task } from '../hooks/useTasks';
 import { uploadEvidence, normaliseLink, EVIDENCE_ACCEPT, MAX_EVIDENCE_BYTES, type Evidence } from '../hooks/useEvidence';
 import { STAGES, stageDef, type StageDef } from '../utils/stages';
 import { PROGRESS_STEPS } from '../utils/accountability';
+import { track } from '@/lib/analytics';
+import MentionField from '@/features/mentions/MentionField';
+import { useMentionPicks } from '@/features/mentions/mentions';
 
 export type MovableTask = MoveTaskInput['task'] & {
     project?: { company_id: string } | null;
@@ -34,25 +37,26 @@ export type TaskMovedDetail = { id: string; stage: Task['stage'] };
  */
 export function useTaskMover() {
     const { user } = useAuth();
-    const [pending, setPending] = useState<{ task: MovableTask; target: Task['stage'] } | null>(null);
+    const [pending, setPending] = useState<{ task: MovableTask; target: Task['stage']; progress?: number } | null>(null);
     const canMove = !!user && user.role !== 'executive';
 
-    const requestMove = (task: MovableTask, stage: Task['stage']) => {
+    /** progress pre-selects a step (25/50/75) when moving to In progress. */
+    const requestMove = (task: MovableTask, stage: Task['stage'], progress?: number) => {
         if (!canMove) return;
-        setPending({ task, target: stage === 'talking_stage' ? 'yet_to_start' : stage });
+        setPending({ task, target: stage === 'talking_stage' ? 'yet_to_start' : stage, progress });
     };
     /** Report progress or update a blocker without changing the stage. */
     const requestUpdate = (task: MovableTask) => { if (canMove) setPending({ task, target: task.stage }); };
     const editBlocker = requestUpdate;
 
     const dialog = pending ? (
-        <StatusUpdateSheet task={pending.task} initialTarget={pending.target} onClose={() => setPending(null)} />
+        <StatusUpdateSheet task={pending.task} initialTarget={pending.target} initialProgress={pending.progress} onClose={() => setPending(null)} />
     ) : null;
 
     return { requestMove, requestUpdate, editBlocker, canMove, dialog };
 }
 
-function StatusUpdateSheet({ task, initialTarget, onClose }: { task: MovableTask; initialTarget: Task['stage']; onClose: () => void }) {
+function StatusUpdateSheet({ task, initialTarget, initialProgress, onClose }: { task: MovableTask; initialTarget: Task['stage']; initialProgress?: number; onClose: () => void }) {
     const { user } = useAuth();
     const qc = useQueryClient();
     const companyId = task.project?.company_id ?? task.company_id ?? undefined;
@@ -60,7 +64,7 @@ function StatusUpdateSheet({ task, initialTarget, onClose }: { task: MovableTask
 
     const [target, setTarget] = useState<Task['stage']>(initialTarget);
     const [note, setNote] = useState('');
-    const [progress, setProgress] = useState<number>(Math.min(Math.max(task.progress_percent || 0, 25), 75));
+    const [progress, setProgress] = useState<number>(Math.min(Math.max(initialProgress ?? task.progress_percent ?? 0, 25), 75));
     const [blockedBy, setBlockedBy] = useState(task.blocked_by ?? '');
     const [reason, setReason] = useState(task.stage === 'blockers' ? task.blocker_description ?? '' : '');
     const [files, setFiles] = useState<File[]>([]);
@@ -69,6 +73,7 @@ function StatusUpdateSheet({ task, initialTarget, onClose }: { task: MovableTask
     const [phase, setPhase] = useState<'edit' | 'saving' | 'done'>('edit');
     const [error, setError] = useState<string | null>(null);
     const fileInput = useRef<HTMLInputElement>(null);
+    const mentions = useMentionPicks();
 
     const from = stageDef(task.stage);
     const to = stageDef(target);
@@ -127,7 +132,7 @@ function StatusUpdateSheet({ task, initialTarget, onClose }: { task: MovableTask
 
             // 1. The update itself (and its proof) goes on the task's record first...
             const { error: cErr } = await supabase.from('task_comments').insert({
-                task_id: task.id, user_id: user!.id, comment: text.trim(), kind: 'status_update',
+                task_id: task.id, user_id: user!.id, comment: mentions.encode(text.trim()), kind: 'status_update',
                 from_stage: task.stage, to_stage: target, progress_percent: target === 'completed' ? 100 : pct, evidence,
             });
             if (cErr) throw cErr;
@@ -151,6 +156,10 @@ function StatusUpdateSheet({ task, initialTarget, onClose }: { task: MovableTask
             qc.setQueriesData<Task[]>({ queryKey: ['tasks'] }, old => old?.map(t => (t.id === task.id ? ({ ...t, ...patch } as Task) : t)));
             ['tasks', 'task', 'comments', 'brief', 'notifications'].forEach(k => qc.invalidateQueries({ queryKey: [k] }));
 
+            track('task_update_posted', {
+                from_stage: task.stage, to_stage: target, progress: target === 'completed' ? 100 : pct,
+                stage_changed: !sameStage, proof_count: evidence.length, page: window.location.pathname.split('/')[1] || 'home',
+            });
             setPhase('done');
             window.dispatchEvent(new CustomEvent<TaskMovedDetail>(TASK_MOVED_EVENT, { detail: { id: task.id, stage: target } }));
             toast.success(sameStage ? 'Update posted' : `Moved to ${to.label}`);
@@ -242,11 +251,13 @@ function StatusUpdateSheet({ task, initialTarget, onClose }: { task: MovableTask
 
                             <label className="block space-y-1.5">
                                 <span className="text-[13px] font-semibold text-ink">{copy.noteLabel} <span className="text-blocked">*</span></span>
-                                <textarea
+                                <MentionField
+                                    multiline
                                     autoFocus
                                     rows={3}
                                     value={text}
-                                    onChange={e => { (target === 'blockers' ? setReason : setNote)(e.target.value); setError(null); }}
+                                    onChange={v => { (target === 'blockers' ? setReason : setNote)(v); setError(null); }}
+                                    onPick={mentions.add}
                                     placeholder={copy.notePh}
                                     className="w-full rounded-[8px] border border-line bg-surface p-3 text-[15px] leading-relaxed text-ink outline-none placeholder:text-ink-muted focus:border-progress focus:ring-2 focus:ring-progress/15 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
                                 />
@@ -307,7 +318,7 @@ function StatusUpdateSheet({ task, initialTarget, onClose }: { task: MovableTask
                                     <input ref={fileInput} type="file" multiple accept={EVIDENCE_ACCEPT} className="sr-only" onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
                                     <div className="flex flex-1 gap-2">
                                         <input value={linkDraft} onChange={e => { setLinkDraft(e.target.value); setError(null); }}
-                                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addLink(); } }}
+                                            onKeyDown={e => { if (e.key === 'Enter' && !isImeComposing(e)) { e.preventDefault(); addLink(); } }}
                                             placeholder="Paste a link (Drive, OneDrive…)"
                                             className="h-10 min-w-0 flex-1 rounded-[8px] border border-line px-3 text-sm outline-none placeholder:text-ink-faint focus:border-progress" />
                                         <button type="button" onClick={addLink} disabled={!linkDraft.trim()} aria-label="Add link"

@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { Role } from '@/lib/permissions';
+import { track } from '@/lib/analytics';
 
-/** Where a person stands on getting into Pulse360. */
+/** Where a person stands on getting into Commit. */
 export type Access =
     | 'signed_in'   // has a login and used it in the last 14 days
     | 'quiet'       // has a login but has not used it lately
@@ -180,11 +181,12 @@ export async function createInvite(input: { name: string; email: string; role: R
         const msg = error.message ?? '';
         throw new Error(
             /duplicate/i.test(msg) ? 'This email already has an invite waiting. Copy that link from the Invites list instead.'
-                : /fetch|network|failed to/i.test(msg) ? 'Pulse360 could not reach the server, so no invite was made. Check your connection and try again.'
+                : /fetch|network|failed to/i.test(msg) ? 'Commit could not reach the server, so no invite was made. Check your connection and try again.'
                     : /permission|policy|denied/i.test(msg) ? 'Your role cannot invite into this company. Ask an admin.'
                         : 'The invite could not be created. Check the details and try again.'
         );
     }
+    track('user_invited', { role: input.role });
     return data as { id: string; token: string; expires_at: string | null };
 }
 
@@ -197,9 +199,29 @@ export async function setUserAccess(userId: string, active: boolean) {
             /own account/i.test(msg) ? 'You cannot deactivate your own account.'
                 : /one admin/i.test(msg) ? 'At least one admin must keep access, so this admin cannot be deactivated.'
                     : /only an admin/i.test(msg) ? 'Only an admin can change who can sign in.'
-                        : /fetch|network|failed to/i.test(msg) ? 'Pulse360 could not reach the server, so nothing changed. Try again.'
+                        : /fetch|network|failed to/i.test(msg) ? 'Commit could not reach the server, so nothing changed. Try again.'
                             : 'Access could not be changed. Try again.'
         );
+    }
+}
+
+/**
+ * Asks the server to email an existing invite. Never throws: the link is
+ * already created and shown, so a failed email only means "send it by hand".
+ */
+export async function emailInvite(inviteId: string): Promise<{ ok: true } | { ok: false; reason: string }> {
+    try {
+        const { data } = await supabase.auth.getSession();
+        const res = await fetch('/api/send-invite', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session?.access_token ?? ''}` },
+            body: JSON.stringify({ invite_id: inviteId }),
+        });
+        if (res.ok) return { ok: true };
+        const body = await res.json().catch(() => ({}));
+        return { ok: false, reason: res.status === 501 ? 'Email is not set up yet.' : body.error || 'The email could not be sent.' };
+    } catch {
+        return { ok: false, reason: 'The email could not be sent.' };
     }
 }
 

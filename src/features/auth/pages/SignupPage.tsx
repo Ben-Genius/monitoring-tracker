@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { roleLabel } from '@/lib/roles';
 import { useAuthStore } from '@/features/auth/hooks/useAuth';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Loader2, UserPlus, Mail, Lock, ArrowLeft } from 'lucide-react';
+import AuthCard from '../components/AuthCard';
+import { AuthError, AuthFooterRow, AuthInput, Field, PasswordInput, PreviewWindow, SubmitButton } from '../components/AuthLayout';
+import { authMuted, mono } from '../components/authStyles';
 
 /** Shape returned by the get_invite(p_token) database function. */
 interface Invite {
@@ -128,114 +127,67 @@ export default function SignupPage() {
         }
     }
 
-    if (loading) return (
-        <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-950">
-            <div className="flex flex-col items-center gap-3">
-                <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                <p className="text-sm text-gray-500 dark:text-slate-400">Validating invitation...</p>
-            </div>
-        </div>
-    );
+    if (loading) {
+        return (
+            <AuthCard label="Invitation" title="Checking your invite…">
+                <p role="status" className={`flex items-center gap-2 text-[14px] ${authMuted}`}>
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden />
+                    This takes a second.
+                </p>
+            </AuthCard>
+        );
+    }
 
-    if (error) return (
-        <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-950 p-4">
-            <div className="w-full max-w-md animate-fade-scale-in">
-                <Card className="rounded-2xl border-gray-200/60 dark:border-slate-700/60 shadow-lg">
-                    <CardHeader>
-                        <div className="w-12 h-12 rounded-2xl bg-error/10 flex items-center justify-center mb-4 mx-auto">
-                            <Loader2 className="w-6 h-6 text-error" />
-                        </div>
-                        <CardTitle className="text-center text-error">Invitation Error</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-center text-gray-600 dark:text-slate-400">{error}</p>
-                    </CardContent>
-                    <CardFooter>
-                        <Button onClick={() => navigate('/login')} className="w-full rounded-pill">Back to Login</Button>
-                    </CardFooter>
-                </Card>
-            </div>
-        </div>
-    );
+    if (error) {
+        return (
+            <AuthCard label="Invitation" title="This invite doesn’t work." subtitle={`${error} Ask your admin to send a new one.`}>
+                <AuthFooterRow text="Already have an account?" to="/login">Log in →</AuthFooterRow>
+            </AuthCard>
+        );
+    }
 
     // Neither loading nor errored, but no invite resolved — nothing to render.
     if (!inviteData) return null;
 
+    const team = inviteData.company_name || 'the team';
     return (
-        <div className="min-h-screen flex items-center justify-center bg-white dark:bg-slate-950 p-4">
-            <div className="w-full max-w-md animate-spring-up">
-                <Card className="rounded-2xl border-gray-200/60 dark:border-slate-700/60 shadow-lg">
-                    <CardHeader className="space-y-1 pb-4">
-                        <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-4 mx-auto">
-                            <UserPlus className="w-6 h-6 text-primary" />
-                        </div>
-                        <CardTitle className="text-2xl font-bold text-center tracking-tight">Accept Invitation</CardTitle>
-                        <p className="text-center text-sm text-gray-500 dark:text-slate-400">
-                            Join <strong>{inviteData.company_name || 'the team'}</strong> as <strong>{roleLabel(inviteData.role)}</strong>
-                        </p>
-                    </CardHeader>
-                    <CardContent>
-                        <form onSubmit={handleSignup} className="space-y-4">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700 dark:text-slate-300">Email</label>
-                                <div className="relative">
-                                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                    <Input value={inviteData.email} disabled className="pl-10 bg-gray-50/50 dark:bg-slate-800/50" />
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700 dark:text-slate-300">Full Name</label>
-                                <div className="relative">
-                                    <UserPlus className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                    <Input
-                                        value={name}
-                                        onChange={(e) => setName(e.target.value)}
-                                        required
-                                        placeholder="Enter your full name"
-                                        className="pl-10"
-                                    />
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700 dark:text-slate-300">Create Password</label>
-                                <div className="relative">
-                                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                    <Input
-                                        type="password"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        required
-                                        minLength={6}
-                                        placeholder="Min. 6 characters"
-                                        className="pl-10"
-                                    />
-                                </div>
-                            </div>
+        <AuthCard label="Invitation" title={`Join ${team}.`}
+            subtitle={<>You’ve been invited as <strong className="font-medium text-neutral-950 dark:text-white">{roleLabel(inviteData.role)}</strong>. Set a password to get started.</>}
+            aside={<InviteAside team={team} role={roleLabel(inviteData.role)} />}>
+            <form onSubmit={handleSignup} className="space-y-4">
+                <Field id="invite-email" label="Email">
+                    <AuthInput id="invite-email" value={inviteData.email} disabled autoComplete="username" />
+                </Field>
+                <Field id="invite-name" label="Full name">
+                    <AuthInput id="invite-name" name="name" autoComplete="name" value={name}
+                        onChange={(e) => setName(e.target.value)} required />
+                </Field>
+                <Field id="new-password" label="Create a password" hint="At least 6 characters.">
+                    <PasswordInput id="new-password" name="new-password" autoComplete="new-password" minLength={6}
+                        value={password} onChange={(e) => setPassword(e.target.value)} required aria-describedby="new-password-hint" />
+                </Field>
+                {submitError && <AuthError>{submitError}</AuthError>}
+                <SubmitButton busy={submitting} busyLabel="Creating account…">Create account</SubmitButton>
+            </form>
+            <AuthFooterRow text="Already have an account?" to="/login">Log in →</AuthFooterRow>
+        </AuthCard>
+    );
+}
 
-                            {submitError && (
-                                <div className="bg-error/10 border border-error/20 text-error text-sm p-4 rounded-2xl">
-                                    {submitError}
-                                </div>
-                            )}
-
-                            <Button type="submit" className="w-full rounded-pill h-11" disabled={submitting}>
-                                {submitting ? (
-                                    <span className="flex items-center gap-2">
-                                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        Creating account...
-                                    </span>
-                                ) : 'Create Account'}
-                            </Button>
-                        </form>
-                    </CardContent>
-                    <CardFooter className="justify-center pt-2">
-                        <Link to="/login" className="text-sm text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 transition-colors inline-flex items-center gap-1">
-                            <ArrowLeft className="w-3 h-3" />
-                            Already have an account? Sign in
-                        </Link>
-                    </CardFooter>
-                </Card>
-            </div>
-        </div>
+/** Decorative: the team being joined. */
+function InviteAside({ team, role }: { team: string; role: string }) {
+    return (
+        <PreviewWindow path="commit / invitation">
+            <p className="text-[12px] text-neutral-500" style={mono}>you’re joining</p>
+            <p className="mt-2 text-[28px] leading-tight tracking-[-.03em]">{team}</p>
+            <ul className="mt-6 border-t border-neutral-200 dark:border-[#1F1F1F]">
+                {[['role', role], ['first stop', 'My work: only your tasks'], ['updates', 'from the app or WhatsApp']].map(([k, v]) => (
+                    <li key={k} className="grid grid-cols-[96px_1fr] gap-3 border-b border-neutral-200 py-3 text-[14px] dark:border-[#1F1F1F]">
+                        <span className="text-[12px] text-neutral-400" style={mono}>{k}</span>
+                        <span>{v}</span>
+                    </li>
+                ))}
+            </ul>
+        </PreviewWindow>
     );
 }

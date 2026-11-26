@@ -4,7 +4,7 @@ import { Search, Menu, ChevronDown } from 'lucide-react';
 import { CheckIcon } from '@radix-ui/react-icons';
 import NotificationsBell from '@/features/notifications/components/NotificationsBell';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { useCompanies } from '@/features/projects/hooks/useProjects';
+import { useCompanies, useOnlyCompany } from '@/features/projects/hooks/useProjects';
 import { useCompanyStore } from '@/hooks/useCompanyStore';
 import { getCompanyTheme, DEFAULT_BRAND_COLOR, cn } from '@/lib/utils';
 import { canViewAllCompanies } from '@/lib/permissions';
@@ -27,6 +27,12 @@ export default function Header({ onMenuClick }: HeaderProps) {
     const { data: companies = [] } = useCompanies();
     const { selectedCompanyId, setSelectedCompanyId } = useCompanyStore();
     const [q, setQ] = useState('');
+    const only = useOnlyCompany();
+
+    // One company: it is always the selection, so no page shows "all companies".
+    useEffect(() => {
+        if (only && selectedCompanyId !== only.id) setSelectedCompanyId(only.id);
+    }, [only, selectedCompanyId, setSelectedCompanyId]);
 
     useEffect(() => {
         if (user && !canViewAllCompanies(user) && selectedCompanyId !== user.company_id) {
@@ -34,7 +40,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
         }
     }, [user, selectedCompanyId, setSelectedCompanyId]);
 
-    const canSwitch = canViewAllCompanies(user);
+    const canSwitch = canViewAllCompanies(user) && companies.length > 1;
     const current = selectedCompanyId === 'all' ? null : companies.find(c => c.id === selectedCompanyId);
     const dot = current ? getCompanyTheme(current.name).primary : DEFAULT_BRAND_COLOR;
 

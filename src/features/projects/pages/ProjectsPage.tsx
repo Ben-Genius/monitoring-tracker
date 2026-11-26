@@ -1,15 +1,18 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
     Archive,
     ChevronLeft,
     ChevronRight,
     FolderSearch,
+    GanttChart,
     LayoutGrid,
     List,
     Plus,
     RefreshCw,
     Upload,
+    Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -26,9 +29,13 @@ import { toProjectRow } from '@/features/projects/utils/projectRow';
 import { useFilters, FilterBar } from '@/features/filters/components';
 import { ImportModal } from '@/features/import/components';
 import { tx } from '@/features/dashboard/components/tokens';
+import { day, downloadCsv } from '@/lib/exportCsv';
 
 type Lifecycle = 'all' | 'upcoming' | 'active' | 'on_hold' | 'completed';
-type ViewMode = 'grid' | 'table';
+type ViewMode = 'grid' | 'table' | 'timeline';
+
+// Loads only when the timeline is opened.
+const ProjectTimeline = lazy(() => import('@/features/schedule/components/ProjectTimeline'));
 
 // Every status belongs to exactly one tab, so the tab counts always add up to All.
 const LIFECYCLE: Record<Exclude<Lifecycle, 'all'>, Project['status'][]> = {
@@ -95,6 +102,8 @@ export default function ProjectsPage() {
     const { selectedCompanyId } = useCompanyStore();
     const [showArchived, setShowArchived] = useState(false);
     const [tab, setTab] = useState<Lifecycle>('all');
+    const navigate = useNavigate();
+    const openProject = useMemo(() => (id: string) => navigate(`/projects/${id}`), [navigate]);
     const [viewMode, setViewMode] = useState<ViewMode>('grid');
     const [page, setPage] = useState(1);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -184,6 +193,17 @@ export default function ProjectsPage() {
                     <button type="button" onClick={() => setIsImportOpen(true)} className={secondaryBtn}>
                         <Upload className="h-4 w-4" aria-hidden /> Import
                     </button>
+                    <button type="button" className={secondaryBtn} disabled={!filters.filtered.length}
+                        title="Download the projects shown, with your filters, as a spreadsheet"
+                        onClick={() => void downloadCsv('commit-projects', filters.filtered.map(p => ({
+                            Project: p.name, Company: p.company_name, Status: p.status,
+                            'Contract value (GHS)': Number(p.contract_value) || 0, 'Actual cost (GHS)': Number(p.actual_cost) || 0,
+                            'Margin %': p.margin == null ? '' : Math.round(p.margin),
+                            Start: day(p.start_date), Handover: day(p.expected_handover),
+                            'Open tasks': p.open_tasks, 'Blocked tasks': p.blocked_tasks, 'Done tasks': p.done_tasks, 'Progress %': p.progress,
+                        })), 'projects')}>
+                        <Download className="h-4 w-4" aria-hidden /> Export
+                    </button>
                     {canCreate && (
                         <button type="button" onClick={() => setIsCreateOpen(true)} className={primaryBtn}>
                             <Plus className="h-4 w-4" aria-hidden /> New project
@@ -259,6 +279,21 @@ export default function ProjectsPage() {
                             <List className="h-3.5 w-3.5" aria-hidden />
                             <span>Table</span>
                         </button>
+                        <button
+                            type="button"
+                            aria-label="Timeline view"
+                            aria-pressed={viewMode === 'timeline'}
+                            onClick={() => setViewMode('timeline')}
+                            className={cn(
+                                'flex items-center gap-1.5 rounded-[6px] px-2.5 py-1 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-progress',
+                                viewMode === 'timeline'
+                                    ? 'bg-ink text-white dark:bg-white dark:text-ink'
+                                    : 'text-ink-muted hover:text-ink dark:text-slate-400 dark:hover:text-slate-100'
+                            )}
+                        >
+                            <GanttChart className="h-3.5 w-3.5" aria-hidden />
+                            <span>Timeline</span>
+                        </button>
                     </div>
                 </div>
 
@@ -281,7 +316,7 @@ export default function ProjectsPage() {
                                 <p className={tx.muted}>
                                     {searching ? `${totalFiltered} of ${inTab.length} projects match filters` : `${totalFiltered} projects`}
                                 </p>
-                                {totalPages > 1 && (
+                                {viewMode !== 'timeline' && totalPages > 1 && (
                                     <p className={cn('text-xs tabular-nums', tx.muted)}>
                                         Page {safePage} of {totalPages}
                                     </p>
@@ -304,8 +339,17 @@ export default function ProjectsPage() {
                                 <ProjectTable projects={paginatedProjects} showCompany={!scopeId} />
                             )}
 
+                            {/* Timeline View: every matching project, no paging */}
+                            {viewMode === 'timeline' && (
+                                <div className="h-[min(70vh,640px)]">
+                                    <Suspense fallback={<Skeleton className="h-full w-full rounded-[12px]" />}>
+                                        <ProjectTimeline projects={filters.filtered} onOpen={openProject} />
+                                    </Suspense>
+                                </div>
+                            )}
+
                             {/* Pagination Controls */}
-                            {totalPages > 1 && (
+                            {viewMode !== 'timeline' && totalPages > 1 && (
                                 <nav
                                     aria-label="Projects pagination"
                                     className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-line dark:border-slate-800 pt-4"

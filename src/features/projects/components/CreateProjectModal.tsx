@@ -1,19 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { AlertCircle } from 'lucide-react';
 import { DialogShell } from '@/components/ui/dialog-shell';
-import { useCreateProject, useCompanies, type CreateProjectInput } from '../hooks/useProjects';
+import { useCreateProject, useCompanies, useOnlyCompany, type CreateProjectInput } from '../hooks/useProjects';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { canAdminister } from '@/lib/permissions';
+import { useCreateFromTemplate, useProjectTemplates } from '../hooks/useTemplates';
 
 const projectSchema = z.object({
     name: z.string().trim().min(1, 'Enter a project name.'),
     description: z.string().optional(),
     company_id: z.string().min(1, 'Choose the company this project belongs to.'),
-    contract_value: z.number({ invalid_type_error: 'Enter the contract value in cedis, for example 1250000.' })
+    contract_value: z.number({ error: 'Enter the contract value in cedis, for example 1250000.' })
         .min(0, 'The contract value cannot be negative.'),
     expected_handover: z.string().min(1, 'Choose the expected handover date.'),
     start_date: z.string().optional(),
@@ -37,18 +38,36 @@ export default function CreateProjectModal({ open, onClose }: CreateProjectModal
     const createProject = useCreateProject();
     const canChooseCompany = canAdminister(user);
     const { data: companies } = useCompanies();
+    const only = useOnlyCompany();
     const [saveError, setSaveError] = useState<string | null>(null);
+    const { data: templates = [] } = useProjectTemplates();
+    const fromTemplate = useCreateFromTemplate();
+    const [templateId, setTemplateId] = useState('');
+    const template = templates.find(t => t.id === templateId);
 
-    const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<ProjectFormData>({
+    const { register, handleSubmit, setValue, formState: { errors, isSubmitting }, reset } = useForm<ProjectFormData>({
         resolver: zodResolver(projectSchema),
         defaultValues: { company_id: canChooseCompany ? '' : user?.company_id || '', contract_value: 0 },
     });
+
+    // One company: no picker, the project simply goes there.
+    useEffect(() => { if (only && open) setValue('company_id', only.id); }, [only, open, setValue]);
 
     const close = () => { setSaveError(null); onClose(); };
 
     const onSubmit = async (data: ProjectFormData) => {
         setSaveError(null);
         try {
+            if (template) {
+                // A template needs a start date: every task and milestone is placed from it.
+                if (!data.start_date) { setSaveError('Choose a start date: the template’s tasks are dated from it.'); return; }
+                await fromTemplate.mutateAsync({
+                    templateId: template.id, name: data.name, companyId: data.company_id, start: data.start_date,
+                    contractValue: data.contract_value, handover: data.expected_handover,
+                });
+                reset(); setTemplateId(''); close();
+                return;
+            }
             await createProject.mutateAsync({
                 ...data,
                 description: data.description || undefined,
@@ -66,6 +85,15 @@ export default function CreateProjectModal({ open, onClose }: CreateProjectModal
         <DialogShell open={open} onClose={close} title="New project" description="Fields marked * are required." className="max-w-2xl">
             <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5 p-6">
                 <div className="grid gap-5 md:grid-cols-2">
+                    {templates.length > 0 && (
+                        <Field id="np-template" label="Start from" className="md:col-span-2"
+                            hint={template ? `Adds ${template.tasks.length} tasks and ${template.milestones.length} milestones, dated from the start date. Owners are set afterwards.` : 'A blank project, or a template your team has saved.'}>
+                            <select id="np-template" value={templateId} onChange={e => setTemplateId(e.target.value)} aria-describedby="np-template-hint" className={fieldCls}>
+                                <option value="">Blank project</option>
+                                {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                            </select>
+                        </Field>
+                    )}
                     <Field id="np-name" label="Project name" required error={errors.name?.message} className="md:col-span-2">
                         <input id="np-name" {...register('name')} placeholder="e.g. Tema Warehouse Fit-out" {...aria('np-name', errors.name)} className={cn(fieldCls, errors.name && errorFieldCls)} />
                     </Field>
@@ -74,18 +102,18 @@ export default function CreateProjectModal({ open, onClose }: CreateProjectModal
                         <textarea id="np-desc" rows={3} {...register('description')} aria-describedby="np-desc-hint" className={cn(fieldCls, 'h-auto py-2.5')} />
                     </Field>
 
-                    <Field id="np-company" label="Company" required error={errors.company_id?.message} hint={canChooseCompany ? undefined : 'Projects are created in your own company.'}>
+                    {!only && <Field id="np-company" label="Company" required error={errors.company_id?.message} hint={canChooseCompany ? undefined : 'Projects are created in your own company.'}>
                         <select id="np-company" {...register('company_id')} disabled={!canChooseCompany} {...aria('np-company', errors.company_id, !canChooseCompany)} className={cn(fieldCls, errors.company_id && errorFieldCls)}>
                             <option value="">Choose a company</option>
                             {companies?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
-                    </Field>
+                    </Field>}
 
                     <Field id="np-value" label="Contract value (GHS)" required error={errors.contract_value?.message} hint="Full amount in cedis, not millions.">
                         <input id="np-value" type="number" inputMode="decimal" min={0} step="0.01" {...register('contract_value', { valueAsNumber: true })} {...aria('np-value', errors.contract_value, true)} className={cn(fieldCls, errors.contract_value && errorFieldCls)} />
                     </Field>
 
-                    <Field id="np-start" label="Start date">
+                    <Field id="np-start" label="Start date" required={!!template}>
                         <input id="np-start" type="date" {...register('start_date')} className={fieldCls} />
                     </Field>
 

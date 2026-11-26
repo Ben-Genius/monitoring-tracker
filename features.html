@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Features · Commit</title>
+  <meta name="description" content="Board, list, calendar, timeline and workload views; My work for phones; WhatsApp updates; live updates and @mentions; escalation when work goes quiet; dependencies, recurring tasks and templates; many companies kept apart." />
+  <meta property="og:title" content="Features · Commit" />
+  <meta property="og:description" content="Board, list, calendar, timeline and workload views; My work for phones; WhatsApp updates; live updates and @mentions; escalation when work goes quiet; dependencies, recurring tasks and templates; many companies kept apart." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="/icons/app-512.png" />
+  <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0A0A0A" media="(prefers-color-scheme: dark)" />
+  <link rel="icon" type="image/png" sizes="64x64" href="/brand/commit-64.png" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script>
+    // Motion is on: hide the first screen's text until it animates in. If the
+    // animation code never runs (blocked, offline), show everything after 3s.
+    try {
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        document.documentElement.classList.add('js');
+        setTimeout(function () { if (!window.__commitMotion) document.documentElement.classList.remove('js'); }, 3000);
+      }
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="/src/styles/landing.css" />
+</head>
+<body>
+  <header class="site">
+    <div class="rail">
+      <a class="brand" href="/"><img src="/brand/commit-mark.png" alt="" width="24" height="24" /><b>Commit</b><i>.</i></a>
+      <nav class="links" aria-label="Main">
+        <a class="text hide-sm on" href="/features" aria-current="page">Features</a>
+        <a class="text hide-sm" href="/pricing">Pricing</a>
+        <a class="text" href="/login" data-login>Log in</a>
+        <a class="btn btn-primary" href="/start">Start free</a>
+      </nav>
+    </div>
+    <i class="progress" aria-hidden="true"></i>
+  </header>
+
+  <main class="rail">
+    <section class="sec page-head" aria-labelledby="features-h">
+      <div class="pad">
+        <p class="label" data-in>Features</p>
+        <h1 id="features-h">Project management, productivity and accountability. One tool.</h1>
+        <p class="lead" data-in>Everything from the plan to the proof that it’s done, for the office and the field.</p>
+      </div>
+    </section>
+
+    <section class="sec" id="features" aria-label="All features">
+            <div class="grid">
+        <article class="cell">
+          <span class="n">01</span>
+          <h3>Every view of the work.</h3>
+          <p>Board, list, calendar and timeline. Drag to reschedule.</p>
+          <div class="viz" aria-hidden="true">
+            <div class="chips"><span class="chip on">board</span><span class="chip">list</span><span class="chip">calendar</span><span class="chip">timeline</span></div>
+            <div class="cols"><div><i></i><i></i><i></i></div><div><i></i><i class="red"></i></div><div><i></i></div></div>
+          </div>
+        </article>
+        <article class="cell">
+          <span class="n">02</span>
+          <h3>My work, made for thumbs.</h3>
+          <p>Each person sees only their tasks, with one button for the next step.</p>
+          <div class="viz" aria-hidden="true">
+            <div class="task"><div class="t">Install the roof trusses</div><div class="m">due fri · 25% · accepted</div><div class="go">Mark 50% done</div></div>
+          </div>
+        </article>
+        <article class="cell">
+          <span class="n">03</span>
+          <h3>Updates over WhatsApp.</h3>
+          <p>Field teams reply with a number and a percentage. A photo marks it done.</p>
+          <div class="viz chat" aria-hidden="true">
+            <p class="me">2 50% formwork up</p>
+            <p class="bot">“Roof trusses” is now 50% done. Your lead can see it.</p>
+          </div>
+        </article>
+        <article class="cell">
+          <span class="n">04</span>
+          <h3>Live, together.</h3>
+          <p>Changes appear for everyone at once. @mention to pull someone in.</p>
+          <div class="viz" aria-hidden="true">
+            <div class="stack"><span>KM</span><span>AO</span><span>YB</span><span>+4</span></div>
+            <div class="mention"><b>@Ama</b> can you confirm the cement delivery?</div>
+          </div>
+        </article>
+        <article class="cell">
+          <span class="n">05</span>
+          <h3>Nothing stays quiet.</h3>
+          <p>Stalled work climbs from owner to lead to leadership, on its own.</p>
+          <div class="viz" aria-hidden="true">
+            <ul class="ladder">
+              <li><span class="d">day 2</span><span>Owner nudged</span><span class="s">sent</span></li>
+              <li><span class="d">day 4</span><span>Lead + assigner</span><span class="s">sent</span></li>
+              <li class="hot"><span class="d">day 7</span><span>Leadership</span><span class="s">today</span></li>
+            </ul>
+          </div>
+        </article>
+        <article class="cell">
+          <span class="n">06</span>
+          <h3>Dependencies and repeats.</h3>
+          <p>Link what waits on what. Recurring tasks create themselves.</p>
+          <div class="viz" aria-hidden="true">
+            <div class="deps"><div><small>blocks</small>Pour the slab</div><span class="ar">→</span><div><small>waiting</small>Roof trusses</div></div>
+            <p class="repeat"><span>↻</span> Site safety walk · every Monday</p>
+          </div>
+        </article>
+        <article class="cell">
+          <span class="n">07</span>
+          <h3>Workload at a glance.</h3>
+          <p>Who has how much on, before you assign the next thing.</p>
+          <div class="viz" aria-hidden="true">
+            <ul class="load">
+              <li><span>Kofi</span><span class="b"><i style="width:92%"></i></span><span class="busy">BUSY</span></li>
+              <li><span>Ama</span><span class="b"><i style="width:58%"></i></span><span></span></li>
+              <li><span>Yaw</span><span class="b"><i style="width:34%"></i></span><span></span></li>
+              <li><span>Efua</span><span class="b"><i style="width:12%"></i></span><span></span></li>
+            </ul>
+          </div>
+        </article>
+        <article class="cell">
+          <span class="n">08</span>
+          <h3>Many companies, kept apart.</h3>
+          <p>Run several businesses in one place. Each one’s data stays separate.</p>
+          <div class="viz" aria-hidden="true">
+            <div class="orgs"><span>A</span><span>B</span><span>C</span><span class="add">+</span></div>
+            <div class="roles"><span class="chip">executive</span><span class="chip">lead</span><span class="chip">staff</span><span class="chip">pa</span></div>
+          </div>
+        </article>
+        <article class="cell">
+          <span class="n">09</span>
+          <h3>A record of everything.</h3>
+          <p>Approvals, proof of done and a full history of who changed what.</p>
+          <div class="viz feed" aria-hidden="true">
+            <ul>
+              <li><time>10:50</time><b>Ama</b><span>accepted Fire drawings</span></li>
+              <li><time>10:48</time><b>Kofi</b><span>approved Site survey</span></li>
+              <li><time>10:45</time><b>Yaw</b><span>added proof photo</span></li>
+              <li><time>10:42</time><b>Efua</b><span>moved Slab to blocked</span></li>
+              <li><time>10:38</time><b>Kofi</b><span>assigned Electrical</span></li>
+              <li><time>10:50</time><b>Ama</b><span>accepted Fire drawings</span></li>
+              <li><time>10:48</time><b>Kofi</b><span>approved Site survey</span></li>
+              <li><time>10:45</time><b>Yaw</b><span>added proof photo</span></li>
+              <li><time>10:42</time><b>Efua</b><span>moved Slab to blocked</span></li>
+              <li><time>10:38</time><b>Kofi</b><span>assigned Electrical</span></li>
+            </ul>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="sec split" id="accountability" aria-labelledby="acc-h">
+      <div class="pad">
+        <div class="head">
+          <p class="label"><span class="idx">01</span>Accountability</p>
+          <h2 id="acc-h">Rules your team runs on, not reminders you send.</h2>
+          <p>Other tools wait for someone to chase. Commit does the chasing, so you can spend the morning on the three things that need you.</p>
+        </div>
+        <ul class="points">
+          <li><span class="label">Accept</span><span>Owners accept work before it counts as theirs</span></li>
+          <li><span class="label">Blockers</span><span>Every blocker names who it’s waiting on</span></li>
+          <li><span class="label">Proof</span><span>“Done” comes with a photo or a file</span></li>
+          <li><span class="label">7am</span><span>Leaders get one email of what needs them</span></li>
+        </ul>
+      </div>
+      <div class="pad" style="display:flex;align-items:center">
+        <div class="code" style="width:100%">
+          <div class="file"><span>escalation rules</span><span>runs daily</span></div>
+<pre aria-label="Escalation rules"><span class="c"># in progress, no update</span>
+<span class="k">day 2</span>  → owner           <span class="c">post a quick update</span>
+<span class="k">day 4</span>  → lead, assigner  <span class="c">worth a check-in</span>
+<span class="k">day 7</span>  → leadership      <span class="h">gone quiet</span>
+
+<span class="c"># past its deadline</span>
+<span class="k">day 1</span>  → owner
+<span class="k">day 3</span>  → lead, assigner
+
+<span class="c"># not accepted</span>
+<span class="k">day 2</span>  → owner
+<span class="k">day 4</span>  → lead, assigner
+
+<span class="c"># any movement resets the ladder</span></pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" id="how" aria-labelledby="how-h">
+      <div class="pad">
+        <div class="head">
+          <p class="label"><span class="idx">02</span>Getting started</p>
+          <h2 id="how-h">Running by tomorrow.</h2>
+        </div>
+      </div>
+      <ol class="steps" style="margin:0;padding:0;list-style:none">
+        <li><span class="label">01</span><h3>Create your organisation</h3><p>Name it and your first company. A sample project shows every view straight away.</p></li>
+        <li><span class="label">02</span><h3>Start from a template</h3><p>Bring in tasks from a spreadsheet, or reuse a past project with its dates shifted.</p></li>
+        <li><span class="label">03</span><h3>Invite the team</h3><p>Each person sees what their role allows. Field staff can update by WhatsApp from day one.</p></li>
+      </ol>
+    </section>
+
+    <section class="sec closing" aria-labelledby="close-h">
+      <h2 id="close-h">See it on your own work.</h2>
+      <p>Start with a sample project, then bring in your own tasks from a spreadsheet.</p>
+      <div class="ctas">
+        <a class="btn btn-primary" href="/start">Start free <span class="arrow" aria-hidden="true">→</span></a>
+        <a class="btn btn-ghost" href="/login" data-login>Log in</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site">
+    <div class="rail">
+      <span>© <span data-year>2026</span> Commit</span>
+      <a href="/features">Features</a>
+      <a href="/pricing">Pricing</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+    </div>
+  </footer>
+
+  <script type="module" src="/src/landing/main.js"></script>
+</body>
+</html>

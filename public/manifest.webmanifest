@@ -1,0 +1,70 @@
+{
+  "id": "/",
+  "name": "Commit",
+  "short_name": "Commit",
+  "description": "Projects planned. Work done. Everyone accountable.",
+  "start_url": "/login",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F4F6F8",
+  "theme_color": "#17202B",
+  "categories": [
+    "business",
+    "productivity"
+  ],
+  "icons": [
+    {
+      "src": "/icons/app-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/app-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/app-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "My work",
+      "short_name": "My work",
+      "description": "Report progress on your tasks",
+      "url": "/my-work",
+      "icons": [
+        {
+          "src": "/icons/app-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Morning brief",
+      "url": "/brief",
+      "icons": [
+        {
+          "src": "/icons/app-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Tasks",
+      "url": "/tasks",
+      "icons": [
+        {
+          "src": "/icons/app-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}

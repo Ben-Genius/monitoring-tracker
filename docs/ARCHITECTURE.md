@@ -47,7 +47,7 @@ Replace fragmented project tracking (spreadsheets, email, separate tools) with a
 
 ### Test Accounts
 
-All use password `Test123!`:
+Passwords are not kept in the repo. Ask an admin for a test login, and never commit one.
 
 | Email | Role | Company |
 |---|---|---|

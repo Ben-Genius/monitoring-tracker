@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { awaitingAcceptance, isStale, isUpdateOverdue } from '@/features/tasks/utils/accountability';
+import { AT_RISK, BRIEF_SORTERS, classifyBriefTask, type BriefSection } from '../../../../shared/briefRules';
 import type { Task } from '@/features/tasks/hooks/useTasks';
 
 /**
@@ -9,10 +9,11 @@ import type { Task } from '@/features/tasks/hooks/useTasks';
  *
  * Each open task lands in exactly one section, the most serious that applies,
  * so the same item never appears three times. Order of seriousness:
- * urgent > blocked > stuck > overdue > not accepted.
+ * urgent > blocked > stuck > overdue > not accepted. The rules are in
+ * shared/briefRules.ts, which the 7am email uses too.
  */
 
-export type BriefSection = 'urgent' | 'blocked' | 'stuck' | 'overdue' | 'unaccepted' | 'moved' | 'done';
+export type { BriefSection };
 
 export interface BriefTask {
     id: string;
@@ -46,30 +47,6 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export function companyOf(t: BriefTask): string | null {
     return t.project?.company_id ?? t.company_id;
 }
-
-function isPastDue(t: BriefTask, now: number): boolean {
-    return !!t.due_date && new Date(t.due_date).getTime() < now;
-}
-
-function classify(t: BriefTask, now: number): BriefSection | null {
-    if (t.stage === 'completed') return null;
-    if (t.is_urgent) return 'urgent';
-    if (t.stage === 'blockers') return 'blocked';
-    if (isStale(t, now)) return 'stuck';
-    if (isPastDue(t, now) || isUpdateOverdue(t, now)) return 'overdue';
-    if (awaitingAcceptance(t)) return 'unaccepted';
-    // Good news counts too: something that genuinely moved in the last day.
-    if (t.last_movement_at && now - new Date(t.last_movement_at).getTime() < DAY_MS) return 'moved';
-    return null;
-}
-
-const SORTERS: Partial<Record<BriefSection, (a: BriefTask, b: BriefTask) => number>> = {
-    // Longest silence first.
-    stuck: (a, b) => new Date(a.last_movement_at ?? 0).getTime() - new Date(b.last_movement_at ?? 0).getTime(),
-    // Most overdue first.
-    overdue: (a, b) => new Date(a.due_date ?? a.next_update_due ?? 0).getTime() - new Date(b.due_date ?? b.next_update_due ?? 0).getTime(),
-    done: (a, b) => new Date(b.completed_at ?? 0).getTime() - new Date(a.completed_at ?? 0).getTime(),
-};
 
 export function useBrief(companyId: string) {
     return useQuery({
@@ -112,14 +89,14 @@ export function useBrief(companyId: string) {
                 openCount++;
                 byCompany[company].open++;
 
-                const section = classify(t, now);
+                const section = classifyBriefTask(t, now);
                 if (section) {
                     sections[section].push(t);
-                    if (section !== 'unaccepted' && section !== 'moved') byCompany[company].atRisk++;
+                    if (AT_RISK.includes(section)) byCompany[company].atRisk++;
                 }
             }
 
-            for (const [key, sort] of Object.entries(SORTERS)) {
+            for (const [key, sort] of Object.entries(BRIEF_SORTERS)) {
                 sections[key as BriefSection].sort(sort);
             }
 

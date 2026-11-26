@@ -66,7 +66,7 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // Pulse360 design tokens (Oct 2026 redesign)
+        // Commit design tokens (Oct 2026 redesign)
         ink: { DEFAULT: "#17202B", muted: "#55606C", faint: "#5F6B7A" },
         paper: "#F4F6F8",
         surface: "#FFFFFF",

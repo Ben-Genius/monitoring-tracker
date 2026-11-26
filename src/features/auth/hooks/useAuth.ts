@@ -7,12 +7,13 @@ interface User {
     name: string;
     role: 'admin' | 'executive' | 'pa' | 'lead' | 'employee';
     company_id: string;
+    organization_id?: string | null;
     /** Set when an admin turns off this person's access. */
     deactivated_at?: string | null;
 }
 
 /** The ban on the login blocks new sign-ins; this ends a session that is still open. */
-const DEACTIVATED_MESSAGE = 'Your access to Pulse360 has been turned off. Ask an admin if you think this is a mistake.';
+const DEACTIVATED_MESSAGE = 'Your access to Commit has been turned off. Ask an admin if you think this is a mistake.';
 
 interface AuthState {
     user: User | null;

@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabaseLog } from '@/features/audit/utils/log';
+import { registerCompanyThemes } from '@/lib/utils';
 
 export interface Project {
     id: string;
@@ -189,9 +190,20 @@ export function useCompanies() {
                 .select('*')
                 .order('name');
             if (error) throw error;
+            registerCompanyThemes(data ?? []);
             return data;
         },
     });
+}
+
+/**
+ * The organisation's company when it has exactly one, else null. Most
+ * organisations are one business: the company layer (switcher, pickers,
+ * "all companies" views) only appears once a second company is added.
+ */
+export function useOnlyCompany() {
+    const { data: companies = [] } = useCompanies();
+    return companies.length === 1 ? companies[0] as { id: string; name: string } : null;
 }
 
 // Fetch all leads

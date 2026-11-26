@@ -26,7 +26,7 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY || SUPABASE_ANON_KEY);
 
 console.log('\n======================================================');
-console.log('🧪 Pulse360 End-to-End Accountability & Governance Tests');
+console.log('🧪 Commit End-to-End Accountability & Governance Tests');
 console.log('======================================================\n');
 
 let passedTests = 0;

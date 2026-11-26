@@ -5,24 +5,31 @@ import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './features/auth/hooks/useAuth';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { homePath } from './lib/permissions';
+import { routeChunks } from './lib/routeChunks';
 
-// LoginPage is the landing route, so it stays in the main bundle — lazy-loading
-// it would only add a network round trip before first paint.
+// LoginPage is where the installed app opens (/login), so it stays in the main
+// bundle; lazy-loading it would only add a round trip before first paint.
 import LoginPage from './features/auth/pages/LoginPage';
 
 // Every other page is split into its own chunk. These pull in the heavy
-// dependencies (recharts, xlsx, @dnd-kit), none of which are needed to render
+// dependencies (recharts, the spreadsheet reader, @dnd-kit), none of which are needed to render
 // the login screen.
 const SignupPage = lazy(() => import('./features/auth/pages/SignupPage'));
-const DashboardPage = lazy(() => import('./features/dashboard/pages/DashboardPage'));
-const TaskBoardPage = lazy(() => import('./features/tasks/pages/TaskBoardPage'));
-const ProjectsPage = lazy(() => import('./features/projects/pages/ProjectsPage'));
+const ForgotPasswordPage = lazy(() => import('./features/auth/pages/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('./features/auth/pages/ResetPasswordPage'));
+const StartPage = lazy(() => import('./features/onboarding/pages/StartPage'));
+const WelcomePage = lazy(() => import('./features/onboarding/pages/WelcomePage'));
+const DashboardPage = lazy(routeChunks['/dashboard']);
+const TaskBoardPage = lazy(routeChunks['/tasks']);
+const MyWorkPage = lazy(routeChunks['/my-work']);
+const WorkloadPage = lazy(routeChunks['/workload']);
+const ProjectsPage = lazy(routeChunks['/projects']);
 const ProjectDetailPage = lazy(() => import('./features/projects/pages/ProjectDetailPage'));
-const AnalyticsPage = lazy(() => import('./features/analytics/pages/AnalyticsPage'));
-const BriefPage = lazy(() => import('./features/brief/pages/BriefPage'));
-const SettingsPage = lazy(() => import('./features/settings/pages/SettingsPage'));
-const UserManagementPage = lazy(() => import('./features/users/pages/UserManagementPage'));
-const ApprovalsPage = lazy(() => import('./features/approvals/pages/ApprovalsPage'));
+const AnalyticsPage = lazy(routeChunks['/analytics']);
+const BriefPage = lazy(routeChunks['/brief']);
+const SettingsPage = lazy(routeChunks['/settings']);
+const UserManagementPage = lazy(routeChunks['/users']);
+const ApprovalsPage = lazy(routeChunks['/approvals']);
 
 // Layout
 import DashboardLayout from './components/layout/DashboardLayout';
@@ -45,6 +52,14 @@ const queryClient = new QueryClient({
         },
     },
 });
+
+/** "/" inside the app: signed in goes home, signed out goes to log in. */
+function RootRedirect() {
+    const user = useAuthStore((state) => state.user);
+    const initialized = useAuthStore((state) => state.initialized);
+    if (!initialized) return <RouteFallback />;
+    return <Navigate to={user ? homePath(user) : '/login'} replace />;
+}
 
 /**
  * Keeps signed-in people off the login screen. Without it, a logged-in user
@@ -74,20 +89,20 @@ function App() {
     return (
         <ThemeProvider>
             <QueryClientProvider client={queryClient}>
-                <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+                <Router>
                     <Suspense fallback={<RouteFallback />}>
                         <Routes>
                             {/* Public routes */}
-                            <Route
-                                path="/"
-                                element={
-                                    <PublicOnlyRoute>
-                                        <LoginPage />
-                                    </PublicOnlyRoute>
-                                }
-                            />
+                            {/* "/" is the public landing page (index.html). Reached from inside the app, it moves on. */}
+                            <Route path="/" element={<RootRedirect />} />
+                            <Route path="/login" element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
                             <Route path="/signup" element={<SignupPage />} />
-                            <Route path="/login" element={<Navigate to="/" replace />} />
+                            <Route path="/forgot-password" element={<PublicOnlyRoute><ForgotPasswordPage /></PublicOnlyRoute>} />
+                            {/* Not public-only: the reset link signs the person in with a recovery session. */}
+                            <Route path="/reset-password" element={<ResetPasswordPage />} />
+                            <Route path="/start" element={<PublicOnlyRoute><StartPage /></PublicOnlyRoute>} />
+                            {/* Signed in but no profile yet: finishes self-serve setup. */}
+                            <Route path="/welcome" element={<WelcomePage />} />
 
                             {/* Protected routes */}
                             <Route
@@ -98,7 +113,9 @@ function App() {
                                 }
                             >
                                 <Route path="/dashboard" element={<DashboardPage />} />
+                                <Route path="/my-work" element={<MyWorkPage />} />
                                 <Route path="/tasks" element={<TaskBoardPage />} />
+                                <Route path="/workload" element={<WorkloadPage />} />
                                 <Route path="/projects" element={<ProjectsPage />} />
                                 <Route path="/projects/:id" element={<ProjectDetailPage />} />
                                 <Route path="/analytics" element={<AnalyticsPage />} />
@@ -111,7 +128,7 @@ function App() {
                             </Route>
 
                             {/* Catch all */}
-                            <Route path="*" element={<Navigate to="/" replace />} />
+                            <Route path="*" element={<Navigate to="/login" replace />} />
                         </Routes>
                     </Suspense>
                 </Router>

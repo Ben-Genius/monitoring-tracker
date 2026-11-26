@@ -13,7 +13,9 @@ import type { Task } from '../hooks/useTasks';
 
 export const PROGRESS_STEPS = [0, 25, 50, 75, 100] as const;
 
-export const STALE_AFTER_DAYS = 2;
+// The rules themselves live in shared/ so the 7am email job applies the same ones.
+export { STALE_AFTER_DAYS, isStale, awaitingAcceptance, isUpdateOverdue } from '../../../../shared/briefRules';
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 type AccountableTask = Pick<
@@ -29,21 +31,4 @@ export function taskProgress(task: AccountableTask, subtaskFallback = 0): number
 export function daysSinceMovement(task: AccountableTask, now = Date.now()): number | null {
     if (!task.last_movement_at) return null;
     return Math.floor((now - new Date(task.last_movement_at).getTime()) / DAY_MS);
-}
-
-/** In progress, and hasn't moved in more than two days. */
-export function isStale(task: AccountableTask, now = Date.now()): boolean {
-    if (task.stage !== 'in_progress' || !task.last_movement_at) return false;
-    return now - new Date(task.last_movement_at).getTime() > STALE_AFTER_DAYS * DAY_MS;
-}
-
-/** Has an owner who hasn't accepted it yet. */
-export function awaitingAcceptance(task: AccountableTask): boolean {
-    return task.stage !== 'completed' && !!task.assignee_id && !task.acknowledged_at;
-}
-
-/** The owner promised an update by a date that has passed. */
-export function isUpdateOverdue(task: AccountableTask, now = Date.now()): boolean {
-    if (task.stage === 'completed' || !task.next_update_due) return false;
-    return new Date(task.next_update_due).getTime() < now;
 }

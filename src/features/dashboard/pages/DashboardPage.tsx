@@ -17,6 +17,7 @@ import DeadlineTimeline from '../components/DeadlineTimeline';
 import TaskTable from '../components/TaskTable';
 import { Avatar, Card, CardHeader } from '../components/primitives';
 import { tx } from '../components/tokens';
+import SampleDataBanner from '@/features/onboarding/components/SampleDataBanner';
 
 /** Audit summaries are stored with raw stage ids ("yet to_start", "blockers"). */
 const readableSummary = (s: string) => s.replace(/_/g, ' ').replace(/\bblockers\b/g, 'blocked');
@@ -51,6 +52,7 @@ export default function DashboardPage() {
 
     return (
         <div className="mx-auto w-full max-w-[1440px] space-y-5 pb-12">
+            <SampleDataBanner />
             {/* Page header */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>

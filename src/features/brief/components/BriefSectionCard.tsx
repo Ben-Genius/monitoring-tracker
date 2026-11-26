@@ -1,12 +1,13 @@
 import { useEffect, useId, useMemo, useState } from 'react';
 import { Check, ChevronDown, ChevronRight, ChevronUp, FolderKanban, Plus } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, isImeComposing } from '@/lib/utils';
 import { daysSinceMovement } from '@/features/tasks/utils/accountability';
 import { Avatar, Card, CardHeader } from '@/features/dashboard/components/primitives';
 import { tx } from '@/features/dashboard/components/tokens';
 import { companyOf, type BriefSection, type BriefTask } from '../hooks/useBrief';
 import type { BriefItem } from '../hooks/useBriefItems';
 import { daysLate, reason, type SectionMeta } from '../utils/briefMeta';
+import { useExecutiveTitle } from '../hooks/useExecutiveTitle';
 
 const PREVIEW = 5;
 /** A project with this many tasks in one section is shown as one row, so a backlog reads as one fact. */
@@ -69,6 +70,7 @@ function people(tasks: BriefTask[]): string {
 }
 
 export default function BriefSectionCard({ meta, items, companyName, allCompanies, curate, selected, expanded, onToggleExpanded, onOpen, onToggle, onNote }: Props) {
+    const exec = useExecutiveTitle();
     const entries = useMemo(() => toEntries(meta.key, items, companyName), [meta.key, items, companyName]);
     const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
     const shown = expanded ? entries : entries.slice(0, PREVIEW);
@@ -119,7 +121,7 @@ export default function BriefSectionCard({ meta, items, companyName, allCompanie
                                     <span className={cn('block truncate text-[15px] font-semibold', tx.ink)} title={e.project}>{e.project}</span>
                                     <span className={cn('mt-0.5 block text-[14px] leading-snug', tx.muted)}>{groupSummary(meta.key, e.tasks)}</span>
                                     <span className={cn('mt-1 block truncate text-[13px]', tx.faint)}>
-                                        {people(e.tasks)}{company ? ` · ${company}` : ''}{curate && picked ? ` · ${picked} in Mr Blay’s brief` : ''}
+                                        {people(e.tasks)}{company ? ` · ${company}` : ''}{curate && picked ? ` · ${picked} in ${exec}’s brief` : ''}
                                     </span>
                                 </span>
                                 <span className={cn('flex shrink-0 items-center gap-1 text-[13px] font-medium', tx.ink)}>
@@ -153,6 +155,7 @@ function TaskRow({ t, meta, nested, cName, curate, pick, onOpen, onToggle, onNot
     t: BriefTask; meta: SectionMeta; nested: boolean; cName: string; curate: boolean; pick?: BriefItem;
     onOpen: (id: string) => void; onToggle: (t: BriefTask) => void; onNote: (taskId: string, note: string) => Promise<unknown>;
 }) {
+    const exec = useExecutiveTitle();
     // Inside a project group the project is already named, so the meta line drops it.
     const metaLine = [t.owner?.name ?? 'Unassigned', !nested && t.project?.name, cName].filter(Boolean).join(' · ');
     return (
@@ -174,7 +177,7 @@ function TaskRow({ t, meta, nested, cName, curate, pick, onOpen, onToggle, onNot
                     <button
                         onClick={() => onToggle(t)}
                         aria-pressed={!!pick}
-                        aria-label={pick ? `Remove “${t.title}” from Mr Blay’s brief` : `Add “${t.title}” to Mr Blay’s brief`}
+                        aria-label={pick ? `Remove “${t.title}” from ${exec}’s brief` : `Add “${t.title}” to ${exec}’s brief`}
                         className={cn(
                             'flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-progress',
                             pick
@@ -194,6 +197,7 @@ function TaskRow({ t, meta, nested, cName, curate, pick, onOpen, onToggle, onNot
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 function NoteInput({ initial, onSave }: { initial: string; onSave: (note: string) => Promise<unknown> }) {
+    const exec = useExecutiveTitle();
     const [value, setValue] = useState(initial);
     const [state, setState] = useState<SaveState>('idle');
     const inputId = useId();
@@ -216,7 +220,7 @@ function NoteInput({ initial, onSave }: { initial: string; onSave: (note: string
     return (
         <div className="px-5 pb-4 pl-[68px]">
             <div className="mb-1 flex items-baseline justify-between gap-3">
-                <label htmlFor={inputId} className="block text-xs font-semibold text-ink dark:text-slate-200">Your line for Mr Blay</label>
+                <label htmlFor={inputId} className="block text-xs font-semibold text-ink dark:text-slate-200">Your line for {exec}</label>
                 <span id={statusId} role="status" className={cn('text-[12px]', state === 'error' ? 'font-semibold text-blocked dark:text-red-300' : tx.muted)}>
                     {state === 'saving' ? 'Saving…' : state === 'saved' ? 'Saved' : state === 'error' ? 'Couldn’t save. Press Enter to try again.' : ''}
                 </span>
@@ -228,7 +232,7 @@ function NoteInput({ initial, onSave }: { initial: string; onSave: (note: string
                 aria-invalid={state === 'error'}
                 onChange={e => { setValue(e.target.value); if (state === 'saved') setState('idle'); }}
                 onBlur={save}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); save(); } }}
+                onKeyDown={e => { if (e.key === 'Enter' && !isImeComposing(e)) { e.preventDefault(); save(); } }}
                 placeholder="e.g. Kofi expects ECG sign-off Tuesday; I'm following up daily."
                 className={cn(
                     'h-10 w-full rounded-[8px] border bg-surface px-3 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-ink focus:ring-2 focus:ring-ink/10 dark:bg-slate-950 dark:text-slate-100',

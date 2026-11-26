@@ -1,8 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import {
-    X, Calendar, Flag, User, Plus, Trash2, Send, ChevronRight, AlertTriangle, UserCheck,
-    Clock, Check, MessageSquare, ListChecks, FileText, Pencil, ChevronDown, Link2, Paperclip,
-} from 'lucide-react';
+import { X, Calendar, Flag, User, Plus, Trash2, Send, ChevronRight, AlertTriangle, UserCheck, Clock, Check, MessageSquare, ListChecks, FileText, Pencil, ChevronDown, Link2, Paperclip, Repeat } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,17 +10,24 @@ import { openEvidence } from '../hooks/useEvidence';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useProjects } from '@/features/projects/hooks/useProjects';
 import { useUsers } from '@/features/users/hooks/useUsers';
-import { cn, formatDate, formatRelativeTime } from '@/lib/utils';
+import { cn, formatDate, formatRelativeTime, isImeComposing } from '@/lib/utils';
 import { canCoordinate } from '@/lib/permissions';
 import { taskProgress, isStale, daysSinceMovement, isUpdateOverdue } from '../utils/accountability';
 import { stageDef } from '../utils/stages';
 import { useTaskMover, MoveMenu } from './TaskMover';
+import MentionField from '@/features/mentions/MentionField';
+import { renderMentions, useMentionPicks } from '@/features/mentions/mentions';
+import TaskLinks from './TaskLinks';
 
 interface TaskDetailModalProps {
     taskId: string | null;
     open: boolean;
     onClose: () => void;
+    /** Opens another task in this panel (from "Waits on" / "Holding up"). */
+    onOpenTask?: (id: string) => void;
 }
+
+const REPEAT_LABEL: Record<string, string> = { daily: 'Every day', weekdays: 'Every weekday', weekly: 'Every week', monthly: 'Every month' };
 
 const toDateInput = (iso?: string | null) => (iso ? iso.slice(0, 10) : '');
 
@@ -39,7 +43,7 @@ const endOfDay = (d: string) => (d ? new Date(`${d}T23:59:00`).toISOString() : n
  * It reads top to bottom the way a person checks a task:
  * where is it and is it moving -> what is it -> what are the steps -> what's been said.
  */
-export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailModalProps) {
+export default function TaskDetailModal({ taskId, open, onClose, onOpenTask }: TaskDetailModalProps) {
     const id = taskId || '';
     const { data: task, isLoading } = useTask(id);
     const { data: subtasks = [] } = useSubtasks(id);
@@ -64,6 +68,7 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
     const [newStep, setNewStep] = useState('');
     const [editingStep, setEditingStep] = useState<{ id: string; title: string } | null>(null);
     const [update, setUpdate] = useState('');
+    const mentions = useMentionPicks();
 
     const loadedTitle = task?.title;
     const loadedDescription = task?.description;
@@ -129,9 +134,9 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
         const t = update.trim();
         if (!t) return;
         createComment.mutate(
-            { task_id: task.id, content: t, kind: isExecutive ? 'nudge' : 'comment' },
+            { task_id: task.id, content: mentions.encode(t), kind: isExecutive ? 'nudge' : 'comment' },
             {
-                onSuccess: () => { setUpdate(''); toast.success(isExecutive ? 'Note sent to the team' : 'Comment posted'); },
+                onSuccess: () => { setUpdate(''); mentions.reset(); toast.success(isExecutive ? 'Note sent to the team' : 'Comment posted'); },
                 onError: (err: Error) => toast.error(err.message || 'Couldn’t post. Try again.'),
             }
         );
@@ -175,7 +180,7 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                             rows={1}
                             onChange={e => setTitle(e.target.value)}
                             onBlur={saveTitle}
-                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLTextAreaElement).blur(); } }}
+                            onKeyDown={e => { if (e.key === 'Enter' && !isImeComposing(e)) { e.preventDefault(); (e.target as HTMLTextAreaElement).blur(); } }}
                             className="w-full resize-none bg-transparent text-xl font-bold leading-snug text-ink dark:text-slate-50 outline-none rounded-md hover:bg-paper dark:hover:bg-slate-800/50 focus:bg-paper px-1 -mx-1 [field-sizing:content]"
                             aria-label="Task title"
                         />
@@ -344,7 +349,7 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                                                         value={editingStep.title}
                                                         onChange={e => setEditingStep({ id: s.id, title: e.target.value })}
                                                         onBlur={() => { const t = editingStep.title.trim(); if (t && t !== s.title) updateSubtask.mutate({ id: s.id, title: t }); setEditingStep(null); }}
-                                                        onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setEditingStep(null); }}
+                                                        onKeyDown={e => { if (e.key === 'Enter' && !isImeComposing(e)) (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setEditingStep(null); }}
                                                         className="w-full rounded-md border border-blue-300 px-2 py-0.5 text-sm outline-none"
                                                     />
                                                 ) : (
@@ -405,17 +410,19 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                                 </h3>
                                 {comments.length === 0 && <p className="text-sm text-ink-faint">Nothing yet. Status changes, proof and comments appear here.</p>}
                                 <ol className="space-y-4">
-                                    {comments.map(c => <FeedEntry key={c.id} c={c} />)}
+                                    {comments.map(c => <FeedEntry key={c.id} c={c} meId={user?.id} />)}
                                 </ol>
                                 {user && (
                                     <form onSubmit={postUpdate} className="space-y-1.5">
                                         {isExecutive && <p className="text-[13px] font-semibold text-ink">Leave a note for the team <span className="font-normal text-ink-faint">(optional)</span></p>}
                                         <div className="flex gap-2">
-                                            <input
+                                            <MentionField
                                                 value={update}
-                                                onChange={e => setUpdate(e.target.value)}
-                                                placeholder={isExecutive ? 'e.g. Can we get this done before the board meeting?' : 'Add a comment'}
-                                                className="flex-1 h-10 rounded-[8px] border border-line bg-surface px-3 text-sm text-ink outline-none placeholder:text-ink-muted focus:border-progress focus:ring-2 focus:ring-progress/15 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
+                                                onChange={setUpdate}
+                                                onPick={mentions.add}
+                                                aria-label={isExecutive ? 'Note for the team' : 'Comment'}
+                                                placeholder={isExecutive ? 'e.g. Can we get this done before the board meeting?' : 'Add a comment. Type @ to mention someone'}
+                                                className="w-full h-10 rounded-[8px] border border-line bg-surface px-3 text-sm text-ink outline-none placeholder:text-ink-muted focus:border-progress focus:ring-2 focus:ring-progress/15 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
                                             />
                                             <Button type="submit" size="sm" className="h-10 bg-ink text-white hover:bg-ink/90 dark:bg-white dark:text-ink dark:hover:bg-white/90" disabled={!update.trim() || createComment.isPending} aria-label={isExecutive ? 'Send note' : 'Post comment'}>
                                                 <Send className="h-4 w-4 sm:mr-1.5" /><span className="hidden sm:inline">{isExecutive ? 'Send note' : 'Post'}</span>
@@ -455,6 +462,21 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                                         className={cn('w-full h-9 rounded-lg border bg-surface px-2 text-sm text-ink dark:bg-slate-950 dark:text-slate-100', isUpdateOverdue(task) ? 'border-red-300 text-red-700' : 'border-line dark:border-slate-700')} />
                                 ) : <Value className={isUpdateOverdue(task) ? 'text-red-700' : ''}>{task.next_update_due ? formatDate(task.next_update_due) : 'Not set'}</Value>}
                             </Field>
+                            {/* Shown once the repeat column exists (recurring tasks migration). */}
+                            {'repeat' in task && <Field icon={Repeat} label="Repeats" hint={task.repeat ? 'When it’s done, the next one is created for the same owner.' : undefined}>
+                                {canStructure ? (
+                                    <select value={task.repeat ?? ''} onChange={e => save({ repeat: (e.target.value || null) as Task['repeat'] }, e.target.value ? 'Repeat set' : 'Repeat removed')}
+                                        className="w-full h-9 rounded-lg border border-line dark:border-slate-700 bg-surface px-2 text-sm text-ink dark:bg-slate-950 dark:text-slate-100">
+                                        <option value="">Doesn’t repeat</option>
+                                        <option value="daily">Every day</option>
+                                        <option value="weekdays">Every weekday (Mon–Fri)</option>
+                                        <option value="weekly">Every week</option>
+                                        <option value="monthly">Every month</option>
+                                    </select>
+                                ) : <Value>{REPEAT_LABEL[task.repeat ?? ''] ?? 'Doesn’t repeat'}</Value>}
+                            </Field>}
+                            <TaskLinks taskId={task.id} canEdit={canStructure || (!!user && task.assignee_id === user.id && user.role !== 'executive')}
+                                onOpen={id => onOpenTask?.(id)} />
                             <Field icon={Flag} label="Priority">
                                 {canEdit ? (
                                     <select value={task.priority} onChange={e => save({ priority: e.target.value as Task['priority'] }, 'Priority saved')}
@@ -497,7 +519,7 @@ function Value({ children, className }: { children: React.ReactNode; className?:
     return <p className={cn('text-sm font-semibold text-ink dark:text-slate-200', className)}>{children}</p>;
 }
 
-function FeedEntry({ c }: { c: TaskComment }) {
+function FeedEntry({ c, meId }: { c: TaskComment; meId?: string }) {
     const who = c.user?.name || 'Unknown';
     const when = formatRelativeTime(c.created_at);
     const evidence = c.evidence ?? [];
@@ -506,7 +528,7 @@ function FeedEntry({ c }: { c: TaskComment }) {
         return (
             <li className="rounded-[10px] border-l-[3px] border-ink bg-paper px-3.5 py-3">
                 <p className="text-[13px] font-semibold text-ink">Note from {who} <span className="font-normal text-ink-faint">{when}</span></p>
-                <p className="mt-1 whitespace-pre-wrap text-[15px] leading-relaxed text-ink">{c.comment}</p>
+                <p className="mt-1 whitespace-pre-wrap text-[15px] leading-relaxed text-ink">{renderMentions(c.comment, meId)}</p>
             </li>
         );
     }
@@ -527,7 +549,7 @@ function FeedEntry({ c }: { c: TaskComment }) {
                         {c.progress_percent != null && c.to_stage !== 'completed' ? <>, now {c.progress_percent}%</> : null}
                         <span className="text-ink-faint"> {when}</span>
                     </p>
-                    <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-ink">{c.comment}</p>
+                    <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-ink">{renderMentions(c.comment, meId)}</p>
                     {evidence.length > 0 && (
                         <ul className="mt-2 flex flex-wrap gap-1.5">
                             {evidence.map((e, i) => (
@@ -553,7 +575,7 @@ function FeedEntry({ c }: { c: TaskComment }) {
             <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-paper text-xs font-bold text-ink">{who.charAt(0).toUpperCase()}</span>
             <div className="min-w-0 flex-1">
                 <p className="text-[13px] text-ink-muted"><span className="font-semibold text-ink">{who}</span> <span className="text-ink-faint">{when}</span></p>
-                <p className="mt-0.5 whitespace-pre-wrap text-sm text-ink">{c.comment}</p>
+                <p className="mt-0.5 whitespace-pre-wrap text-sm text-ink">{renderMentions(c.comment, meId)}</p>
             </div>
         </li>
     );
