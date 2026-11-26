@@ -13,6 +13,8 @@ import { uploadEvidence, normaliseLink, EVIDENCE_ACCEPT, MAX_EVIDENCE_BYTES, typ
 import { STAGES, stageDef, type StageDef } from '../utils/stages';
 import { PROGRESS_STEPS } from '../utils/accountability';
 import { track } from '@/lib/analytics';
+import MentionField from '@/features/mentions/MentionField';
+import { useMentionPicks } from '@/features/mentions/mentions';
 
 export type MovableTask = MoveTaskInput['task'] & {
     project?: { company_id: string } | null;
@@ -71,6 +73,7 @@ function StatusUpdateSheet({ task, initialTarget, initialProgress, onClose }: { 
     const [phase, setPhase] = useState<'edit' | 'saving' | 'done'>('edit');
     const [error, setError] = useState<string | null>(null);
     const fileInput = useRef<HTMLInputElement>(null);
+    const mentions = useMentionPicks();
 
     const from = stageDef(task.stage);
     const to = stageDef(target);
@@ -129,7 +132,7 @@ function StatusUpdateSheet({ task, initialTarget, initialProgress, onClose }: { 
 
             // 1. The update itself (and its proof) goes on the task's record first...
             const { error: cErr } = await supabase.from('task_comments').insert({
-                task_id: task.id, user_id: user!.id, comment: text.trim(), kind: 'status_update',
+                task_id: task.id, user_id: user!.id, comment: mentions.encode(text.trim()), kind: 'status_update',
                 from_stage: task.stage, to_stage: target, progress_percent: target === 'completed' ? 100 : pct, evidence,
             });
             if (cErr) throw cErr;
@@ -248,11 +251,13 @@ function StatusUpdateSheet({ task, initialTarget, initialProgress, onClose }: { 
 
                             <label className="block space-y-1.5">
                                 <span className="text-[13px] font-semibold text-ink">{copy.noteLabel} <span className="text-blocked">*</span></span>
-                                <textarea
+                                <MentionField
+                                    multiline
                                     autoFocus
                                     rows={3}
                                     value={text}
-                                    onChange={e => { (target === 'blockers' ? setReason : setNote)(e.target.value); setError(null); }}
+                                    onChange={v => { (target === 'blockers' ? setReason : setNote)(v); setError(null); }}
+                                    onPick={mentions.add}
                                     placeholder={copy.notePh}
                                     className="w-full rounded-[8px] border border-line bg-surface p-3 text-[15px] leading-relaxed text-ink outline-none placeholder:text-ink-muted focus:border-progress focus:ring-2 focus:ring-progress/15 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
                                 />

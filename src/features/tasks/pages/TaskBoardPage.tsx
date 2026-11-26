@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
     DndContext,
@@ -13,8 +13,9 @@ import {
     type Announcements,
 } from '@dnd-kit/core';
 import { subDays } from 'date-fns';
-import { Plus, Search, List, LayoutGrid, UserRound } from 'lucide-react';
-import { useTasks, Task } from '../hooks/useTasks';
+import { Plus, Search, List, LayoutGrid, UserRound, CalendarDays, GanttChart } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import { useTasks, useRescheduleTask, Task } from '../hooks/useTasks';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
 import TaskCard from '../components/TaskCard';
@@ -27,7 +28,12 @@ import { cn } from '@/lib/utils';
 import { useCompanyStore } from '@/hooks/useCompanyStore';
 import { canCoordinate } from '@/lib/permissions';
 
-type View = 'board' | 'list';
+type View = 'board' | 'list' | 'calendar' | 'timeline';
+const VIEWS: View[] = ['board', 'list', 'calendar', 'timeline'];
+
+// Calendar and timeline load only when chosen.
+const TaskCalendar = lazy(() => import('@/features/schedule/components/TaskCalendar'));
+const TaskTimeline = lazy(() => import('@/features/schedule/components/TaskTimeline'));
 const VIEW_KEY = 'tasks-view';
 /** Done shows recent finishes only; older ones are one click away. */
 const RECENT_DONE_DAYS = 14;
@@ -37,7 +43,7 @@ const COLUMN_LIMIT = 25;
 function initialView(): View {
     try {
         const saved = localStorage.getItem(VIEW_KEY);
-        if (saved === 'board' || saved === 'list') return saved;
+        if (VIEWS.includes(saved as View)) return saved as View;
     } catch { /* storage blocked: use the default */ }
     return 'board';
 }
@@ -60,10 +66,23 @@ export default function TaskBoardPage() {
 
     const [searchParams, setSearchParams] = useSearchParams();
     const selectedTaskId = searchParams.get('task');
-    const openTask = (id: string | null) => {
+    const openTask = useCallback((id: string | null) => {
         const next = new URLSearchParams(searchParams);
         if (id) next.set('task', id); else next.delete('task');
         setSearchParams(next, { replace: !id });
+    }, [searchParams, setSearchParams]);
+    const openTaskById = useCallback((id: string) => openTask(id), [openTask]);
+
+    // Calendar drag: coordinators and leads move any deadline they can see;
+    // staff move their own. The database has the final say.
+    const rescheduleTask = useRescheduleTask();
+    const canReschedule = useCallback((t: Task) => !!user && user.role !== 'executive' && t.stage !== 'completed'
+        && (canCoordinate(user) || user.role === 'lead' || t.assignee_id === user.id), [user]);
+    const reschedule = (t: Task, day: string) => {
+        rescheduleTask.mutate({ task: t, due_date: day }, {
+            onSuccess: () => toast.success(`Deadline moved to ${new Date(day + 'T00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`),
+            onError: (err) => toast.error((err as Error).message || 'Couldn’t move the deadline.'),
+        });
     };
 
     const [activeTask, setActiveTask] = useState<Task | null>(null);
@@ -274,12 +293,24 @@ export default function TaskBoardPage() {
                     <button type="button" aria-pressed={view === 'list'} onClick={() => setView('list')} className={segBtn(view === 'list')}>
                         <List className="h-4 w-4" aria-hidden /> List
                     </button>
+                    <button type="button" aria-pressed={view === 'calendar'} onClick={() => setView('calendar')} className={segBtn(view === 'calendar')}>
+                        <CalendarDays className="h-4 w-4" aria-hidden /> Calendar
+                    </button>
+                    <button type="button" aria-pressed={view === 'timeline'} onClick={() => setView('timeline')} className={segBtn(view === 'timeline')}>
+                        <GanttChart className="h-4 w-4" aria-hidden /> Timeline
+                    </button>
                 </div>
             </div>
 
             {/* Content Area */}
             <div className="min-h-0 flex-1">
-                {view === 'list' ? (
+                {view === 'calendar' || view === 'timeline' ? (
+                    <Suspense fallback={<Skeleton className="h-[480px] w-full rounded-[12px]" />}>
+                        {view === 'calendar'
+                            ? <TaskCalendar tasks={visibleTasks} onOpen={openTaskById} canReschedule={canReschedule} onReschedule={reschedule} />
+                            : <TaskTimeline tasks={visibleTasks} onOpen={openTaskById} />}
+                    </Suspense>
+                ) : view === 'list' ? (
                     <div className="h-full overflow-auto">
                         <TaskListView tasks={visibleTasks} onTaskClick={openTask} onTaskComplete={handleTaskComplete} hiddenDone={hiddenDone} onShowAllDone={() => setShowAllDone(true)} />
                     </div>

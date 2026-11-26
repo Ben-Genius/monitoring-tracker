@@ -12,7 +12,7 @@ import { routeChunks } from './lib/routeChunks';
 import LoginPage from './features/auth/pages/LoginPage';
 
 // Every other page is split into its own chunk. These pull in the heavy
-// dependencies (recharts, xlsx, @dnd-kit), none of which are needed to render
+// dependencies (recharts, the spreadsheet reader, @dnd-kit), none of which are needed to render
 // the login screen.
 const SignupPage = lazy(() => import('./features/auth/pages/SignupPage'));
 const ForgotPasswordPage = lazy(() => import('./features/auth/pages/ForgotPasswordPage'));
@@ -88,7 +88,7 @@ function App() {
     return (
         <ThemeProvider>
             <QueryClientProvider client={queryClient}>
-                <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+                <Router>
                     <Suspense fallback={<RouteFallback />}>
                         <Routes>
                             {/* Public routes */}

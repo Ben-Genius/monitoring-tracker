@@ -6,10 +6,13 @@ import OfflineNotice from './OfflineNotice';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { canReadBrief, canReportWork } from '@/lib/permissions';
 import { prefetchWhenIdle } from '@/lib/routeChunks';
+import { useLiveUpdates } from '@/features/realtime/useLiveUpdates';
 
 export default function DashboardLayout() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const { user } = useAuth();
+    // Other people's changes show up without refreshing.
+    useLiveUpdates();
     const readsBrief = canReadBrief(user);
     const reportsWork = canReportWork(user);
 

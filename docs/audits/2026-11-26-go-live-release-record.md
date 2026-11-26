@@ -35,20 +35,22 @@ Neither needs code. Once they're closed and the end-to-end run below passes, thi
 | ID | Sev | Issue | Owner | Fix |
 |---|---|---|---|---|
 | D1 | **P1** (partly closed) | **Drafted 26 Nov:** [privacy.html](../../privacy.html) (`/privacy`) and [terms.html](../../terms.html) (`/terms`). They are linked from the landing page, `/start`, `/login`, the invite email and the morning brief email. **Still open:** fill the highlighted placeholders (legal company name, registered address, DPC registration number, Supabase region, privacy and support emails), have a Ghanaian lawyer review both, confirm the retention periods, and register with the Data Protection Commission. | Product / legal | Fill the placeholders, get legal sign-off, register with the DPC. |
-| D2 | **P1** (until confirmed) | If email confirmation is off in the live Supabase project, anyone can sign up with someone else's work email. They could start an organisation under it and block that person's later invite. The local `supabase/config.toml` has `enable_confirmations = false`. | Engineering | In Supabase → Authentication, turn on email confirmation, set custom SMTP (Resend), add `/welcome` and `/reset-password` to the redirect URLs, and enable CAPTCHA (Turnstile). |
-| D3 | P2 | xlsx 0.18.5 has prototype-pollution and ReDoS advisories, and npm has no fixed version. It only parses files the signed-in user uploads, and now loads only on import. | Engineering | Switch to the SheetJS CDN build (0.20.x) or drop .xlsx import. |
-| D4 | P2 | react-router-dom 6 has an open-redirect advisory, which needs v7 to fix. | Engineering | Upgrade, then smoke-test the routes. |
+| D2 | **P1** | **Checked live 26 Nov with read-only queries:** project `lzywhitaxstskrodbvok` (us-east-2). The security advisor reports leaked-password protection is **off**. Email confirmation can't be read through the API, so check it in the dashboard. | Engineering | Follow step 6 of [the production migration runbook](2026-11-26-production-migration-runbook.md): email confirmation, Resend SMTP, redirect URLs, Turnstile, leaked-password protection. |
+| D3 | ~~P2~~ Fixed | xlsx prototype-pollution and ReDoS advisories. **Fixed 26 Nov:** replaced it with read-excel-file 9.3.20 (MIT, maintained), via [rowsToRecords.ts](../../src/features/import/utils/rowsToRecords.ts). The reader chunk went from 429 KB to 66 KB. It also fixes a bug: the old library imported dates as Excel serial numbers (26 Nov 2026 came through as `46351.9999`), which the database rejected. They now arrive as `2026-11-26`. Old `.xls` files get a clear "save as .xlsx or CSV" message. Tested in Node and in the browser on an .xlsx with numbers, dates, empty cells, an empty row and Ghanaian characters. | Engineering | Done |
+| D4 | ~~P2~~ Fixed | react-router-dom open-redirect advisory. **Fixed 26 Nov:** upgraded to v7.18.7 and removed the v6 opt-in flags, which are now the default. All 11 public and app routes smoke-tested in the production preview. | Engineering | Done |
 | D5 | P2 | No error monitoring, so a broken sign-up or email job would go unseen. | Engineering | Add Sentry or similar, alert on `/api/send-morning-briefs` failures, and watch Vercel logs for the first week. |
-| D6 | P2 | Landing-page claims that aren't built yet: "Pay by Mobile Money or card" (no billing exists) and Free = "one company" (not enforced). | Product | Reword, or accept them as sales promises. |
-| D7 | P3 | zod 3 memory-exhaustion advisory. It's only used for client-side form validation. | Engineering | Upgrade with the next form work. |
-| D8 | P3 | 35 existing lint warnings, unchanged this session. | Engineering | Backlog. |
+| D6 | ~~P2~~ Resolved | Landing-page claims, now checked. Free = "one company" **holds as built**: only `create_organization` creates a company, and database rules block clients from adding more, so extra companies for Group customers are added by your team. "Pay by Mobile Money or card" matches the terms (invoiced; no in-app billing needed). | Product | Done; keep invoicing manual until billing exists |
+| D7 | ~~P3~~ Fixed | zod memory-exhaustion advisory. **Fixed 26 Nov:** upgraded to zod 4.6.7, moved `invalid_type_error` to `error`, and checked that every form message is unchanged. | Engineering | Done |
+| D8 | P3 | 34 existing lint warnings (one fewer after the import change). | Engineering | Backlog. |
+| D9 | ~~P1~~ Closed | **Applied to production 26 Nov.** Before: per-role visibility baseline recorded, and every public table copied to the private schema `backup_20261126`. Applied in order: `brief_ready`, `organizations_tenant_layer`, `self_serve_organisations`, `morning_brief_email`. After: admin, executive, PA, lead and staff each see exactly the same task, project, user, company, comment, notification, invite, brief and milestone counts as before. A rolled-back rehearsal showed a new sign-up sees only its own sample data, sample removal works, and the PA can't see the new organisation. Migration history now matches the repo's 39 files exactly. | Engineering | Done. Drop `backup_20261126` once the release is confirmed. |
 
-**Counts:** P0 0 · P1 2 · P2 4 · P3 2
+**Counts:** P0 0 · P1 2 · P2 1 · P3 1 (D3, D4, D6, D7, D9 closed). Dependencies: production audit has 1 low advisory left (esbuild, Windows dev server only).
 
 ## Conditions to move to GO
 
 1. **Take a backup first.** Before migrating, take a Supabase backup or turn on point-in-time recovery. The migrations are forward-only, so a restore is the only way back.
-2. **Apply the migrations to a Supabase branch or staging copy first, in this order:**
+2. **Follow [the production migration runbook](2026-11-26-production-migration-runbook.md)** (back up, repair the history, rehearse on a branch, push). It applies these in order:
+   1. `20261105120000_brief_ready`
    1. `20261125120000_organizations_tenant_layer`
    2. `20261125130000_self_serve_organisations`
    3. `20261125140000_morning_brief_email`

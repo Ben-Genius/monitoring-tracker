@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-// papaparse and xlsx (about 900 KB) load only when someone picks a file, so
-// they stay out of the Projects page that hosts the import button.
+// papaparse and read-excel-file load only when someone picks a file, so they
+// stay out of the Projects page that hosts the import button.
+import { rowsToRecords } from '../utils/rowsToRecords';
 
 export type EntityType = 'projects' | 'tasks' | 'milestones';
 
@@ -50,21 +51,18 @@ export function useImport() {
                         },
                     });
                 });
-            } else if (ext === 'xlsx' || ext === 'xls') {
-                const [XLSX, buffer] = await Promise.all([import('xlsx'), file.arrayBuffer()]);
-                const workbook = XLSX.read(buffer, { type: 'array' });
-                const sheetName = workbook.SheetNames[0];
-                if (!sheetName) {
-                    throw new Error('No sheets found in workbook');
+            } else if (ext === 'xlsx') {
+                // read-excel-file reads the first sheet; it loads only when a file is picked.
+                const { readSheet } = await import('read-excel-file/browser');
+                const { columns, records } = rowsToRecords(await readSheet(file));
+                if (records.length > 0) {
+                    setColumns(columns);
+                    setRows(records);
                 }
-                const sheet = workbook.Sheets[sheetName];
-                const json = XLSX.utils.sheet_to_json(sheet, { defval: '' }) as Record<string, any>[];
-                if (json.length > 0) {
-                    setColumns(Object.keys(json[0]));
-                    setRows(json);
-                }
+            } else if (ext === 'xls') {
+                throw new Error('Old .xls files can’t be read. In Excel, choose File → Save As → Excel Workbook (.xlsx), or save as CSV, then try again.');
             } else {
-                throw new Error('Unsupported file format. Use .csv, .xlsx, or .xls');
+                throw new Error('Unsupported file format. Use .csv or .xlsx.');
             }
         } catch (err: any) {
             setError(err.message || 'Failed to parse file');

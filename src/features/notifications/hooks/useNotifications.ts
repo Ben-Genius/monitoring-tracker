@@ -5,7 +5,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 export interface AppNotification {
     id: string;
     task_id: string | null;
-    type: 'assigned' | 'stage_changed' | 'blocked' | 'blocking_you' | 'progress' | 'accepted';
+    type: 'assigned' | 'stage_changed' | 'blocked' | 'blocking_you' | 'progress' | 'accepted' | 'comment' | 'nudge' | 'mention';
     title: string;
     body: string | null;
     read_at: string | null;
@@ -18,7 +18,8 @@ export function useNotifications() {
     return useQuery({
         queryKey: ['notifications', user?.id],
         enabled: !!user,
-        refetchInterval: 60_000,
+        // Live updates refresh this instantly (useLiveUpdates); the poll is a fallback.
+        refetchInterval: 120_000,
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('notifications')

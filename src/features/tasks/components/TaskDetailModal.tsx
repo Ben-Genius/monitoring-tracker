@@ -18,6 +18,8 @@ import { canCoordinate } from '@/lib/permissions';
 import { taskProgress, isStale, daysSinceMovement, isUpdateOverdue } from '../utils/accountability';
 import { stageDef } from '../utils/stages';
 import { useTaskMover, MoveMenu } from './TaskMover';
+import MentionField from '@/features/mentions/MentionField';
+import { renderMentions, useMentionPicks } from '@/features/mentions/mentions';
 
 interface TaskDetailModalProps {
     taskId: string | null;
@@ -64,6 +66,7 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
     const [newStep, setNewStep] = useState('');
     const [editingStep, setEditingStep] = useState<{ id: string; title: string } | null>(null);
     const [update, setUpdate] = useState('');
+    const mentions = useMentionPicks();
 
     const loadedTitle = task?.title;
     const loadedDescription = task?.description;
@@ -129,9 +132,9 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
         const t = update.trim();
         if (!t) return;
         createComment.mutate(
-            { task_id: task.id, content: t, kind: isExecutive ? 'nudge' : 'comment' },
+            { task_id: task.id, content: mentions.encode(t), kind: isExecutive ? 'nudge' : 'comment' },
             {
-                onSuccess: () => { setUpdate(''); toast.success(isExecutive ? 'Note sent to the team' : 'Comment posted'); },
+                onSuccess: () => { setUpdate(''); mentions.reset(); toast.success(isExecutive ? 'Note sent to the team' : 'Comment posted'); },
                 onError: (err: Error) => toast.error(err.message || 'Couldn’t post. Try again.'),
             }
         );
@@ -405,17 +408,19 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                                 </h3>
                                 {comments.length === 0 && <p className="text-sm text-ink-faint">Nothing yet. Status changes, proof and comments appear here.</p>}
                                 <ol className="space-y-4">
-                                    {comments.map(c => <FeedEntry key={c.id} c={c} />)}
+                                    {comments.map(c => <FeedEntry key={c.id} c={c} meId={user?.id} />)}
                                 </ol>
                                 {user && (
                                     <form onSubmit={postUpdate} className="space-y-1.5">
                                         {isExecutive && <p className="text-[13px] font-semibold text-ink">Leave a note for the team <span className="font-normal text-ink-faint">(optional)</span></p>}
                                         <div className="flex gap-2">
-                                            <input
+                                            <MentionField
                                                 value={update}
-                                                onChange={e => setUpdate(e.target.value)}
-                                                placeholder={isExecutive ? 'e.g. Can we get this done before the board meeting?' : 'Add a comment'}
-                                                className="flex-1 h-10 rounded-[8px] border border-line bg-surface px-3 text-sm text-ink outline-none placeholder:text-ink-muted focus:border-progress focus:ring-2 focus:ring-progress/15 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
+                                                onChange={setUpdate}
+                                                onPick={mentions.add}
+                                                aria-label={isExecutive ? 'Note for the team' : 'Comment'}
+                                                placeholder={isExecutive ? 'e.g. Can we get this done before the board meeting?' : 'Add a comment. Type @ to mention someone'}
+                                                className="w-full h-10 rounded-[8px] border border-line bg-surface px-3 text-sm text-ink outline-none placeholder:text-ink-muted focus:border-progress focus:ring-2 focus:ring-progress/15 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
                                             />
                                             <Button type="submit" size="sm" className="h-10 bg-ink text-white hover:bg-ink/90 dark:bg-white dark:text-ink dark:hover:bg-white/90" disabled={!update.trim() || createComment.isPending} aria-label={isExecutive ? 'Send note' : 'Post comment'}>
                                                 <Send className="h-4 w-4 sm:mr-1.5" /><span className="hidden sm:inline">{isExecutive ? 'Send note' : 'Post'}</span>
@@ -497,7 +502,7 @@ function Value({ children, className }: { children: React.ReactNode; className?:
     return <p className={cn('text-sm font-semibold text-ink dark:text-slate-200', className)}>{children}</p>;
 }
 
-function FeedEntry({ c }: { c: TaskComment }) {
+function FeedEntry({ c, meId }: { c: TaskComment; meId?: string }) {
     const who = c.user?.name || 'Unknown';
     const when = formatRelativeTime(c.created_at);
     const evidence = c.evidence ?? [];
@@ -506,7 +511,7 @@ function FeedEntry({ c }: { c: TaskComment }) {
         return (
             <li className="rounded-[10px] border-l-[3px] border-ink bg-paper px-3.5 py-3">
                 <p className="text-[13px] font-semibold text-ink">Note from {who} <span className="font-normal text-ink-faint">{when}</span></p>
-                <p className="mt-1 whitespace-pre-wrap text-[15px] leading-relaxed text-ink">{c.comment}</p>
+                <p className="mt-1 whitespace-pre-wrap text-[15px] leading-relaxed text-ink">{renderMentions(c.comment, meId)}</p>
             </li>
         );
     }
@@ -527,7 +532,7 @@ function FeedEntry({ c }: { c: TaskComment }) {
                         {c.progress_percent != null && c.to_stage !== 'completed' ? <>, now {c.progress_percent}%</> : null}
                         <span className="text-ink-faint"> {when}</span>
                     </p>
-                    <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-ink">{c.comment}</p>
+                    <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-ink">{renderMentions(c.comment, meId)}</p>
                     {evidence.length > 0 && (
                         <ul className="mt-2 flex flex-wrap gap-1.5">
                             {evidence.map((e, i) => (
@@ -553,7 +558,7 @@ function FeedEntry({ c }: { c: TaskComment }) {
             <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-paper text-xs font-bold text-ink">{who.charAt(0).toUpperCase()}</span>
             <div className="min-w-0 flex-1">
                 <p className="text-[13px] text-ink-muted"><span className="font-semibold text-ink">{who}</span> <span className="text-ink-faint">{when}</span></p>
-                <p className="mt-0.5 whitespace-pre-wrap text-sm text-ink">{c.comment}</p>
+                <p className="mt-0.5 whitespace-pre-wrap text-sm text-ink">{renderMentions(c.comment, meId)}</p>
             </div>
         </li>
     );

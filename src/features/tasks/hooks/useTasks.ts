@@ -43,6 +43,9 @@ export interface Task {
     stage: 'talking_stage' | 'yet_to_start' | 'in_progress' | 'blockers' | 'completed';
     priority: 'low' | 'medium' | 'high' | 'critical';
     due_date: string | null;
+    /** Planned start (DATE). Older tasks may only have started_at. */
+    start_date?: string | null;
+    started_at?: string | null;
     created_at: string;
     updated_at: string;
     completed_at: string | null;
@@ -625,6 +628,48 @@ export function useDeleteComment(taskId: string) {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['comments', taskId] });
             queryClient.invalidateQueries({ queryKey: ['task', taskId] });
+        },
+    });
+}
+
+/**
+ * Moves a task's deadline (calendar drag). Shows the new date at once and
+ * puts it back if the database refuses, e.g. for someone who may not edit
+ * that task. The change is written to the audit log like other edits.
+ */
+export function useRescheduleTask() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ task, due_date }: { task: Pick<Task, 'id' | 'title' | 'due_date'>; due_date: string }) => {
+            const { data, error } = await supabase.from('tasks').update({ due_date }).eq('id', task.id).select('id');
+            if (error) throw error;
+            // RLS turns a forbidden update into "no rows", not an error.
+            if (!data?.length) throw new Error('You can’t change the deadline on this task.');
+            supabaseLog({
+                entity_type: 'task',
+                entity_id: task.id,
+                action: 'updated',
+                field: 'due_date',
+                old_value: task.due_date ?? undefined,
+                new_value: due_date,
+                summary: `Task "${task.title}" deadline moved to ${due_date}`,
+            });
+        },
+        onMutate: async ({ task, due_date }) => {
+            await queryClient.cancelQueries({ queryKey: ['tasks'] });
+            const previous = queryClient.getQueriesData<Task[]>({ queryKey: ['tasks'] });
+            queryClient.setQueriesData<Task[]>({ queryKey: ['tasks'] }, old =>
+                old?.map(t => (t.id === task.id ? { ...t, due_date } : t)));
+            return { previous };
+        },
+        onError: (_err, _input, context) => {
+            context?.previous.forEach(([key, data]) => queryClient.setQueryData(key, data));
+        },
+        onSettled: (_data, _err, { task }) => {
+            queryClient.invalidateQueries({ queryKey: ['tasks'] });
+            queryClient.invalidateQueries({ queryKey: ['task', task.id] });
+            queryClient.invalidateQueries({ queryKey: ['brief'] });
         },
     });
 }

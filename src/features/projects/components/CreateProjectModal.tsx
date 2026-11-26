@@ -13,7 +13,7 @@ const projectSchema = z.object({
     name: z.string().trim().min(1, 'Enter a project name.'),
     description: z.string().optional(),
     company_id: z.string().min(1, 'Choose the company this project belongs to.'),
-    contract_value: z.number({ invalid_type_error: 'Enter the contract value in cedis, for example 1250000.' })
+    contract_value: z.number({ error: 'Enter the contract value in cedis, for example 1250000.' })
         .min(0, 'The contract value cannot be negative.'),
     expected_handover: z.string().min(1, 'Choose the expected handover date.'),
     start_date: z.string().optional(),

@@ -28,6 +28,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import BriefEmailSetting from '../components/BriefEmailSetting';
+import WhatsAppSetting from '../components/WhatsAppSetting';
 
 function getInitials(name: string): string {
     return name
@@ -368,6 +369,7 @@ export default function SettingsPage() {
                         </CardContent>
                     </Card>
 
+                    <WhatsAppSetting />
                     <BriefEmailSetting />
 
                     {/* Notifications Policy Card */}
