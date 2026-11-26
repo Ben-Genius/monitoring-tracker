@@ -25,7 +25,10 @@ export type AnalyticsEvent =
     | 'brief_email_toggled'
     | 'user_invited'
     | 'data_exported'
-    | 'template_used';
+    | 'template_used'
+    | 'calendar_feed_opened'
+    | 'calendar_feed_added'
+    | 'calendar_feed_reset';
 
 type Props = Record<string, string | number | boolean | null | undefined>;
 
