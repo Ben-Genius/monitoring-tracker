@@ -475,7 +475,7 @@ export default function TaskDetailModal({ taskId, open, onClose, onOpenTask }: T
                                     </select>
                                 ) : <Value>{REPEAT_LABEL[task.repeat ?? ''] ?? 'Doesn’t repeat'}</Value>}
                             </Field>}
-                            <TaskLinks taskId={task.id} canEdit={canStructure || (!!user && task.assignee_id === user.id && user.role !== 'executive')}
+                            <TaskLinks taskId={task.id} startDate={task.start_date} dueDate={task.due_date} canEdit={canStructure || (!!user && task.assignee_id === user.id && user.role !== 'executive')}
                                 onOpen={id => onOpenTask?.(id)} />
                             <Field icon={Flag} label="Priority">
                                 {canEdit ? (

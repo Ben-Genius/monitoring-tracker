@@ -1,7 +1,8 @@
 import { useId, useState } from 'react';
-import { Link2, X, Check } from 'lucide-react';
+import { Link2, X, Check, AlertTriangle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { cn } from '@/lib/utils';
+import { dayLabel, toDay } from '@/features/schedule/utils/days';
 import { stageDef } from '../utils/stages';
 import { useLinkCandidates, useLinkTasks, useTaskLinks, type LinkedTask } from '../hooks/useTaskLinks';
 
@@ -9,7 +10,14 @@ import { useLinkCandidates, useLinkTasks, useTaskLinks, type LinkedTask } from '
  * "Waits on" and "Holding up" for one task. Hidden entirely until the
  * dependencies migration is in place (the query errors, nothing shows).
  */
-export default function TaskLinks({ taskId, canEdit, onOpen }: { taskId: string; canEdit: boolean; onOpen: (id: string) => void }) {
+export default function TaskLinks({ taskId, canEdit, onOpen, startDate, dueDate }: {
+    taskId: string;
+    canEdit: boolean;
+    onOpen: (id: string) => void;
+    /** This task's planned start and deadline, to warn when they come before what it waits on. */
+    startDate?: string | null;
+    dueDate?: string | null;
+}) {
     const { data, isError } = useTaskLinks(taskId);
     const { add, remove } = useLinkTasks();
     const [adding, setAdding] = useState(false);
@@ -20,6 +28,12 @@ export default function TaskLinks({ taskId, canEdit, onOpen }: { taskId: string;
     if (isError || !data) return null;
     const open = data.waitsOn.filter(t => t.stage !== 'completed').length;
     const already = new Set(data.waitsOn.map(t => t.id));
+    // Same rule as the timeline's red lines (TaskTimeline.tsx).
+    const start = toDay(startDate), due = toDay(dueDate);
+    const tooEarly = data.waitsOn.filter(t => {
+        const theirs = toDay(t.due_date);
+        return t.stage !== 'completed' && !!theirs && ((!!due && due < theirs) || (!!start && start < theirs));
+    });
 
     const row = (t: LinkedTask, removable: boolean) => {
         const done = t.stage === 'completed';
@@ -48,6 +62,16 @@ export default function TaskLinks({ taskId, canEdit, onOpen }: { taskId: string;
                     <Link2 className="h-3.5 w-3.5" aria-hidden /> Waits on
                     {open > 0 && <span className="rounded bg-ink/10 px-1.5 text-ink dark:bg-white/10 dark:text-slate-100">{open} open</span>}
                 </p>
+                {tooEarly.length > 0 && (
+                    <p role="note" className="mb-2 flex gap-1.5 rounded-lg border border-blocked/30 bg-blocked/5 px-2.5 py-2 text-[13px] text-ink dark:border-red-400/30 dark:bg-red-400/10 dark:text-slate-100">
+                        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blocked dark:text-red-400" aria-hidden />
+                        <span>
+                            Planned to {start && tooEarly.some(t => start < toDay(t.due_date)!) ? 'start' : 'finish'} before {tooEarly.length === 1
+                                ? <><strong className="font-semibold">{tooEarly[0].title}</strong> is due ({dayLabel(toDay(tooEarly[0].due_date)!)})</>
+                                : <>{tooEarly.length} tasks it waits on are due</>}. Move the dates or check the order.
+                        </span>
+                    </p>
+                )}
                 {data.waitsOn.length ? <ul className="space-y-0.5">{data.waitsOn.map(t => row(t, canEdit))}</ul>
                     : <p className="text-sm text-ink-muted">Nothing. It can start any time.</p>}
 

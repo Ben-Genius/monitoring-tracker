@@ -27,10 +27,19 @@ export interface TimelineRow {
     onOpen: () => void;
 }
 export interface TimelineGroup { id: string; label: string; rows: TimelineRow[] }
+/**
+ * A dependency: `to` waits on `from`. Drawn from the end of `from`'s bar to
+ * the start of `to`'s. `conflict` (red): `to` starts before `from` is due.
+ * `settled` (faint): `from` is already done.
+ */
+export interface TimelineLink { from: string; to: string; conflict: boolean; settled: boolean }
 
 type Scale = 'weeks' | 'months';
 const PX_PER_DAY: Record<Scale, number> = { weeks: 28, months: 7 };
 const ROW_H = 40;
+const HEADER_H = 48; // the date header (h-12)
+const GROUP_H = 32;  // a group's label row (h-8)
+const BAR_MID = 20;  // bars sit at top-2 with h-6
 
 const barTone: Record<Tone, string> = {
     neutral: 'bg-ink/10 border-ink/25 dark:bg-slate-100/10 dark:border-slate-400/40',
@@ -44,10 +53,11 @@ const fillTone: Record<Tone, string> = {
     done: 'bg-ink-faint/20',
 };
 
-export default function TimelineChart({ groups, emptyText, footnote }: {
+export default function TimelineChart({ groups, emptyText, footnote, links = [] }: {
     groups: TimelineGroup[];
     emptyText: string;
     footnote?: string;
+    links?: TimelineLink[];
 }) {
     const [scale, setScale] = useState<Scale>('weeks');
     const scroller = useRef<HTMLDivElement>(null);
@@ -106,6 +116,33 @@ export default function TimelineChart({ groups, emptyText, footnote }: {
         return () => mq.removeEventListener('change', set);
     }, []);
 
+    // Where each row's bar sits, for drawing dependency lines between them.
+    const paths = useMemo(() => {
+        if (!links.length) return [];
+        const pos = new Map<string, { y: number; left: number; right: number }>();
+        let y = HEADER_H;
+        for (const g of groups) {
+            if (g.label) y += GROUP_H;
+            for (const r of g.rows) {
+                const left = daysBetween(range.start, r.start) * px;
+                const w = Math.max(px, (daysBetween(r.start, r.end) + 1) * px);
+                pos.set(r.id, { y: y + BAR_MID, left, right: left + w });
+                y += ROW_H;
+            }
+        }
+        return links.flatMap(l => {
+            const a = pos.get(l.from), b = pos.get(l.to);
+            if (!a || !b) return [];
+            const x1 = a.right, y1 = a.y, x2 = b.left, y2 = b.y;
+            const down = y2 >= y1 ? 1 : -1;
+            // Straight elbow when there's room; otherwise loop between the rows and come in from the left.
+            const d = x2 - x1 >= 16
+                ? `M${x1} ${y1} H${x1 + 8} V${y2} H${x2 - 1}`
+                : `M${x1} ${y1} H${x1 + 8} V${y2 - down * (ROW_H / 2)} H${x2 - 10} V${y2} H${x2 - 1}`;
+            return [{ key: `${l.from}>${l.to}`, d, conflict: l.conflict, settled: l.settled }];
+        });
+    }, [links, groups, range.start, px]);
+
     if (!rows.length) {
         return <p className="rounded-[12px] border border-dashed border-line-strong p-8 text-center text-sm text-ink-muted dark:border-slate-700 dark:text-slate-400">{emptyText}</p>;
     }
@@ -160,6 +197,25 @@ export default function TimelineChart({ groups, emptyText, footnote }: {
                         ))}
                         <span className="absolute bottom-0 top-0 z-10 w-0.5 bg-ink dark:bg-white" style={{ left: todayX + px / 2 - 1 }} />
                     </div>
+
+                    {/* Dependency lines, under the bars; the row labels cover them as you scroll. */}
+                    {paths.length > 0 && (
+                        <svg aria-hidden className="pointer-events-none absolute top-0 overflow-visible" style={{ left: labelW, width, height: 1 }}>
+                            <defs>
+                                {(['plain', 'conflict', 'settled'] as const).map(k => (
+                                    <marker key={k} id={`dep-arrow-${k}`} viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                                        <path d="M0 0 L8 4 L0 8 z" className={k === 'conflict' ? 'fill-blocked dark:fill-red-400' : k === 'settled' ? 'fill-ink-faint/60' : 'fill-ink/55 dark:fill-slate-300/70'} />
+                                    </marker>
+                                ))}
+                            </defs>
+                            {paths.map(p => (
+                                <path key={p.key} d={p.d} fill="none" strokeWidth={p.conflict ? 1.75 : 1.25} strokeLinejoin="round"
+                                    strokeDasharray={p.settled ? '3 3' : undefined}
+                                    markerEnd={`url(#dep-arrow-${p.conflict ? 'conflict' : p.settled ? 'settled' : 'plain'})`}
+                                    className={p.conflict ? 'stroke-blocked dark:stroke-red-400' : p.settled ? 'stroke-ink-faint/60' : 'stroke-ink/45 dark:stroke-slate-300/60'} />
+                            ))}
+                        </svg>
+                    )}
 
                     {groups.map(g => (
                         <div key={g.id} role="group" aria-label={g.label}>

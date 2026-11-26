@@ -10,7 +10,7 @@ import type { Task } from './useTasks';
  * (supabase/migrations/20261126140000_recurring_tasks_and_dependencies.sql)
  */
 
-export interface LinkedTask { id: string; title: string; stage: Task['stage']; project?: { name: string } | null }
+export interface LinkedTask { id: string; title: string; stage: Task['stage']; due_date?: string | null; project?: { name: string } | null }
 
 export function useTaskLinks(taskId: string | null | undefined) {
     return useQuery({
@@ -19,7 +19,7 @@ export function useTaskLinks(taskId: string | null | undefined) {
         queryFn: async () => {
             const [waits, holds] = await Promise.all([
                 supabase.from('task_dependencies')
-                    .select('depends_on, task:tasks!task_dependencies_depends_on_fkey(id, title, stage, project:projects(name))')
+                    .select('depends_on, task:tasks!task_dependencies_depends_on_fkey(id, title, stage, due_date, project:projects(name))')
                     .eq('task_id', taskId!),
                 supabase.from('task_dependencies')
                     .select('task_id, task:tasks!task_dependencies_task_id_fkey(id, title, stage, project:projects(name))')
@@ -52,6 +52,20 @@ export function useWaitingCounts() {
         }
         return counts;
     }, [data]);
+}
+
+/** Every "waits on" pair the person can see, for drawing them on the timeline. */
+export function useDependencyPairs() {
+    const { data } = useQuery({
+        queryKey: ['task-links', 'pairs'],
+        staleTime: 60_000,
+        queryFn: async () => {
+            const { data, error } = await supabase.from('task_dependencies').select('task_id, depends_on');
+            if (error) return [];
+            return (data ?? []) as { task_id: string; depends_on: string }[];
+        },
+    });
+    return data ?? [];
 }
 
 export function useLinkTasks() {
