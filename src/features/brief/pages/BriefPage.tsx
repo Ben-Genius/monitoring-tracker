@@ -15,6 +15,7 @@ import { addressAs, greeting } from '../utils/briefMeta';
 import AttentionSummary from '../components/AttentionSummary';
 import FullView from '../components/FullView';
 import CuratedView from '../components/CuratedView';
+import AiSummary from '../components/AiSummary';
 import { useExecutiveTitle } from '../hooks/useExecutiveTitle';
 import { track } from '@/lib/analytics';
 
@@ -159,6 +160,7 @@ export default function BriefPage() {
                 aria-labelledby={`brief-tab-${view}`}
                 className="space-y-5"
             >
+                <AiSummary />
                 {brief && view === 'full' && <AttentionSummary brief={brief} links />}
 
                 {brief && (view === 'curated'

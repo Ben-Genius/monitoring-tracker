@@ -8,7 +8,7 @@
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { renderMorningBrief, type EmailTask } from '../api/_lib/morningBriefEmail.js';
+import { briefFacts, renderMorningBrief, type EmailTask } from '../api/_lib/morningBriefEmail.js';
 
 const now = Date.now();
 const ago = (days: number) => new Date(now - days * 86_400_000).toISOString();
@@ -34,5 +34,13 @@ const quiet = renderMorningBrief({ name: 'Ama Owusu', org_name: 'Asante Holdings
 writeFileSync(join(out, 'brief.html'), full.html);
 writeFileSync(join(out, 'brief.txt'), `Subject: ${full.subject}\n\n${full.text}`);
 writeFileSync(join(out, 'quiet.html'), quiet.html);
+// With an AI summary (a hand-written sample; nothing is sent to Claude here),
+// and the facts the summary would be written from.
+const withSummary = renderMorningBrief({ name: 'Mr Kwame Blay', org_name: 'Asante Holdings' }, tasks, {
+    ...opts,
+    summary: 'The fire inspection before handover is urgent, and the roof steel is blocked waiting on Ama, as the supplier wants the deposit first. One task is stuck, 1 is overdue and 1 isn’t accepted yet. The foundation was poured yesterday.',
+});
+writeFileSync(join(out, 'summary.html'), withSummary.html);
+writeFileSync(join(out, 'facts.txt'), briefFacts(tasks, 'Asante Holdings', now));
 console.log(full.subject);
 console.log(quiet.subject);

@@ -39,6 +39,8 @@ export interface RenderOptions {
     /** The recipient's local date, e.g. "Wednesday 25 November". */
     dateLabel: string;
     now?: number;
+    /** A short AI-written summary (api/_lib/briefSummary.ts), when the organisation has turned it on. */
+    summary?: string | null;
 }
 
 export interface RenderedEmail {
@@ -98,6 +100,27 @@ function reason(t: EmailTask, section: BriefSection, now: number): string {
     }
 }
 
+const FACTS_PER_SECTION = 15;
+
+/**
+ * The brief as plain facts, for the AI summary: the same sections, order and
+ * reasons as the email, so the summary never says something the email doesn't.
+ */
+export function briefFacts(tasks: EmailTask[], orgName: string, now = Date.now()): string {
+    const s = groupBrief(tasks, now);
+    const open = tasks.filter(t => t.stage !== 'completed').length;
+    const lines = [`Organisation: ${orgName}`, `Open tasks: ${open}`, ''];
+    for (const k of [...AT_RISK, 'unaccepted', 'moved', 'done'] as BriefSection[]) {
+        lines.push(`${SECTION_TITLES[k]} (${s[k].length})`);
+        for (const t of s[k].slice(0, FACTS_PER_SECTION)) {
+            lines.push(`- ${t.title} | project: ${t.project?.name ?? 'none'} | owner: ${t.owner?.name ?? 'unassigned'} | ${reason(t, k, now)}`);
+        }
+        if (s[k].length > FACTS_PER_SECTION) lines.push(`- and ${s[k].length - FACTS_PER_SECTION} more`);
+        lines.push('');
+    }
+    return lines.join('\n');
+}
+
 export function groupBrief(tasks: EmailTask[], now = Date.now()): Record<BriefSection, EmailTask[]> {
     const sections: Record<BriefSection, EmailTask[]> = { urgent: [], blocked: [], stuck: [], overdue: [], unaccepted: [], moved: [], done: [] };
     for (const t of tasks) {
@@ -130,7 +153,10 @@ export function renderMorningBrief(recipient: BriefRecipient, tasks: EmailTask[]
     const shownSections: BriefSection[] = [...AT_RISK, 'unaccepted'];
 
     // ── Plain text ──
-    const textParts = [hello, '', opts.dateLabel, '', attention ? `${attention} ${heroLine}` : heroLine, scope, ''];
+    const summary = opts.summary?.trim() || null;
+    const textParts = [hello, '', opts.dateLabel, ''];
+    if (summary) textParts.push(`IN SHORT`, summary, '(Written by AI from this morning’s tasks.)', '');
+    textParts.push(attention ? `${attention} ${heroLine}` : heroLine, scope, '');
     for (const k of shownSections) {
         if (!s[k].length) continue;
         textParts.push(`${SECTION_TITLES[k].toUpperCase()} (${s[k].length})`);
@@ -175,6 +201,12 @@ export function renderMorningBrief(recipient: BriefRecipient, tasks: EmailTask[]
         <p style="margin:0">${label(`${esc(opts.dateLabel)} &middot; ${esc(recipient.org_name)}`)}</p>
         <h1 class="h1" style="margin:14px 0 0;${SANS};font-size:30px;line-height:1.12;font-weight:600;letter-spacing:-.03em;color:${INK}">${esc(hello)}</h1>
       </td></tr>
+${summary ? `
+      <tr><td class="px" style="padding:20px 40px 0">
+        <p style="margin:0">${label('In short')}</p>
+        <p style="margin:8px 0 0;${SANS};font-size:16px;line-height:1.6;color:${INK}">${esc(summary)}</p>
+        <p style="margin:6px 0 0;${SANS};font-size:12px;line-height:1.5;color:${FAINT}">Written by AI from this morning’s tasks. The lists below are the record.</p>
+      </td></tr>` : ''}
       <tr><td class="px" style="padding:24px 40px 0">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${LINE};border-radius:10px;background:${TINT}">
           <tr><td style="padding:22px 20px 20px">
@@ -194,7 +226,8 @@ export function renderMorningBrief(recipient: BriefRecipient, tasks: EmailTask[]
 
     const html = emailShell({
         title: subject,
-        preheader: attention ? `${attention} ${heroLine}` : heroLine,
+        // The inbox preview line: the summary reads best there when there is one.
+        preheader: summary ?? (attention ? `${attention} ${heroLine}` : heroLine),
         label: 'Morning brief',
         origin: opts.appUrl,
         body,

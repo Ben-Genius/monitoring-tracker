@@ -1,7 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabaseAdmin } from './_lib/supabaseAdmin.js';
 import { authorizeSync, isAllowedMethod, isDryRun } from './_lib/authorizeSync.js';
-import { renderMorningBrief, type EmailTask } from './_lib/morningBriefEmail.js';
+import { briefFacts, renderMorningBrief, type EmailTask } from './_lib/morningBriefEmail.js';
+import { writeBriefSummary } from './_lib/briefSummary.js';
 import { unsubscribeUrl } from './_lib/briefUnsubscribe.js';
 
 /**
@@ -20,6 +21,8 @@ import { unsubscribeUrl } from './_lib/briefUnsubscribe.js';
  * Env: RESEND_API_KEY, BRIEF_FROM_EMAIL (or INVITE_FROM_EMAIL), APP_URL,
  * SUPABASE_SERVICE_ROLE_KEY, CRON_SECRET and/or SYNC_SECRET, and optionally
  * BRIEF_EMAIL_SECRET for the unsubscribe links (else CRON_SECRET is used).
+ * ANTHROPIC_API_KEY turns on the AI summary for organisations whose admin
+ * chose it (organizations.ai_summary); without it the brief goes out as before.
  */
 
 interface Recipient {
@@ -75,7 +78,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         byOrg.set(r.organization_id, list);
     }
 
-    const report: { org: string; sent: number; skipped: string; preview?: { to: string; subject: string }[] }[] = [];
+    // Which organisations asked for the AI summary. If this can't be read, carry on without summaries.
+    const { data: orgFlags } = await db.from('organizations').select('id, ai_summary').in('id', [...byOrg.keys()]);
+    const wantsSummary = new Set((orgFlags ?? []).filter((o: { ai_summary: boolean }) => o.ai_summary).map((o: { id: string }) => o.id));
+
+    const report: { org: string; sent: number; skipped: string; summary?: string; preview?: { to: string; subject: string }[] }[] = [];
 
     for (const [orgId, people] of byOrg) {
         const clock = localClock(people[0].timezone, now);
@@ -88,18 +95,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { data: tasks, error: taskError } = await db.rpc('brief_email_tasks', { p_org: orgId });
         if (taskError) { report.push({ org, sent: 0, skipped: `could not read tasks: ${taskError.message}` }); continue; }
 
+        // The AI summary: written once per organisation per local day, then reused by
+        // every email, by reruns of this job, and by the in-app brief.
+        let summary: string | null = null;
+        let summaryNote = 'off';
+        if (wantsSummary.has(orgId) && (tasks ?? []).length) {
+            const { data: saved } = await db.from('brief_summaries').select('summary')
+                .eq('organization_id', orgId).eq('brief_date', clock.date).maybeSingle();
+            if (saved) { summary = (saved as { summary: string }).summary; summaryNote = 'reused'; }
+            else if (dry) summaryNote = 'would write';
+            else {
+                const written = await writeBriefSummary(briefFacts((tasks ?? []) as EmailTask[], org, now.getTime()));
+                if (written) {
+                    summary = written.summary;
+                    summaryNote = 'written';
+                    await db.from('brief_summaries').upsert(
+                        { organization_id: orgId, brief_date: clock.date, summary: written.summary, model: written.model },
+                        { onConflict: 'organization_id,brief_date', ignoreDuplicates: true });
+                } else summaryNote = 'failed, sent without it';
+            }
+        }
+
         const emails = [];
         for (const p of people) {
             const unsubscribe = unsubscribeUrl(appUrl, p.user_id) ?? `${appUrl}/settings`;
             const email = renderMorningBrief({ name: p.name, org_name: p.org_name }, (tasks ?? []) as EmailTask[],
-                { appUrl, unsubscribeUrl: unsubscribe, dateLabel: clock.label, now: now.getTime() });
+                { appUrl, unsubscribeUrl: unsubscribe, dateLabel: clock.label, now: now.getTime(), summary });
             if (email.empty) continue;
             emails.push({ person: p, email, unsubscribe });
         }
         if (!emails.length) { report.push({ org, sent: 0, skipped: 'nothing open or done' }); continue; }
 
         if (dry) {
-            report.push({ org, sent: 0, skipped: 'dry run', preview: emails.map(e => ({ to: e.person.email, subject: e.email.subject })) });
+            report.push({ org, sent: 0, skipped: 'dry run', summary: summaryNote, preview: emails.map(e => ({ to: e.person.email, subject: e.email.subject })) });
             continue;
         }
 
@@ -128,7 +156,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 for (const e of chunk) await db.rpc('release_brief_email', { p_user: e.person.user_id, p_date: clock.date });
             }
         }
-        report.push({ org, sent, skipped: claimed.length - sent ? `${claimed.length - sent} failed, will retry` : '' });
+        report.push({ org, sent, summary: summaryNote, skipped: claimed.length - sent ? `${claimed.length - sent} failed, will retry` : '' });
     }
 
     return res.status(200).json({ dry, organisations: report });

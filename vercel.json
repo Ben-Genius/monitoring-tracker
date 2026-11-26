@@ -79,6 +79,11 @@
       ]
     }
   ],
+  "functions": {
+    "api/send-morning-briefs.ts": {
+      "maxDuration": 60
+    }
+  },
   "crons": [
     {
       "path": "/api/send-morning-briefs",

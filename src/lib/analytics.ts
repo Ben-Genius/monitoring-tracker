@@ -28,7 +28,8 @@ export type AnalyticsEvent =
     | 'template_used'
     | 'calendar_feed_opened'
     | 'calendar_feed_added'
-    | 'calendar_feed_reset';
+    | 'calendar_feed_reset'
+    | 'ai_summary_toggled';
 
 type Props = Record<string, string | number | boolean | null | undefined>;
 

@@ -30,6 +30,7 @@ import BriefEmailSetting from '../components/BriefEmailSetting';
 import WhatsAppSetting from '../components/WhatsAppSetting';
 import CompaniesSetting from '../components/CompaniesSetting';
 import CalendarFeedSetting from '../components/CalendarFeedSetting';
+import AiSummarySetting from '../components/AiSummarySetting';
 
 function getInitials(name: string): string {
     return name
@@ -372,6 +373,7 @@ export default function SettingsPage() {
 
                     <WhatsAppSetting />
                     <BriefEmailSetting />
+                    <AiSummarySetting />
                     <CalendarFeedSetting />
 
                     {/* Notifications Policy Card */}
