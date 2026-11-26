@@ -13,7 +13,7 @@ import {
     type Announcements,
 } from '@dnd-kit/core';
 import { subDays } from 'date-fns';
-import { Plus, Search, List, LayoutGrid, UserRound, CalendarDays, GanttChart } from 'lucide-react';
+import { Plus, Search, List, LayoutGrid, UserRound, CalendarDays, GanttChart, Download } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useTasks, useRescheduleTask, Task } from '../hooks/useTasks';
 import { useAuth } from '@/features/auth/hooks/useAuth';
@@ -23,10 +23,11 @@ import TaskListView from '../components/TaskListView';
 import TaskDetailModal from '../components/TaskDetailModal';
 import CreateTaskModal from '../components/CreateTaskModal';
 import { useTaskMover, TASK_MOVED_EVENT, type TaskMovedDetail } from '../components/TaskMover';
-import { STAGES, type StageDef } from '../utils/stages';
+import { STAGES, stageDef, type StageDef } from '../utils/stages';
 import { cn } from '@/lib/utils';
 import { useCompanyStore } from '@/hooks/useCompanyStore';
 import { canCoordinate } from '@/lib/permissions';
+import { day, downloadCsv } from '@/lib/exportCsv';
 
 type View = 'board' | 'list' | 'calendar' | 'timeline';
 const VIEWS: View[] = ['board', 'list', 'calendar', 'timeline'];
@@ -251,6 +252,20 @@ export default function TaskBoardPage() {
                         <p className="mt-0.5 max-w-2xl text-sm text-ink-muted dark:text-slate-400">Every task across the companies you can see.</p>
                     )}
                 </div>
+                <div className="flex shrink-0 gap-2">
+                <button type="button" disabled={!visibleTasks.length}
+                    title="Download the tasks shown, with your filters, as a spreadsheet"
+                    onClick={() => void downloadCsv('pulse360-tasks', visibleTasks.map(t => ({
+                        Task: t.title, Project: t.project?.name ?? '', Company: t.project?.company?.name ?? '',
+                        Owner: t.assignee?.name ?? '', Status: stageDef(t.stage).label, 'Progress %': t.stage === 'completed' ? 100 : t.progress_percent || 0,
+                        Priority: t.priority, Urgent: t.is_urgent ? 'Yes' : '', Accepted: t.acknowledged_at ? 'Yes' : 'No',
+                        Start: day(t.start_date ?? t.started_at), Deadline: day(t.due_date), 'Next update due': day(t.next_update_due),
+                        'Last movement': day(t.last_movement_at), Completed: day(t.completed_at),
+                        'Blocked because': t.stage === 'blockers' ? t.blocker_description ?? '' : '', Repeats: t.repeat ?? '',
+                    })), 'tasks')}
+                    className="inline-flex h-10 items-center gap-1.5 rounded-[8px] border border-line bg-surface px-3 text-sm font-semibold text-ink hover:border-ink/30 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
+                    <Download className="h-4 w-4" aria-hidden /> <span className="hidden sm:inline">Export</span><span className="sr-only sm:hidden">Export tasks</span>
+                </button>
                 {canCreateTask && (
                     <button
                         type="button"
@@ -260,6 +275,7 @@ export default function TaskBoardPage() {
                         <Plus className="h-4 w-4" aria-hidden /> New task
                     </button>
                 )}
+                </div>
             </div>
 
             {/* One toolbar row: search, then filters and layout */}

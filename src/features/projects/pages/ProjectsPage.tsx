@@ -12,6 +12,7 @@ import {
     Plus,
     RefreshCw,
     Upload,
+    Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -28,6 +29,7 @@ import { toProjectRow } from '@/features/projects/utils/projectRow';
 import { useFilters, FilterBar } from '@/features/filters/components';
 import { ImportModal } from '@/features/import/components';
 import { tx } from '@/features/dashboard/components/tokens';
+import { day, downloadCsv } from '@/lib/exportCsv';
 
 type Lifecycle = 'all' | 'upcoming' | 'active' | 'on_hold' | 'completed';
 type ViewMode = 'grid' | 'table' | 'timeline';
@@ -190,6 +192,17 @@ export default function ProjectsPage() {
                     </button>
                     <button type="button" onClick={() => setIsImportOpen(true)} className={secondaryBtn}>
                         <Upload className="h-4 w-4" aria-hidden /> Import
+                    </button>
+                    <button type="button" className={secondaryBtn} disabled={!filters.filtered.length}
+                        title="Download the projects shown, with your filters, as a spreadsheet"
+                        onClick={() => void downloadCsv('pulse360-projects', filters.filtered.map(p => ({
+                            Project: p.name, Company: p.company_name, Status: p.status,
+                            'Contract value (GHS)': Number(p.contract_value) || 0, 'Actual cost (GHS)': Number(p.actual_cost) || 0,
+                            'Margin %': p.margin == null ? '' : Math.round(p.margin),
+                            Start: day(p.start_date), Handover: day(p.expected_handover),
+                            'Open tasks': p.open_tasks, 'Blocked tasks': p.blocked_tasks, 'Done tasks': p.done_tasks, 'Progress %': p.progress,
+                        })), 'projects')}>
+                        <Download className="h-4 w-4" aria-hidden /> Export
                     </button>
                     {canCreate && (
                         <button type="button" onClick={() => setIsCreateOpen(true)} className={primaryBtn}>

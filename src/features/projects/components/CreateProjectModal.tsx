@@ -8,6 +8,7 @@ import { useCreateProject, useCompanies, type CreateProjectInput } from '../hook
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { canAdminister } from '@/lib/permissions';
+import { useCreateFromTemplate, useProjectTemplates } from '../hooks/useTemplates';
 
 const projectSchema = z.object({
     name: z.string().trim().min(1, 'Enter a project name.'),
@@ -38,6 +39,10 @@ export default function CreateProjectModal({ open, onClose }: CreateProjectModal
     const canChooseCompany = canAdminister(user);
     const { data: companies } = useCompanies();
     const [saveError, setSaveError] = useState<string | null>(null);
+    const { data: templates = [] } = useProjectTemplates();
+    const fromTemplate = useCreateFromTemplate();
+    const [templateId, setTemplateId] = useState('');
+    const template = templates.find(t => t.id === templateId);
 
     const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<ProjectFormData>({
         resolver: zodResolver(projectSchema),
@@ -49,6 +54,16 @@ export default function CreateProjectModal({ open, onClose }: CreateProjectModal
     const onSubmit = async (data: ProjectFormData) => {
         setSaveError(null);
         try {
+            if (template) {
+                // A template needs a start date: every task and milestone is placed from it.
+                if (!data.start_date) { setSaveError('Choose a start date: the template’s tasks are dated from it.'); return; }
+                await fromTemplate.mutateAsync({
+                    templateId: template.id, name: data.name, companyId: data.company_id, start: data.start_date,
+                    contractValue: data.contract_value, handover: data.expected_handover,
+                });
+                reset(); setTemplateId(''); close();
+                return;
+            }
             await createProject.mutateAsync({
                 ...data,
                 description: data.description || undefined,
@@ -66,6 +81,15 @@ export default function CreateProjectModal({ open, onClose }: CreateProjectModal
         <DialogShell open={open} onClose={close} title="New project" description="Fields marked * are required." className="max-w-2xl">
             <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5 p-6">
                 <div className="grid gap-5 md:grid-cols-2">
+                    {templates.length > 0 && (
+                        <Field id="np-template" label="Start from" className="md:col-span-2"
+                            hint={template ? `Adds ${template.tasks.length} tasks and ${template.milestones.length} milestones, dated from the start date. Owners are set afterwards.` : 'A blank project, or a template your team has saved.'}>
+                            <select id="np-template" value={templateId} onChange={e => setTemplateId(e.target.value)} aria-describedby="np-template-hint" className={fieldCls}>
+                                <option value="">Blank project</option>
+                                {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                            </select>
+                        </Field>
+                    )}
                     <Field id="np-name" label="Project name" required error={errors.name?.message} className="md:col-span-2">
                         <input id="np-name" {...register('name')} placeholder="e.g. Tema Warehouse Fit-out" {...aria('np-name', errors.name)} className={cn(fieldCls, errors.name && errorFieldCls)} />
                     </Field>
@@ -85,7 +109,7 @@ export default function CreateProjectModal({ open, onClose }: CreateProjectModal
                         <input id="np-value" type="number" inputMode="decimal" min={0} step="0.01" {...register('contract_value', { valueAsNumber: true })} {...aria('np-value', errors.contract_value, true)} className={cn(fieldCls, errors.contract_value && errorFieldCls)} />
                     </Field>
 
-                    <Field id="np-start" label="Start date">
+                    <Field id="np-start" label="Start date" required={!!template}>
                         <input id="np-start" type="date" {...register('start_date')} className={fieldCls} />
                     </Field>
 

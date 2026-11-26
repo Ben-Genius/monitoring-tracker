@@ -21,6 +21,7 @@ import { useProjectComments, useCreateProjectComment, useProjectAttachments, use
 import ProjectTimeline from '../components/ProjectTimeline';
 import MilestoneDialog from '../components/MilestoneDialog';
 import { STATUS_LABEL } from '../utils/projectRow';
+import SaveAsTemplate from '../components/SaveAsTemplate';
 
 const STAGE_LABEL: Record<Task['stage'], string> = {
     talking_stage: 'Talking stage',
@@ -213,12 +214,15 @@ export default function ProjectDetailPage() {
                         )}
                     </div>
 
-                    {canRequestCompletion && (
-                        <Button onClick={requestCompletion} disabled={createApproval.isPending} className={cn('shrink-0 gap-1.5', primaryBtn)}>
-                            <Check className="h-4 w-4" aria-hidden />
-                            {createApproval.isPending ? 'Sending…' : 'Request completion'}
-                        </Button>
-                    )}
+                    <div className="flex shrink-0 flex-wrap items-start justify-end gap-2">
+                        {['admin', 'pa', 'lead'].includes(user?.role ?? '') && <SaveAsTemplate projectId={project.id} projectName={project.name} />}
+                        {canRequestCompletion && (
+                            <Button onClick={requestCompletion} disabled={createApproval.isPending} className={cn('shrink-0 gap-1.5', primaryBtn)}>
+                                <Check className="h-4 w-4" aria-hidden />
+                                {createApproval.isPending ? 'Sending…' : 'Request completion'}
+                            </Button>
+                        )}
+                    </div>
                 </div>
 
                 {/* Key figures: each fact appears once on the page. */}

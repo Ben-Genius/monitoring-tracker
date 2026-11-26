@@ -23,7 +23,9 @@ export type AnalyticsEvent =
     | 'task_update_posted'
     | 'brief_viewed'
     | 'brief_email_toggled'
-    | 'user_invited';
+    | 'user_invited'
+    | 'data_exported'
+    | 'template_used';
 
 type Props = Record<string, string | number | boolean | null | undefined>;
 
