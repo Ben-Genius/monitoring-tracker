@@ -1,6 +1,16 @@
-# Database performance tune-up: plan (not yet applied)
+# Database performance tune-up
 
-From the live Supabase performance advisor on 26 Nov 2026. Nothing below has been changed yet.
+From the live Supabase performance advisor on 26 Nov 2026.
+
+> **Status: applied to production on 26 Nov 2026.** Every role's access is unchanged: admin, executive, PA, lead and staff each see identical counts on 10 tables. The migration history matches the repo's 43 files.
+>
+> **Speed** (production, average of 20 runs, before → after):
+> - Task list: staff 22 → 10 ms, admin 14 → 10 ms, lead 15 → 14 ms.
+> - Steps: staff 36 → 20 ms, admin 28 → 20 ms, lead 21 → 20 ms.
+>
+> **Advisor warnings:** 32 per-row user checks, 19 duplicate-rule warnings and 18 unindexed foreign keys, all now 0. What remains is informational: the `backup_20261126` copies (drop when ready) and indexes not yet used, which is expected at this data size.
+>
+> **Project file deletes:** the migration keeps today's behaviour, where any company member can delete any project file. Restricting it to the uploader or an admin is a separate decision.
 
 ## 1. Access rules that recheck the signed-in user on every row (about 30 rules)
 Wrap `auth.uid()` in a subquery, as `(select auth.uid())`, so Postgres works it out once per query instead of once per row. Behaviour is unchanged.
