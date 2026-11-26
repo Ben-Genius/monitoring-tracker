@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { listRows, BaserowError, TABLES, type TableName } from '../_lib/baserow.js';
+import { listRows, BaserowError, TABLES, type TableName } from '../baserow.js';
 
 /**
  * Connectivity check for the Baserow integration.
