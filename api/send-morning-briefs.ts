@@ -21,8 +21,9 @@ import { unsubscribeUrl } from './_lib/briefUnsubscribe.js';
  * Env: RESEND_API_KEY, BRIEF_FROM_EMAIL (or INVITE_FROM_EMAIL), APP_URL,
  * SUPABASE_SERVICE_ROLE_KEY, CRON_SECRET and/or SYNC_SECRET, and optionally
  * BRIEF_EMAIL_SECRET for the unsubscribe links (else CRON_SECRET is used).
- * ANTHROPIC_API_KEY turns on the AI summary for organisations whose admin
- * chose it (organizations.ai_summary); without it the brief goes out as before.
+ * ANTHROPIC_API_KEY (or GEMINI_API_KEY with GEMINI_PAID=true) turns on the AI
+ * summary for organisations whose admin chose it (organizations.ai_summary);
+ * without either, the brief goes out as before. See api/_lib/briefSummary.ts.
  */
 
 interface Recipient {

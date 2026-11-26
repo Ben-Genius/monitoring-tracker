@@ -12,7 +12,7 @@ const switchAttr = { switch: '' } as Record<string, string>;
 /**
  * Admins only: a short AI-written summary at the top of the morning brief
  * (api/_lib/briefSummary.ts). Off until an admin turns it on, because it sends
- * task details to Anthropic. Turning it off deletes summaries already written.
+ * task details to an AI provider. Turning it off deletes summaries already written.
  */
 export default function AiSummarySetting() {
     const { user } = useAuth();
@@ -66,8 +66,8 @@ export default function AiSummarySetting() {
                             Two or three sentences on what needs your leaders today, at the top of the 7am email and the Brief page. For the whole organisation.
                         </p>
                         <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                            To write it, Commit sends that morning’s brief to Anthropic (Claude): task titles, project names, people’s names and why each task is listed.
-                            Anthropic doesn’t use it to train its models. Turning this off deletes summaries already written.{' '}
+                            To write it, Commit sends that morning’s brief to an AI provider, Anthropic (Claude) or Google (Gemini): task titles, project names, people’s names and why each task is listed.
+                            Neither uses it to train or improve its models. Turning this off deletes summaries already written.{' '}
                             <a href="/privacy" className="font-semibold text-slate-700 underline underline-offset-2 dark:text-slate-300">Privacy notice</a>
                         </p>
                     </div>
