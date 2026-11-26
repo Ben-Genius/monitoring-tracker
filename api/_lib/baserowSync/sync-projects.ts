@@ -1,19 +1,26 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { listAllRows } from '../_lib/baserow.js';
-import { supabaseAdmin } from '../_lib/supabaseAdmin.js';
-import { reconcileArchived } from '../_lib/reconcileArchived.js';
-import { mapPhase, COMPARED_FIELDS, type MappedPhase } from '../_lib/mapPhase.js';
+import { listAllRows } from '../baserow.js';
+import { supabaseAdmin } from '../supabaseAdmin.js';
+import { reconcileArchived } from '../reconcileArchived.js';
+import { mapProject, COMPARED_FIELDS, type MappedProject } from '../mapProject.js';
 import {
     authorizeSync,
     isAllowedMethod,
     isDryRun,
-} from '../_lib/authorizeSync.js';
+} from '../authorizeSync.js';
 
 /**
- * Mirrors the Baserow "Phases" table into Supabase milestones.
+ * Mirrors the Baserow "Projects" table into Supabase.
  *
- *   POST /api/baserow/sync-phases            apply
- *   POST /api/baserow/sync-phases?dry=1      report only
+ * Baserow is the source of truth: on conflict Baserow wins, and any field it
+ * overwrote is recorded in audit_log so the change is reviewable rather than
+ * silent.
+ *
+ *   POST /api/baserow/sync-projects            apply changes
+ *   POST /api/baserow/sync-projects?dry=1      report what would change
+ *
+ * Requires the x-sync-secret header to match SYNC_SECRET. Without it this
+ * endpoint would let anyone on the internet trigger writes to your database.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!isAllowedMethod(req)) {
@@ -29,45 +36,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
         const db = supabaseAdmin();
+        const rows = await listAllRows('projects');
+        const baseMapped = rows.map(mapProject);
 
-        const { data: projects, error: projErr } = await db
-            .from('projects')
+        // Resolve the Baserow engineer to a tracker user. Engineers that have
+        // not been mirrored yet resolve to null rather than failing the sync —
+        // re-running after sync-engineers fills them in.
+        const { data: engineers, error: engErr } = await db
+            .from('users')
             .select('id, baserow_id')
             .not('baserow_id', 'is', null);
-        if (projErr) throw new Error(`Supabase project read failed: ${projErr.message}`);
+        if (engErr) throw new Error(`Supabase engineer read failed: ${engErr.message}`);
 
-        const projectIdByBaserowId = new Map<number, string>(
-            (projects ?? []).map((p) => [
-                (p as { baserow_id: number }).baserow_id,
-                (p as { id: string }).id,
+        const userIdByEngineerId = new Map<number, string>(
+            (engineers ?? []).map((u) => [
+                (u as { baserow_id: number }).baserow_id,
+                (u as { id: string }).id,
             ]),
         );
 
-        if (projectIdByBaserowId.size === 0) {
-            return res.status(409).json({
-                ok: false,
-                error: 'No mirrored projects found. Run sync-projects first.',
-            });
-        }
+        const mapped = baseMapped.map((p) => ({
+            ...p,
+            engineer_id:
+                p.baserow_engineer_id !== null
+                    ? (userIdByEngineerId.get(p.baserow_engineer_id) ?? null)
+                    : null,
+        }));
 
-        const rows = await listAllRows('phases');
-        const allMapped = rows.map((r) => mapPhase(r, projectIdByBaserowId));
-
-        // milestones.project_id is NOT NULL, so a phase whose project is not
-        // mirrored is skipped and reported rather than failing the whole run.
-        const mapped = allMapped.filter((p) => p.project_id !== null);
-        const skipped = allMapped.length - mapped.length;
-
+        // Existing mirrored rows, keyed by Baserow id.
+        // Listed literally rather than joined from COMPARED_FIELDS so that
+        // supabase-js can infer a row type instead of GenericStringError.
         const { data: existing, error: readErr } = await db
-            .from('milestones')
+            .from('projects')
             .select(
-                'id, baserow_id, name, project_id, status, due_date, ' +
-                    'start_date, estimated_budget, actual_budget, progress_percent',
+                'id, baserow_id, name, description, client, tender_stage, ' +
+                    'status, contract_value, budget, progress_percent, ' +
+                    'baserow_engineer_id',
             )
             .not('baserow_id', 'is', null);
-        if (readErr) throw new Error(`Supabase milestone read failed: ${readErr.message}`);
+        if (readErr) throw new Error(`Supabase read failed: ${readErr.message}`);
 
-        type ExistingRow = MappedPhase & { id: string };
+        type ExistingRow = MappedProject & { id: string };
         const byBaserowId = new Map(
             ((existing ?? []) as unknown as ExistingRow[]).map((r) => [r.baserow_id, r]),
         );
@@ -78,6 +87,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         for (const row of mapped) {
             const prev = byBaserowId.get(row.baserow_id);
+
             if (!prev) {
                 created.push(row.baserow_id);
                 continue;
@@ -86,6 +96,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const changes = COMPARED_FIELDS.filter((f) => {
                 const a = prev[f] ?? null;
                 const b = row[f] ?? null;
+                // Numerics come back from Postgres as strings in some drivers.
                 if (typeof a === 'number' || typeof b === 'number') {
                     return Number(a) !== Number(b);
                 }
@@ -93,13 +104,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             });
 
             if (changes.length === 0) continue;
+
             updated.push({ baserow_id: row.baserow_id, changes: changes as string[] });
 
             for (const field of changes) {
                 auditEntries.push({
-                    entity_type: 'milestone',
+                    entity_type: 'project',
                     entity_id: prev.id,
-                    action: field === 'status' ? 'status_changed' : 'updated',
+                    action: 'updated',
                     field: field as string,
                     old_value: prev[field] === null ? null : String(prev[field]),
                     new_value: row[field] === null ? null : String(row[field]),
@@ -112,32 +124,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (dryRun) {
             return res.status(200).json({
                 dryRun: true,
-                baserowRows: allMapped.length,
+                baserowRows: mapped.length,
                 wouldCreate: created.length,
                 wouldUpdate: updated.length,
                 unchanged: mapped.length - created.length - updated.length,
-                skippedNoProject: skipped,
                 details: updated.slice(0, 20),
             });
         }
 
         const { error: upsertErr } = await db
-            .from('milestones')
+            .from('projects')
             .upsert(mapped, { onConflict: 'baserow_id' });
         if (upsertErr) throw new Error(`Supabase upsert failed: ${upsertErr.message}`);
 
         // Rows deleted in Baserow are archived rather than removed.
-        //
-        // Uses allMapped, not mapped: `mapped` drops phases whose project is
-        // not mirrored yet. Those rows still exist in Baserow, so passing the
-        // filtered list would archive them for being unresolvable rather than
-        // for being deleted.
         const reconciled = await reconcileArchived(
             db,
-            'milestones',
-            allMapped.map((r) => r.baserow_id),
+            'projects',
+            mapped.map((r) => r.baserow_id),
         );
 
+        // Audit entries are best-effort: a logging failure must not make the
+        // sync look like it failed when the data landed correctly.
         if (auditEntries.length > 0) {
             const { error: auditErr } = await db.from('audit_log').insert(auditEntries);
             if (auditErr) {
@@ -145,7 +153,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     ok: true,
                     created: created.length,
                     updated: updated.length,
-                    skippedNoProject: skipped,
+                    unchanged: mapped.length - created.length - updated.length,
                     auditWarning: auditErr.message,
                 });
             }
@@ -155,11 +163,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             ok: true,
             archived: reconciled.archived,
             restored: reconciled.restored,
-            baserowRows: allMapped.length,
+            baserowRows: mapped.length,
             created: created.length,
             updated: updated.length,
             unchanged: mapped.length - created.length - updated.length,
-            skippedNoProject: skipped,
         });
     } catch (err) {
         return res.status(502).json({ ok: false, error: (err as Error).message });

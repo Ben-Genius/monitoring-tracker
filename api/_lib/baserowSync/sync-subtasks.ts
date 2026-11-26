@@ -1,13 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { listAllRows } from '../_lib/baserow.js';
-import { supabaseAdmin } from '../_lib/supabaseAdmin.js';
-import { reconcileArchived } from '../_lib/reconcileArchived.js';
-import { mapSubTask, COMPARED_FIELDS, type MappedSubTask } from '../_lib/mapSubTask.js';
+import { listAllRows } from '../baserow.js';
+import { supabaseAdmin } from '../supabaseAdmin.js';
+import { reconcileArchived } from '../reconcileArchived.js';
+import { mapSubTask, COMPARED_FIELDS, type MappedSubTask } from '../mapSubTask.js';
 import {
     authorizeSync,
     isAllowedMethod,
     isDryRun,
-} from '../_lib/authorizeSync.js';
+} from '../authorizeSync.js';
 
 /**
  * Mirrors the Baserow "Sub Tasks" table into Supabase subtasks.
