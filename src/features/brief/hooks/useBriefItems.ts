@@ -124,7 +124,7 @@ export function useBriefDayMutation(date = todayISO()) {
             const { data: { user } } = await supabase.auth.getUser();
             const now = new Date().toISOString();
             const { error } = await supabase.from('brief_days')
-                .upsert({ brief_date: date, ready_at: ready ? now : null, ready_by: ready ? user?.id ?? null : null, updated_at: now }, { onConflict: 'brief_date' });
+                .upsert({ brief_date: date, ready_at: ready ? now : null, ready_by: ready ? user?.id ?? null : null, updated_at: now }, { onConflict: 'organization_id,brief_date' });
             if (error) throw error;
         },
         onSettled: () => qc.invalidateQueries({ queryKey: ['brief-day', date] }),

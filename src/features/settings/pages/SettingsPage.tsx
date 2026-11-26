@@ -27,6 +27,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import BriefEmailSetting from '../components/BriefEmailSetting';
 
 function getInitials(name: string): string {
     return name
@@ -366,6 +367,8 @@ export default function SettingsPage() {
                             </div>
                         </CardContent>
                     </Card>
+
+                    <BriefEmailSetting />
 
                     {/* Notifications Policy Card */}
                     <Card className="rounded-[14px] border border-line bg-surface shadow-sm overflow-hidden dark:border-slate-800 dark:bg-slate-900">

@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import Papa from 'papaparse';
-import * as XLSX from 'xlsx';
+// papaparse and xlsx (about 900 KB) load only when someone picks a file, so
+// they stay out of the Projects page that hosts the import button.
 
 export type EntityType = 'projects' | 'tasks' | 'milestones';
 
@@ -31,7 +31,8 @@ export function useImport() {
             const ext = file.name.split('.').pop()?.toLowerCase();
 
             if (ext === 'csv') {
-                return new Promise((resolve, reject) => {
+                const { default: Papa } = await import('papaparse');
+                await new Promise<void>((resolve, reject) => {
                     Papa.parse(file, {
                         header: true,
                         skipEmptyLines: true,
@@ -50,7 +51,7 @@ export function useImport() {
                     });
                 });
             } else if (ext === 'xlsx' || ext === 'xls') {
-                const buffer = await file.arrayBuffer();
+                const [XLSX, buffer] = await Promise.all([import('xlsx'), file.arrayBuffer()]);
                 const workbook = XLSX.read(buffer, { type: 'array' });
                 const sheetName = workbook.SheetNames[0];
                 if (!sheetName) {

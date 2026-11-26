@@ -16,6 +16,7 @@ import AttentionSummary from '../components/AttentionSummary';
 import FullView from '../components/FullView';
 import CuratedView from '../components/CuratedView';
 import { useExecutiveTitle } from '../hooks/useExecutiveTitle';
+import { track } from '@/lib/analytics';
 
 type View = 'curated' | 'full';
 
@@ -31,6 +32,8 @@ export default function BriefPage() {
     // The executive reads the PA's selection; the PA prepares it from everything.
     const [view, setView] = useState<View>(isExecutive ? 'curated' : 'full');
     useEffect(() => { setView(isExecutive ? 'curated' : 'full'); }, [isExecutive]);
+    // Once per visit: is the brief actually read, and by whom (role is on the person).
+    useEffect(() => { track('brief_viewed', { from_email: new URLSearchParams(window.location.search).has('from') }); }, []);
 
     const companyName = useMemo(() => {
         const map: Record<string, string> = {};

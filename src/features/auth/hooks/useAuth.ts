@@ -7,6 +7,7 @@ interface User {
     name: string;
     role: 'admin' | 'executive' | 'pa' | 'lead' | 'employee';
     company_id: string;
+    organization_id?: string | null;
     /** Set when an admin turns off this person's access. */
     deactivated_at?: string | null;
 }

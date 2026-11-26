@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { Role } from '@/lib/permissions';
+import { track } from '@/lib/analytics';
 
 /** Where a person stands on getting into Pulse360. */
 export type Access =
@@ -185,6 +186,7 @@ export async function createInvite(input: { name: string; email: string; role: R
                         : 'The invite could not be created. Check the details and try again.'
         );
     }
+    track('user_invited', { role: input.role });
     return data as { id: string; token: string; expires_at: string | null };
 }
 

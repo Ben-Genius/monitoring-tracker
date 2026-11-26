@@ -62,8 +62,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const company = (invite.company as unknown as { name: string } | null)?.name;
     const until = new Date(invite.expires_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
 
-    const text = `Hi ${first}, you have been added to Pulse360 as ${role}${company ? ` for ${company}` : ''}. Set up your login here: ${link} The link works until ${until}.`;
-    const html = `<p>Hi ${esc(first)},</p><p>You have been added to Pulse360 as <strong>${esc(role)}</strong>${company ? ` for ${esc(company)}` : ''}.</p><p><a href="${esc(link)}">Set up your login</a></p><p>The link works until ${esc(until)}.</p>`;
+    const text = `Hi ${first}, you have been added to Pulse360 as ${role}${company ? ` for ${company}` : ''}. Set up your login here: ${link} The link works until ${until}. How Pulse360 handles your data: ${origin}/privacy`;
+    const html = `<p>Hi ${esc(first)},</p><p>You have been added to Pulse360 as <strong>${esc(role)}</strong>${company ? ` for ${esc(company)}` : ''}.</p><p><a href="${esc(link)}">Set up your login</a></p><p>The link works until ${esc(until)}.</p><p style="color:#5B6673;font-size:12px">How Pulse360 handles your data: <a href="${esc(origin)}/privacy">privacy notice</a>.</p>`;
 
     const sent = await fetch('https://api.resend.com/emails', {
         method: 'POST',

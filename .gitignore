@@ -43,3 +43,8 @@ cron-jobs.txt
 # Local-only: test logins and browser-automation snapshots (can contain passwords)
 LOGIN_CREDENTIALS.md
 .playwright-mcp/
+
+# Signing keys and other secrets: never in public/ (Vite publishes it) and never in git
+secrets/
+*.keystore
+*.jks

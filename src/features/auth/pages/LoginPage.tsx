@@ -9,7 +9,6 @@ import {
     Heart,
     Zap,
     Building2,
-    ShieldCheck,
     BookmarkCheck,
 } from 'lucide-react';
 
@@ -19,7 +18,6 @@ export default function LoginPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const [showDemoCredentials, setShowDemoCredentials] = useState(false);
     const { signIn } = useAuth();
     const navigate = useNavigate();
 
@@ -31,16 +29,15 @@ export default function LoginPage() {
             await signIn(email, password);
             navigate(homePath(useAuthStore.getState().user));
         } catch (err: any) {
+            // Signed in, but setup never finished (or they were never invited): let them finish it.
+            if (useAuthStore.getState().missingProfile) {
+                navigate('/welcome');
+                return;
+            }
             setError(err.message || 'Invalid email or password');
         } finally {
             setLoading(false);
         }
-    };
-
-    const applyDemo = (demoEmail: string, demoPass: string) => {
-        setEmail(demoEmail);
-        setPassword(demoPass);
-        setShowDemoCredentials(false);
     };
 
     return (
@@ -64,16 +61,16 @@ export default function LoginPage() {
                         />
                         <div className="flex flex-col">
                             <span className="text-2xl sm:text-3xl font-black tracking-tight text-[#1c1e21] dark:text-white leading-none">
-                                Pulse<span className="text-[#F58220]">360</span>
+                                Pulse<span className="text-[#B45309] dark:text-[#F58220]">360</span>
                             </span>
-                            <span className="text-[10px] sm:text-[11px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase mt-1">
+                            <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 dark:text-slate-400 tracking-wider uppercase mt-1">
                                 Operations & Milestone Platform
                             </span>
                         </div>
                     </div>
 
-                    {/* Center Floating Visual Collage (Orange & White Theme) */}
-                    <div className="relative my-8 lg:my-6 w-full max-w-[560px] sm:max-w-[620px] lg:max-w-[680px] h-[460px] sm:h-[520px] lg:h-[560px] mx-auto lg:mx-0 flex items-center justify-center">
+                    {/* Center Floating Visual Collage (Orange & White Theme). Decorative: hidden from screen readers. */}
+                    <div aria-hidden="true" className="relative my-8 lg:my-6 w-full max-w-[560px] sm:max-w-[620px] lg:max-w-[680px] h-[460px] sm:h-[520px] lg:h-[560px] mx-auto lg:mx-0 flex items-center justify-center">
 
                         {/* 1. Top-Left Reaction Emoji Pill */}
                         <div className="absolute top-[32px] left-[18px] sm:left-[36px] z-30 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-b from-[#FFE066] via-[#FFC300] to-[#F58220] shadow-[0_12px_24px_rgba(245,130,32,0.35)] flex items-center justify-center -rotate-12 border-2 border-white dark:border-slate-900 select-none transform hover:scale-110 transition-transform">
@@ -176,7 +173,7 @@ export default function LoginPage() {
                             <div className="w-full h-full rounded-full overflow-hidden border-2 border-white dark:border-slate-900 bg-slate-200">
                                 <img
                                     src="/images/hero-avatar.webp"
-                                    alt="Sarah Mensah, Lead Engineer"
+                                    alt="Site engineer"
                                     className="w-full h-full object-cover"
                                     onError={(e) => {
                                         e.currentTarget.src = 'https://plus.unsplash.com/premium_photo-1682146752444-cd1309e874d3?auto=format&fit=crop&w=400&q=80';
@@ -197,7 +194,7 @@ export default function LoginPage() {
                         <h1 className="text-[44px] sm:text-[56px] lg:text-[64px] font-black tracking-[-0.035em] text-[#1c1e21] dark:text-white leading-[1.02]">
                             Deliver<br />
                             the projects<br />
-                            <span className="text-[#F58220]">
+                            <span className="text-[#B45309] dark:text-[#F58220]">
                                 you lead
                             </span>
                             <span className="text-[#1c1e21] dark:text-white">.</span>
@@ -219,12 +216,17 @@ export default function LoginPage() {
                         <form onSubmit={handleSubmit} className="space-y-4">
                             {/* Email Input */}
                             <div>
+                                <label htmlFor="email" className="sr-only">Email</label>
                                 <input
+                                    id="email"
+                                    name="email"
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="Email or username"
-                                    autoComplete="email"
+                                    placeholder="Email"
+                                    autoComplete="username"
+                                    spellCheck={false}
+                                    enterKeyHint="next"
                                     required
                                     className="w-full h-[54px] px-4 rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-[15px] text-[#1c1e21] dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-[#F58220] focus:ring-4 focus:ring-[#F58220]/15 transition-all"
                                 />
@@ -232,12 +234,16 @@ export default function LoginPage() {
 
                             {/* Password Input */}
                             <div className="relative">
+                                <label htmlFor="current-password" className="sr-only">Password</label>
                                 <input
+                                    id="current-password"
+                                    name="password"
                                     type={showPassword ? 'text' : 'password'}
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder="Password"
                                     autoComplete="current-password"
+                                    enterKeyHint="go"
                                     required
                                     className="w-full h-[54px] pl-4 pr-11 rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-[15px] text-[#1c1e21] dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-[#F58220] focus:ring-4 focus:ring-[#F58220]/15 transition-all"
                                 />
@@ -266,7 +272,7 @@ export default function LoginPage() {
                                 <button
                                     type="submit"
                                     disabled={loading}
-                                    className="w-full h-[50px] rounded-xl bg-[#F58220] hover:bg-[#E07216] active:scale-[0.99] text-white font-bold text-[15px]  transition-all flex items-center justify-center disabled:opacity-60 cursor-pointer"
+                                    className="w-full h-[50px] rounded-xl bg-[#B45309] hover:bg-[#9A4708] active:scale-[0.99] text-white font-bold text-[15px]  transition-all flex items-center justify-center disabled:opacity-60 cursor-pointer"
                                 >
                                     {loading ? (
                                         <span className="flex items-center gap-2">
@@ -281,83 +287,31 @@ export default function LoginPage() {
 
                             {/* Centered "Forgot password?" link */}
                             <div className="text-center pt-2 pb-5">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowDemoCredentials(!showDemoCredentials)}
-                                    className="text-[13px] sm:text-[14px] font-medium text-slate-600 dark:text-slate-400 hover:text-[#F58220] hover:underline cursor-pointer transition-colors"
+                                <Link
+                                    to="/forgot-password"
+                                    className="text-[13px] sm:text-[14px] font-medium text-slate-600 dark:text-slate-400 hover:text-[#F58220] hover:underline transition-colors"
                                 >
-                                    Forgot password or need demo account?
-                                </button>
+                                    Forgot password?
+                                </Link>
+                            </div>
+
+                            <div className="border-t border-slate-200 pt-5 text-center dark:border-slate-800">
+                                <Link
+                                    to="/start"
+                                    className="inline-flex h-[46px] items-center justify-center rounded-xl border border-slate-300 px-5 text-[15px] font-semibold text-[#1c1e21] hover:border-[#F58220] hover:text-[#F58220] dark:border-slate-700 dark:text-slate-100 transition-colors"
+                                >
+                                    Create your organisation
+                                </Link>
                             </div>
 
 
                         </form>
-
-                        {/* Quick Demo Credentials Drawer */}
-                        {showDemoCredentials && (
-                            <div className="mt-5 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs space-y-6">
-                                <div className="flex items-center justify-between text-slate-700 dark:text-slate-300 font-medium">
-                                    <span className="flex items-center gap-1.5">
-                                        <ShieldCheck className="w-3.5 h-3.5 text-[#F58220]" />
-                                        Quick Demo Access
-                                    </span>
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowDemoCredentials(false)}
-                                        className="text-[11px] text-[#F58220] hover:text-slate-600 cursor-pointer"
-                                    >
-                                        Close
-                                    </button>
-                                </div>
-                                <div className="grid grid-cols-2 gap-1.5 pt-1">
-                                    <button
-                                        type="button"
-                                        onClick={() => applyDemo('admin@example.com', 'password123')}
-                                        className="text-left px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 hover:border-[#F58220] transition-colors cursor-pointer"
-                                    >
-                                        <p className="font-medium text-[11px] text-slate-800 dark:text-slate-200">Admin</p>
-                                        <p className="text-[10px] text-slate-400 truncate">admin@example.com</p>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => applyDemo('lead.cypress@example.com', 'password123')}
-                                        className="text-left px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 hover:border-[#F58220] transition-colors cursor-pointer"
-                                    >
-                                        <p className="font-medium text-[11px] text-[#F58220]">Cypress Lead</p>
-                                        <p className="text-[10px] text-slate-400 truncate">lead.cypress@...</p>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => applyDemo('lead.northbrook@example.com', 'password123')}
-                                        className="text-left px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 hover:border-[#F58220] transition-colors cursor-pointer"
-                                    >
-                                        <p className="font-medium text-[11px] text-slate-800 dark:text-slate-200">Northbrook Lead</p>
-                                        <p className="text-[10px] text-slate-400 truncate">lead.northbrook@...</p>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => applyDemo('executive@example.com', 'password123')}
-                                        className="text-left px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 hover:border-[#F58220] transition-colors cursor-pointer"
-                                    >
-                                        <p className="font-medium text-[11px] text-slate-800 dark:text-slate-200">Executive</p>
-                                        <p className="text-[10px] text-slate-400 truncate">executive@...</p>
-                                    </button>
-                                </div>
-                            </div>
-                        )}
 
                         {/* Bottom Centered Meta-Style Mark */}
                         <div className="pt-10 flex flex-col items-center justify-center gap-1.5 text-[11px] text-slate-400 select-none">
                             <span className="font-bold tracking-tight text-slate-600 dark:text-slate-300">
                                 Pulse360 Platform
                             </span>
-                            <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
-                                <span>Cypress Energy</span>
-                                <span>•</span>
-                                <span>Northbrook LRD</span>
-                                <span>•</span>
-                                <span>MacWest</span>
-                            </div>
                         </div>
 
                     </div>
@@ -368,38 +322,17 @@ export default function LoginPage() {
             {/* Global Bottom Multi-Row Footer (Matches Inspo) */}
             <footer className="w-full bg-white dark:bg-slate-950 text-[11px] sm:text-[12px] text-slate-500 dark:text-slate-400 py-6 sm:py-8">
                 <div className="max-w-[980px] mx-auto px-6 space-y-2.5 leading-relaxed">
-
-                    {/* Language Links Row */}
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pb-2 border-b border-slate-200/80 dark:border-slate-800 text-[11px]">
-                        <span className="text-slate-800 dark:text-slate-200 font-semibold">English (UK)</span>
-                        <a href="#lang" className="hover:underline">Twi (Ghana)</a>
-                        <a href="#lang" className="hover:underline">Français (France)</a>
-                        <a href="#lang" className="hover:underline">Português (Brasil)</a>
-                        <a href="#lang" className="hover:underline">Español</a>
-                        <a href="#lang" className="hover:underline">العربية</a>
-                        <a href="#lang" className="hover:underline">Deutsch</a>
-                        <a href="#lang" className="hover:underline">日本語</a>
-                        <a href="#lang" className="hover:underline text-[#F58220] font-medium">More languages...</a>
-                    </div>
-
                     {/* Navigation Links Row */}
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500">
-                        <Link to="/signup" className="hover:underline">Sign Up</Link>
-                        <Link to="/" className="hover:underline font-semibold text-slate-800 dark:text-slate-200">Log In</Link>
-                        <a href="#brief" className="hover:underline">Morning Brief</a>
-                        <a href="#loop" className="hover:underline">Accountability Loop</a>
-                        <a href="#cypress" className="hover:underline">Cypress Energy</a>
-                        <a href="#northbrook" className="hover:underline">Northbrook LRD</a>
-                        <a href="#macwest" className="hover:underline">MacWest</a>
-                        <a href="#privacy" className="hover:underline">Privacy Policy</a>
-                        <a href="#terms" className="hover:underline">Terms</a>
-                        <a href="#status" className="hover:underline">System Status</a>
-                        <a href="#help" className="hover:underline">Help Center</a>
+                        <Link to="/start" className="hover:underline">Start free</Link>
+                        <a href="/" className="hover:underline font-semibold text-slate-800 dark:text-slate-200">About Pulse360</a>
+                        <a href="/privacy" className="hover:underline">Privacy</a>
+                        <a href="/terms" className="hover:underline">Terms</a>
                     </div>
 
                     {/* Copyright Note */}
-                    <div className="pt-2 text-[11px] text-slate-400">
-                        Pulse360 © 2026. Multi-company project & operations governance engine.
+                    <div className="pt-2 text-[12px] text-slate-500 dark:text-slate-400">
+                        Pulse360 © 2026. Execution and accountability for multi-company groups.
                     </div>
 
                 </div>

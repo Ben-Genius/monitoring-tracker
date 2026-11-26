@@ -1,13 +1,15 @@
 import { useEffect, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, CheckSquare, FolderKanban, BarChart3, Settings, Users, LogOut, X, Sunrise, BadgeCheck } from 'lucide-react';
+import { LayoutDashboard, CheckSquare, FolderKanban, BarChart3, Settings, Users, LogOut, X, Sunrise, BadgeCheck, ListChecks } from 'lucide-react';
+import InstallAppButton from './InstallAppButton';
 import { cn, getCompanyTheme, DEFAULT_BRAND_COLOR } from '@/lib/utils';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useCompanyStore } from '@/hooks/useCompanyStore';
 import { useCompanies } from '@/features/projects/hooks/useProjects';
 import ThemeToggle from '@/components/ThemeToggle';
-import { canReadBrief, canApprove, canAdminister } from '@/lib/permissions';
+import { canReadBrief, canApprove, canAdminister, canReportWork } from '@/lib/permissions';
 import { roleLabel } from '@/lib/roles';
+import { prefetchRoute } from '@/lib/routeChunks';
 
 // Pipeline (sales deals) and Reports (placeholder cards) were removed: neither
 // serves project accountability. Their code is still in src/features.
@@ -15,6 +17,7 @@ const NAV = [
     { name: 'Morning brief', href: '/brief', icon: Sunrise, show: canReadBrief },
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Projects', href: '/projects', icon: FolderKanban },
+    { name: 'My work', href: '/my-work', icon: ListChecks, show: canReportWork },
     { name: 'Tasks', href: '/tasks', icon: CheckSquare },
     { name: 'Analytics', href: '/analytics', icon: BarChart3 },
     { name: 'Approvals', href: '/approvals', icon: BadgeCheck, show: canApprove },
@@ -68,6 +71,8 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                                 <Link
                                     to={item.href}
                                     onClick={onNavigate}
+                                    onPointerEnter={() => prefetchRoute(item.href)}
+                                    onFocus={() => prefetchRoute(item.href)}
                                     aria-current={active ? 'page' : undefined}
                                     className={cn(
                                         'relative flex h-10 items-center gap-3 rounded-[8px] px-3 text-[14px] transition-colors',
@@ -83,6 +88,8 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                     })}
                 </ul>
             </nav>
+
+            <InstallAppButton />
 
             <div className="flex items-center gap-2.5 border-t border-white/10 px-3 py-3">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-sm font-semibold">

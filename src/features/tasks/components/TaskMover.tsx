@@ -12,6 +12,7 @@ import { movePatch, type MoveTaskInput, type Task } from '../hooks/useTasks';
 import { uploadEvidence, normaliseLink, EVIDENCE_ACCEPT, MAX_EVIDENCE_BYTES, type Evidence } from '../hooks/useEvidence';
 import { STAGES, stageDef, type StageDef } from '../utils/stages';
 import { PROGRESS_STEPS } from '../utils/accountability';
+import { track } from '@/lib/analytics';
 
 export type MovableTask = MoveTaskInput['task'] & {
     project?: { company_id: string } | null;
@@ -34,25 +35,26 @@ export type TaskMovedDetail = { id: string; stage: Task['stage'] };
  */
 export function useTaskMover() {
     const { user } = useAuth();
-    const [pending, setPending] = useState<{ task: MovableTask; target: Task['stage'] } | null>(null);
+    const [pending, setPending] = useState<{ task: MovableTask; target: Task['stage']; progress?: number } | null>(null);
     const canMove = !!user && user.role !== 'executive';
 
-    const requestMove = (task: MovableTask, stage: Task['stage']) => {
+    /** progress pre-selects a step (25/50/75) when moving to In progress. */
+    const requestMove = (task: MovableTask, stage: Task['stage'], progress?: number) => {
         if (!canMove) return;
-        setPending({ task, target: stage === 'talking_stage' ? 'yet_to_start' : stage });
+        setPending({ task, target: stage === 'talking_stage' ? 'yet_to_start' : stage, progress });
     };
     /** Report progress or update a blocker without changing the stage. */
     const requestUpdate = (task: MovableTask) => { if (canMove) setPending({ task, target: task.stage }); };
     const editBlocker = requestUpdate;
 
     const dialog = pending ? (
-        <StatusUpdateSheet task={pending.task} initialTarget={pending.target} onClose={() => setPending(null)} />
+        <StatusUpdateSheet task={pending.task} initialTarget={pending.target} initialProgress={pending.progress} onClose={() => setPending(null)} />
     ) : null;
 
     return { requestMove, requestUpdate, editBlocker, canMove, dialog };
 }
 
-function StatusUpdateSheet({ task, initialTarget, onClose }: { task: MovableTask; initialTarget: Task['stage']; onClose: () => void }) {
+function StatusUpdateSheet({ task, initialTarget, initialProgress, onClose }: { task: MovableTask; initialTarget: Task['stage']; initialProgress?: number; onClose: () => void }) {
     const { user } = useAuth();
     const qc = useQueryClient();
     const companyId = task.project?.company_id ?? task.company_id ?? undefined;
@@ -60,7 +62,7 @@ function StatusUpdateSheet({ task, initialTarget, onClose }: { task: MovableTask
 
     const [target, setTarget] = useState<Task['stage']>(initialTarget);
     const [note, setNote] = useState('');
-    const [progress, setProgress] = useState<number>(Math.min(Math.max(task.progress_percent || 0, 25), 75));
+    const [progress, setProgress] = useState<number>(Math.min(Math.max(initialProgress ?? task.progress_percent ?? 0, 25), 75));
     const [blockedBy, setBlockedBy] = useState(task.blocked_by ?? '');
     const [reason, setReason] = useState(task.stage === 'blockers' ? task.blocker_description ?? '' : '');
     const [files, setFiles] = useState<File[]>([]);
@@ -151,6 +153,10 @@ function StatusUpdateSheet({ task, initialTarget, onClose }: { task: MovableTask
             qc.setQueriesData<Task[]>({ queryKey: ['tasks'] }, old => old?.map(t => (t.id === task.id ? ({ ...t, ...patch } as Task) : t)));
             ['tasks', 'task', 'comments', 'brief', 'notifications'].forEach(k => qc.invalidateQueries({ queryKey: [k] }));
 
+            track('task_update_posted', {
+                from_stage: task.stage, to_stage: target, progress: target === 'completed' ? 100 : pct,
+                stage_changed: !sameStage, proof_count: evidence.length, page: window.location.pathname.split('/')[1] || 'home',
+            });
             setPhase('done');
             window.dispatchEvent(new CustomEvent<TaskMovedDetail>(TASK_MOVED_EVENT, { detail: { id: task.id, stage: target } }));
             toast.success(sameStage ? 'Update posted' : `Moved to ${to.label}`);

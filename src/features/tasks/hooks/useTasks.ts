@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabaseLog } from '@/features/audit/utils/log';
 import type { Evidence } from './useEvidence';
+import { track } from '@/lib/analytics';
 
 // Types
 export interface Subtask {
@@ -324,6 +325,7 @@ export function useAcknowledgeTask() {
             if (error) throw error;
 
             if (data && data.length > 0) {
+                track('task_accepted');
                 supabaseLog({
                     entity_type: 'task',
                     entity_id: id,
