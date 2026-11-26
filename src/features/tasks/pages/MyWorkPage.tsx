@@ -8,6 +8,7 @@ import { cn, formatDate } from '@/lib/utils';
 import { useAcknowledgeTask, useTasks, type Task } from '../hooks/useTasks';
 import { useTaskMover } from '../components/TaskMover';
 import { awaitingAcceptance, daysSinceMovement, isStale, isUpdateOverdue, PROGRESS_STEPS } from '../utils/accountability';
+import { useWaitingCounts } from '../hooks/useTaskLinks';
 
 /**
  * My work: the phone-first page for the people doing the work. Every open
@@ -52,12 +53,13 @@ const primary = cn(btn, 'bg-ink text-white hover:bg-ink/90 dark:bg-slate-100 dar
 const secondary = cn(btn, 'border border-line-strong bg-surface text-ink hover:bg-paper dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800');
 const step = cn(btn, 'min-w-11 flex-1 border border-line-strong bg-surface text-ink tabular-nums hover:border-progress hover:text-progress dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100');
 
-function TaskRow({ task, why, onAccept, accepting, mover }: {
+function TaskRow({ task, why, onAccept, accepting, mover, waitingOn }: {
     task: Task;
     why: Why;
     onAccept: () => void;
     accepting: boolean;
     mover: ReturnType<typeof useTaskMover>;
+    waitingOn: number;
 }) {
     const red = why === 'blocked' || task.is_urgent;
     const nextSteps = PROGRESS_STEPS.filter(p => p > (task.progress_percent || 0) && p > 0 && p < 100);
@@ -86,6 +88,11 @@ function TaskRow({ task, why, onAccept, accepting, mover }: {
             <p className={cn('mt-2 text-[14px]', red ? 'font-medium text-blocked dark:text-red-300' : 'text-ink-muted dark:text-slate-400')}>
                 {statusLine(task, why)}
             </p>
+            {waitingOn > 0 && (
+                <p className="mt-1 text-[14px] font-medium text-ink dark:text-slate-200">
+                    Waits on {waitingOn} other {waitingOn === 1 ? 'task' : 'tasks'} still open
+                </p>
+            )}
 
             <div className="mt-3 flex flex-wrap gap-2">
                 {why === 'accept' ? (
@@ -132,6 +139,7 @@ export default function MyWorkPage() {
     const mover = useTaskMover();
     const accept = useAcknowledgeTask();
     const { data: tasks = [], isLoading } = useTasks(user ? { assignee_id: user.id } : undefined);
+    const waiting = useWaitingCounts();
 
     const { needsYou, inHand } = useMemo(() => {
         const now = Date.now();
@@ -160,7 +168,7 @@ export default function MyWorkPage() {
     const list = (rows: { task: Task; why: Why }[]) => (
         <ul className="space-y-3">
             {rows.map(({ task, why }) => (
-                <TaskRow key={task.id} task={task} why={why} mover={mover}
+                <TaskRow key={task.id} task={task} why={why} mover={mover} waitingOn={waiting.get(task.id) ?? 0}
                     onAccept={() => onAccept(task)} accepting={accept.isPending && accept.variables?.id === task.id} />
             ))}
         </ul>

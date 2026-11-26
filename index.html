@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Pulse360 · The morning brief for people who run companies</title>
-  <meta name="description" content="Pulse360 shows you what is urgent, blocked, stuck or overdue across every company and project you run, by 7am. Your teams update from their phones in seconds. Start free." />
-  <meta property="og:title" content="Pulse360 · Know what's stuck before your first meeting" />
-  <meta property="og:description" content="One morning brief across all your companies. Teams update from their phones. Priced in cedis." />
+  <title>Pulse360 · Projects, tasks and teams in one place</title>
+  <meta name="description" content="Project and task management for groups that run several companies: boards, timelines, calendars, live updates, and field teams that update from their phones or WhatsApp. Priced in cedis. Start free." />
+  <meta property="og:title" content="Pulse360 · Every project, task and team in one place" />
+  <meta property="og:description" content="Boards, timelines and calendars for every company you run. Teams update from their phones or WhatsApp. Priced in cedis." />
   <meta property="og:type" content="website" />
   <meta property="og:image" content="/icons/app-512.png" />
   <meta name="theme-color" content="#17202B" />
@@ -102,6 +102,25 @@
     .rows .t { font-weight: 600; font-size: 15px; margin-top: 2px; }
     .rows .m { font-size: 13px; color: var(--ink-muted); }
 
+    .proj-progress { height: 8px; border-radius: 4px; background: var(--paper); margin-top: 14px; overflow: hidden; }
+    .proj-progress span { display: block; height: 100%; background: var(--progress); }
+    .proj-meta { font-size: 13px; color: var(--ink-muted); margin-top: 8px; }
+    .proj-meta b { color: var(--ink); font-size: 15px; }
+    .mini-tl { list-style: none; margin: 16px 0 0; padding: 0; position: relative; }
+    .mini-tl li { display: flex; align-items: center; height: 30px; border-top: 1px solid var(--line); position: relative; }
+    .mini-tl .lbl { width: 96px; flex: none; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mini-tl .track { position: relative; flex: 1; height: 100%; }
+    .mini-tl .bar { position: absolute; top: 8px; height: 14px; border-radius: 4px; border: 1px solid var(--line-strong); background: var(--paper); overflow: hidden; }
+    .mini-tl .bar em { display: block; height: 100%; background: color-mix(in srgb, var(--progress) 30%, transparent); }
+    .mini-tl .bar.red { border-color: var(--blocked); }
+    .mini-tl .bar.red em { background: color-mix(in srgb, var(--blocked) 25%, transparent); }
+    .mini-tl .bar.done { opacity: .55; }
+    .mini-tl .today { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--ink); }
+    .wa { margin-top: 16px; padding: 12px; border-radius: 12px; background: var(--paper); display: grid; gap: 6px; font-size: 13px; }
+    .wa p { padding: 7px 10px; border-radius: 10px; max-width: 85%; }
+    .wa-in { justify-self: end; background: var(--surface); border: 1px solid var(--line); }
+    .wa-out { background: var(--surface); border: 1px solid var(--line); color: var(--ink-muted); }
+
     /* Sections */
     section.block { padding: 72px 0; border-top: 1px solid var(--line); scroll-margin-top: 64px; }
     section.block h2 { font-size: clamp(28px, 3.6vw, 38px); font-weight: 800; margin-top: 10px; max-width: 22em; }
@@ -163,48 +182,64 @@
     <section class="hero">
       <div class="wrap">
         <div>
-          <p class="eyebrow">For people who run several companies</p>
-          <h1>Know what’s stuck before your first meeting.</h1>
-          <p class="lead">Pulse360 gives you one morning brief across every company and project you run: what’s urgent, blocked, stuck or overdue, in your inbox by 7am. Your teams report progress from their phones in seconds.</p>
+          <p class="eyebrow">Project and task management</p>
+          <h1>Every project, task and team, in one place.</h1>
+          <p class="lead">Plan work on boards, timelines and calendars. Your teams update from their phones or straight from WhatsApp, and everyone sees changes the moment they happen. Built for groups that run several companies, and priced in cedis.</p>
           <div class="ctas">
             <a class="btn btn-primary" href="/start">Start free</a>
             <a class="btn btn-secondary" href="#how">See how it works</a>
           </div>
-          <p class="note">Set up in about a minute. A sample project fills your first brief.</p>
+          <p class="note">Set up in about a minute, with a sample project to explore.</p>
         </div>
 
-        <figure class="brief" aria-label="Example of a morning brief" style="margin:0">
-          <div class="top"><span>Wednesday · Asante Holdings</span><span class="tag">Example</span></div>
-          <p class="hello">Good morning, Mr Asante</p>
-          <div class="hero-figure"><b>4</b><span>need your attention</span></div>
-          <div class="segbar" aria-hidden="true"><i class="red" style="flex:1"></i><i class="red" style="flex:1"></i><i style="flex:1"></i><i style="flex:1"></i></div>
-          <div class="legend"><span>1 urgent</span><span>1 blocked</span><span>1 stuck</span><span>1 overdue</span></div>
-          <ul class="rows">
-            <li><div class="k red">Urgent</div><div class="t">Renew the crane hire before it lapses</div><div class="m">Warehouse extension · Kofi M. · 50% done</div></li>
-            <li><div class="k red">Blocked</div><div class="t">Pour the ground-floor slab</div><div class="m">Waiting on the cement supplier</div></li>
-            <li><div class="k">Stuck</div><div class="t">Install the roof trusses</div><div class="m">No movement for 4 days</div></li>
+        <figure class="brief" aria-label="Example: a project's tasks on a timeline, updated from WhatsApp" style="margin:0">
+          <div class="top"><span>Tema warehouse extension · MacWest</span><span class="tag">Example</span></div>
+          <div class="proj-progress"><span style="width:62%"></span></div>
+          <p class="proj-meta"><b>62%</b> done · handover 14 Feb · 3 people</p>
+          <ul class="mini-tl" aria-hidden="true">
+            <li><span class="lbl">Foundations</span><span class="track"><span class="bar done" style="left:0;width:34%"></span></span></li>
+            <li><span class="lbl">Ground-floor slab</span><span class="track"><span class="bar red" style="left:22%;width:30%"><em style="width:40%"></em></span></span></li>
+            <li><span class="lbl">Roof trusses</span><span class="track"><span class="bar" style="left:44%;width:36%"><em style="width:25%"></em></span></span></li>
+            <li><span class="lbl">Fit-out</span><span class="track"><span class="bar" style="left:70%;width:30%"></span></span></li>
+            <i class="today" style="left:calc(96px + (100% - 96px) * .46)"></i>
           </ul>
+          <div class="wa">
+            <p class="wa-in">2 50% formwork up, pour on Friday</p>
+            <p class="wa-out">“Roof trusses” is now 50% done. Your lead can see it.</p>
+          </div>
         </figure>
       </div>
     </section>
 
     <section class="block" aria-labelledby="why">
       <div class="wrap">
-        <p class="eyebrow">Why Pulse360</p>
-        <h2 id="why">Built for how work actually gets reported</h2>
-        <p class="intro">Most project tools assume people keep a board up to date. Pulse360 assumes they won’t, and makes silence visible.</p>
+        <p class="eyebrow">What’s inside</p>
+        <h2 id="why">Everything a busy group needs to deliver its projects</h2>
+        <p class="intro">One place for the office and the site, built for how work actually gets reported.</p>
         <div class="grid3">
           <div class="card">
-            <h3>Exceptions, not a task list</h3>
-            <p>Each morning you see only what needs you, across all your companies at once. Everything on track stays out of the way.</p>
+            <h3>Boards, timelines and calendars</h3>
+            <p>See work the way you think about it: a board by status, a list, a calendar of deadlines, or a timeline of every task and project. Drag a task to a new day to move its deadline.</p>
+          </div>
+          <div class="card">
+            <h3>Updates from the field, even by WhatsApp</h3>
+            <p>Staff open My work and tap the next step, or just message your WhatsApp number: “2 50% formwork up”. A photo marks work done. It works on weak signal.</p>
+          </div>
+          <div class="card">
+            <h3>Live, together</h3>
+            <p>Changes show up for everyone instantly. @mention a colleague to bring them in, and comments, nudges and approvals all land in one feed.</p>
           </div>
           <div class="card">
             <h3>Accountability built in</h3>
-            <p>Owners accept what they’re given. Work that hasn’t moved in two days is flagged as stuck. “Done” needs a photo, file or link as proof.</p>
+            <p>Owners accept what they’re given. Work that hasn’t moved in two days is flagged. Blockers name who they’re waiting on, and “done” needs proof.</p>
           </div>
           <div class="card">
-            <h3>Made for phones on site</h3>
-            <p>Staff open My work, tap the next step and say what moved. It installs like an app, stays light on mobile data and opens without a connection.</p>
+            <h3>Projects, milestones and approvals</h3>
+            <p>Track contract value, milestones and files for each project, and approve finished work. A full history shows who changed what.</p>
+          </div>
+          <div class="card">
+            <h3>Every company, one view</h3>
+            <p>Dashboards and analytics across all your companies, with each company’s data kept separate. Leaders can get a 7am email of what needs them.</p>
           </div>
         </div>
       </div>
@@ -213,12 +248,12 @@
     <section class="block" id="how" aria-labelledby="how-h">
       <div class="wrap">
         <p class="eyebrow">How it works</p>
-        <h2 id="how-h">Running by tomorrow morning</h2>
+        <h2 id="how-h">Running by tomorrow</h2>
         <div class="grid3">
           <div class="card">
             <p class="num">1</p>
             <h3>Create your organisation</h3>
-            <p>Name your group and your first company. A sample project shows you a full brief straight away; remove it in one click.</p>
+            <p>Name your group and your first company. A sample project shows every view straight away; remove it in one click.</p>
           </div>
           <div class="card">
             <p class="num">2</p>
@@ -227,8 +262,8 @@
           </div>
           <div class="card">
             <p class="num">3</p>
-            <h3>Read the 7am brief</h3>
-            <p>Your brief arrives by email at 7am your time. Open it in Pulse360 to see the detail, chase an owner or help clear a blocker.</p>
+            <h3>Watch the work move</h3>
+            <p>Updates arrive from the office, the site and WhatsApp, live. Plan on the timeline, chase on the board, and get an optional 7am summary.</p>
           </div>
         </div>
       </div>
@@ -246,9 +281,9 @@
             <p class="per">For one company getting started</p>
             <ul>
               <li>One company, your whole team</li>
-              <li>Morning brief and 7am email</li>
-              <li>My work on any phone</li>
-              <li>Accept, progress and proof of done</li>
+              <li>Boards, lists, calendar and timeline</li>
+              <li>My work on any phone, live updates and @mentions</li>
+              <li>Accountability, proof of done and a 7am summary</li>
             </ul>
             <a class="btn btn-secondary" href="/start">Start free</a>
           </div>
@@ -257,8 +292,8 @@
             <p class="price">Talk to us</p>
             <p class="per">For several companies, priced per company in cedis</p>
             <ul>
-              <li>Every company in one brief</li>
-              <li>Unlimited field staff, free</li>
+              <li>Every company in one view</li>
+              <li>Unlimited field staff, free, with WhatsApp updates</li>
               <li>Approvals and analytics across companies</li>
               <li>Pay by Mobile Money or card</li>
             </ul>
@@ -279,19 +314,19 @@
           </details>
           <details>
             <summary>Will my site staff actually use it?</summary>
-            <p>They don’t need to learn a board. My work shows each person only their own tasks with one button for the next step, sized for a thumb. Accepting a task is a single tap.</p>
+            <p>They don’t need to learn a board. My work shows each person only their own tasks with one button for the next step, sized for a thumb, and anyone can update by WhatsApp instead. Accepting a task is a single tap.</p>
           </details>
           <details>
             <summary>Does it work on slow connections?</summary>
             <p>Yes. Pages load only what they need, it can be installed on a phone’s home screen, and it opens even when the connection drops.</p>
           </details>
           <details>
-            <summary>We already run several companies. Can they share one brief?</summary>
-            <p>Yes. That is what Pulse360 is for: one brief across all of them, with a filter for each company when you want to look closer.</p>
+            <summary>We run several companies. Can we see them together?</summary>
+            <p>Yes. Dashboards, timelines, analytics and the morning summary cover all your companies at once, with a filter for each company when you want to look closer.</p>
           </details>
           <details>
             <summary>Can I try it without inviting anyone?</summary>
-            <p>Yes. Start free with the sample project and you’ll see a full brief, the 7am email and My work before you invite a single person.</p>
+            <p>Yes. Start free with the sample project and try the board, timeline, calendar and My work before you invite a single person.</p>
           </details>
         </div>
       </div>
@@ -299,7 +334,7 @@
 
     <section class="block closing" aria-labelledby="close-h">
       <div class="wrap">
-        <h2 id="close-h">See tomorrow’s problems this morning.</h2>
+        <h2 id="close-h">Run every project from one place.</h2>
         <div class="ctas">
           <a class="btn btn-primary" href="/start">Start free</a>
           <a class="btn btn-secondary" href="/login" data-login>Log in</a>

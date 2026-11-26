@@ -16,9 +16,10 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 
 // Which cached queries depend on which table. Dashboard and analytics read tasks and projects.
 const AFFECTS: Record<string, string[]> = {
-    tasks: ['tasks', 'task', 'brief', 'brief-items', 'dashboard-stats', 'recent-tasks', 'idle-tasks', 'task-distribution', 'top-performers', 'monthly-trend', 'performance-trend', 'projects', 'project'],
+    tasks: ['tasks', 'task', 'task-links', 'brief', 'brief-items', 'dashboard-stats', 'recent-tasks', 'idle-tasks', 'task-distribution', 'top-performers', 'monthly-trend', 'performance-trend', 'projects', 'project'],
     task_comments: ['comments', 'task', 'brief'],
     subtasks: ['subtasks', 'task', 'tasks'],
+    task_dependencies: ['task-links'],
     projects: ['projects', 'project', 'recent-projects', 'dashboard-stats', 'company-performance', 'has-sample-data'],
     milestones: ['milestones', 'project'],
     approvals: ['approvals', 'recent-approvals'],

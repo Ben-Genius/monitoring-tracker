@@ -46,6 +46,9 @@ export interface Task {
     /** Planned start (DATE). Older tasks may only have started_at. */
     start_date?: string | null;
     started_at?: string | null;
+    /** Repeats when completed (20261126140000_recurring_tasks_and_dependencies.sql). */
+    repeat?: 'daily' | 'weekdays' | 'weekly' | 'monthly' | null;
+    series_id?: string | null;
     created_at: string;
     updated_at: string;
     completed_at: string | null;
@@ -116,6 +119,7 @@ export interface UpdateTaskInput {
     is_urgent?: boolean;
     blocker_description?: string | null;
     blocked_by?: string | null;
+    repeat?: Task['repeat'];
 }
 
 // Fetch all tasks

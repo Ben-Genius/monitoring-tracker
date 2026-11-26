@@ -392,7 +392,7 @@ export default function TaskBoardPage() {
             </div>
 
             <CreateTaskModal open={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} />
-            <TaskDetailModal taskId={selectedTaskId} open={!!selectedTaskId} onClose={() => openTask(null)} />
+            <TaskDetailModal taskId={selectedTaskId} open={!!selectedTaskId} onClose={() => openTask(null)} onOpenTask={openTask} />
             {mover.dialog}
         </div>
     );

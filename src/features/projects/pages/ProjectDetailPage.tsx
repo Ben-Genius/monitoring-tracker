@@ -504,7 +504,7 @@ export default function ProjectDetailPage() {
             </Tabs>
 
             <CreateTaskModal open={isCreateTaskOpen} onClose={() => setIsCreateTaskOpen(false)} initialProjectId={id} />
-            <TaskDetailModal taskId={selectedTaskId} open={!!selectedTaskId} onClose={() => setSelectedTaskId(null)} />
+            <TaskDetailModal taskId={selectedTaskId} open={!!selectedTaskId} onClose={() => setSelectedTaskId(null)} onOpenTask={setSelectedTaskId} />
             <MilestoneDialog projectId={id} open={isMilestoneOpen} onClose={() => setIsMilestoneOpen(false)} />
         </div>
     );

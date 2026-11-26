@@ -166,7 +166,7 @@ export default function BriefPage() {
                     : <FullView brief={brief} companies={companies} companyName={companyName} allCompanies={selectedCompanyId === 'all'} curate={!isExecutive} onOpen={setOpenTaskId} />)}
             </div>
 
-            <TaskDetailModal taskId={openTaskId} open={!!openTaskId} onClose={() => setOpenTaskId(null)} />
+            <TaskDetailModal taskId={openTaskId} open={!!openTaskId} onClose={() => setOpenTaskId(null)} onOpenTask={setOpenTaskId} />
         </div>
     );
 }

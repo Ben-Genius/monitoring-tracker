@@ -1,10 +1,11 @@
 import { useDraggable } from '@dnd-kit/core';
-import { Calendar, MessageSquare, AlertTriangle, Clock, UserCheck, ListChecks } from 'lucide-react';
+import { Calendar, MessageSquare, AlertTriangle, Clock, UserCheck, ListChecks, Link2, Repeat } from 'lucide-react';
 import { cn, getCompanyTheme, formatDate } from '@/lib/utils';
 import { Task } from '../hooks/useTasks';
 import { MoveMenu } from './TaskMover';
 import { taskProgress, isStale, daysSinceMovement, awaitingAcceptance, isUpdateOverdue } from '../utils/accountability';
 import { stageDef } from '../utils/stages';
+import { useWaitingCounts } from '../hooks/useTaskLinks';
 
 interface TaskCardProps {
     task: Task;
@@ -37,6 +38,7 @@ export default function TaskCard({ task, isDragging = false, onClick, onMove, on
     const stale = isStale(task);
     const unaccepted = awaitingAcceptance(task);
     const updateLate = isUpdateOverdue(task);
+    const waitingOn = useWaitingCounts().get(task.id) ?? 0;
     const owner = task.assignee?.name;
     // The red edge is reserved for work that cannot wait. Company identity is a small dot instead.
     const alarm = open && (task.is_urgent || task.stage === 'blockers');
@@ -87,12 +89,14 @@ export default function TaskCard({ task, isDragging = false, onClick, onMove, on
                 ) : task.title}
             </h3>
 
-            {open && (task.is_urgent || stale || unaccepted || updateLate) && (
+            {open && (task.is_urgent || stale || unaccepted || updateLate || waitingOn > 0 || !!task.repeat) && (
                 <ul className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[12px]">
                     {task.is_urgent && <li className="inline-flex items-center gap-1 font-semibold text-blocked dark:text-red-300"><AlertTriangle className="h-3.5 w-3.5" aria-hidden /> Urgent</li>}
                     {stale && <li className="inline-flex items-center gap-1 font-medium text-ink dark:text-slate-200"><Clock className="h-3.5 w-3.5" aria-hidden /> No movement for {daysSinceMovement(task)} days</li>}
                     {updateLate && !stale && <li className="inline-flex items-center gap-1 font-medium text-ink dark:text-slate-200"><Clock className="h-3.5 w-3.5" aria-hidden /> Update overdue</li>}
                     {unaccepted && <li className="inline-flex items-center gap-1 text-ink-muted dark:text-slate-400"><UserCheck className="h-3.5 w-3.5" aria-hidden /> Not accepted</li>}
+                    {waitingOn > 0 && <li className="inline-flex items-center gap-1 font-medium text-ink dark:text-slate-200"><Link2 className="h-3.5 w-3.5" aria-hidden /> Waits on {waitingOn} {waitingOn === 1 ? 'task' : 'tasks'}</li>}
+                    {task.repeat && <li className="inline-flex items-center gap-1 text-ink-muted dark:text-slate-400"><Repeat className="h-3.5 w-3.5" aria-hidden /> Repeats {task.repeat === 'weekdays' ? 'weekdays' : task.repeat}</li>}
                 </ul>
             )}
 

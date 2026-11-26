@@ -1,8 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import {
-    X, Calendar, Flag, User, Plus, Trash2, Send, ChevronRight, AlertTriangle, UserCheck,
-    Clock, Check, MessageSquare, ListChecks, FileText, Pencil, ChevronDown, Link2, Paperclip,
-} from 'lucide-react';
+import { X, Calendar, Flag, User, Plus, Trash2, Send, ChevronRight, AlertTriangle, UserCheck, Clock, Check, MessageSquare, ListChecks, FileText, Pencil, ChevronDown, Link2, Paperclip, Repeat } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,12 +17,17 @@ import { stageDef } from '../utils/stages';
 import { useTaskMover, MoveMenu } from './TaskMover';
 import MentionField from '@/features/mentions/MentionField';
 import { renderMentions, useMentionPicks } from '@/features/mentions/mentions';
+import TaskLinks from './TaskLinks';
 
 interface TaskDetailModalProps {
     taskId: string | null;
     open: boolean;
     onClose: () => void;
+    /** Opens another task in this panel (from "Waits on" / "Holding up"). */
+    onOpenTask?: (id: string) => void;
 }
+
+const REPEAT_LABEL: Record<string, string> = { daily: 'Every day', weekdays: 'Every weekday', weekly: 'Every week', monthly: 'Every month' };
 
 const toDateInput = (iso?: string | null) => (iso ? iso.slice(0, 10) : '');
 
@@ -41,7 +43,7 @@ const endOfDay = (d: string) => (d ? new Date(`${d}T23:59:00`).toISOString() : n
  * It reads top to bottom the way a person checks a task:
  * where is it and is it moving -> what is it -> what are the steps -> what's been said.
  */
-export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailModalProps) {
+export default function TaskDetailModal({ taskId, open, onClose, onOpenTask }: TaskDetailModalProps) {
     const id = taskId || '';
     const { data: task, isLoading } = useTask(id);
     const { data: subtasks = [] } = useSubtasks(id);
@@ -460,6 +462,21 @@ export default function TaskDetailModal({ taskId, open, onClose }: TaskDetailMod
                                         className={cn('w-full h-9 rounded-lg border bg-surface px-2 text-sm text-ink dark:bg-slate-950 dark:text-slate-100', isUpdateOverdue(task) ? 'border-red-300 text-red-700' : 'border-line dark:border-slate-700')} />
                                 ) : <Value className={isUpdateOverdue(task) ? 'text-red-700' : ''}>{task.next_update_due ? formatDate(task.next_update_due) : 'Not set'}</Value>}
                             </Field>
+                            {/* Shown once the repeat column exists (recurring tasks migration). */}
+                            {'repeat' in task && <Field icon={Repeat} label="Repeats" hint={task.repeat ? 'When it’s done, the next one is created for the same owner.' : undefined}>
+                                {canStructure ? (
+                                    <select value={task.repeat ?? ''} onChange={e => save({ repeat: (e.target.value || null) as Task['repeat'] }, e.target.value ? 'Repeat set' : 'Repeat removed')}
+                                        className="w-full h-9 rounded-lg border border-line dark:border-slate-700 bg-surface px-2 text-sm text-ink dark:bg-slate-950 dark:text-slate-100">
+                                        <option value="">Doesn’t repeat</option>
+                                        <option value="daily">Every day</option>
+                                        <option value="weekdays">Every weekday (Mon–Fri)</option>
+                                        <option value="weekly">Every week</option>
+                                        <option value="monthly">Every month</option>
+                                    </select>
+                                ) : <Value>{REPEAT_LABEL[task.repeat ?? ''] ?? 'Doesn’t repeat'}</Value>}
+                            </Field>}
+                            <TaskLinks taskId={task.id} canEdit={canStructure || (!!user && task.assignee_id === user.id && user.role !== 'executive')}
+                                onOpen={id => onOpenTask?.(id)} />
                             <Field icon={Flag} label="Priority">
                                 {canEdit ? (
                                     <select value={task.priority} onChange={e => save({ priority: e.target.value as Task['priority'] }, 'Priority saved')}
