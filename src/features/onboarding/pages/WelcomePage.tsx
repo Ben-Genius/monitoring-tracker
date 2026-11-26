@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { Building2, Loader2 } from 'lucide-react';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import AuthCard from '@/features/auth/components/AuthCard';
+import { AuthError, AuthFooterRow, AuthInput, Field, SubmitButton } from '@/features/auth/components/AuthLayout';
+import { authMuted } from '@/features/auth/components/authStyles';
 import { useAuthStore } from '@/features/auth/hooks/useAuth';
 import { homePath } from '@/lib/permissions';
 import { SetupFields } from '../components/SetupFields';
@@ -24,7 +23,6 @@ export default function WelcomePage() {
     const [auto, setAuto] = useState(false);
     const [name, setName] = useState('');
     const [orgName, setOrgName] = useState('');
-    const [companyName, setCompanyName] = useState('');
     const [withSample, setWithSample] = useState(true);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
@@ -37,7 +35,7 @@ export default function WelcomePage() {
             const pending = pendingSetupFrom(data.user.user_metadata);
             if (pending) {
                 setName(pending.name); setOrgName(pending.org_name);
-                setCompanyName(pending.company_name); setWithSample(pending.with_sample);
+                setWithSample(pending.with_sample);
             }
             // Run once, even under StrictMode's double effect.
             if (pending && !started.current) {
@@ -58,17 +56,18 @@ export default function WelcomePage() {
 
     if (session === 'none') {
         return (
-            <AuthCard icon={Building2} title="Log in to continue" subtitle="Your confirmation link has expired or was opened on another device.">
-                <p className="text-center text-sm"><Link to="/login" className="font-medium text-primary hover:underline">Log in</Link> to finish setting up.</p>
+            <AuthCard label="Welcome" title="Log in to continue." subtitle="Your confirmation link has expired or was opened on another device.">
+                <AuthFooterRow text="Log in to finish setting up." to="/login">Log in →</AuthFooterRow>
             </AuthCard>
         );
     }
 
     if (session === 'checking' || auto) {
         return (
-            <AuthCard icon={Building2} title="Setting up your organisation…">
-                <p role="status" className="flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-slate-400">
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> This takes a few seconds.
+            <AuthCard label="Welcome" title="Setting up your organisation…">
+                <p role="status" className={`flex items-center gap-2 text-[14px] ${authMuted}`}>
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden />
+                    This takes a few seconds.
                 </p>
             </AuthCard>
         );
@@ -79,7 +78,7 @@ export default function WelcomePage() {
         setError('');
         setBusy(true);
         try {
-            await finishSetup({ name: name.trim(), org_name: orgName.trim(), company_name: companyName.trim(), with_sample: withSample });
+            await finishSetup({ name: name.trim(), org_name: orgName.trim(), company_name: orgName.trim(), with_sample: withSample });
             navigate('/dashboard', { replace: true });
         } catch (err) {
             setError((err as Error).message);
@@ -89,22 +88,21 @@ export default function WelcomePage() {
     };
 
     return (
-        <AuthCard icon={Building2} title="Set up your organisation"
+        <AuthCard label="Welcome" title="Set up your organisation."
             subtitle="You’re signed in but not part of a team yet. Start your own, or ask your admin for an invite.">
             <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                    <label htmlFor="name" className="text-sm font-medium text-gray-700 dark:text-slate-300">Your name</label>
-                    <Input id="name" name="name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} maxLength={120} required />
-                </div>
-                <SetupFields orgName={orgName} companyName={companyName} withSample={withSample}
-                    onOrgName={setOrgName} onCompanyName={setCompanyName} onWithSample={setWithSample} />
-                {error && <p role="alert" className="text-sm font-medium text-blocked dark:text-red-300">{error}</p>}
-                <Button type="submit" className="w-full" disabled={busy}>{busy ? 'Setting up…' : 'Create my organisation'}</Button>
-                <p className="text-center text-sm">
-                    <button type="button" onClick={() => void useAuthStore.getState().signOut().then(() => navigate('/login'))}
-                        className="font-medium text-primary hover:underline">Sign out</button>
-                </p>
+                <Field id="name" label="Your name">
+                    <AuthInput id="name" name="name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} maxLength={120} required />
+                </Field>
+                <SetupFields orgName={orgName} withSample={withSample} onOrgName={setOrgName} onWithSample={setWithSample} />
+                {error && <AuthError>{error}</AuthError>}
+                <SubmitButton busy={busy} busyLabel="Setting up…">Create my organisation</SubmitButton>
             </form>
+            <div className="mt-10 flex items-center justify-between gap-4 border-t border-neutral-200 pt-6 text-[14px] dark:border-[#1F1F1F]">
+                <span className={authMuted}>Wrong account?</span>
+                <button type="button" onClick={() => void useAuthStore.getState().signOut().then(() => navigate('/login'))}
+                    className="font-medium underline-offset-4 hover:underline">Sign out</button>
+            </div>
         </AuthCard>
     );
 }

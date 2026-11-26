@@ -53,7 +53,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
         <div className="flex h-full flex-col bg-ink text-white">
             <div className="flex h-14 items-center gap-2.5 px-4">
                 <div className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-white p-1 shadow-sm shrink-0 overflow-hidden ring-1 ring-white/10">
-                    <img src="/logo.avif" alt="Commit" className="h-full w-full object-contain" />
+                    <img src="/brand/commit-mark.png" alt="" className="h-full w-full object-contain" />
                 </div>
                 <span className="text-[15px] font-semibold tracking-tight">Commit</span>
                 {onNavigate && (

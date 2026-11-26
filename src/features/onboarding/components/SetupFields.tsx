@@ -1,34 +1,28 @@
-import { Input } from '@/components/ui/input';
+import { AuthInput, Field } from '@/features/auth/components/AuthLayout';
 
-/** The organisation fields shared by the sign-up and welcome pages. */
-export function SetupFields({ orgName, companyName, withSample, onOrgName, onCompanyName, onWithSample }: {
+/**
+ * The organisation fields shared by the sign-up and welcome pages. Most
+ * organisations are one business, so there is one name: the first company is
+ * created with the same name. Groups add their other companies in Settings.
+ */
+export function SetupFields({ orgName, withSample, onOrgName, onWithSample }: {
     orgName: string;
-    companyName: string;
     withSample: boolean;
     onOrgName: (v: string) => void;
-    onCompanyName: (v: string) => void;
     onWithSample: (v: boolean) => void;
 }) {
     return (
         <>
-            <div className="space-y-2">
-                <label htmlFor="org-name" className="text-sm font-medium text-gray-700 dark:text-slate-300">Organisation</label>
-                <p id="org-name-hint" className="text-xs text-gray-500 dark:text-slate-400">Your group or holding company, e.g. Asante Holdings.</p>
-                <Input id="org-name" name="organization" autoComplete="organization" value={orgName}
+            <Field id="org-name" label="Organisation name" hint="Your business or team, e.g. Inspiration Pit Studios. Run more than one business? Add the others in Settings once you’re in.">
+                <AuthInput id="org-name" name="organization" autoComplete="organization" value={orgName}
                     onChange={(e) => onOrgName(e.target.value)} maxLength={120} required aria-describedby="org-name-hint" />
-            </div>
-            <div className="space-y-2">
-                <label htmlFor="company-name" className="text-sm font-medium text-gray-700 dark:text-slate-300">First company</label>
-                <p id="company-name-hint" className="text-xs text-gray-500 dark:text-slate-400">One of the businesses you run. You can add more later.</p>
-                <Input id="company-name" name="company" autoComplete="off" value={companyName}
-                    onChange={(e) => onCompanyName(e.target.value)} maxLength={120} required aria-describedby="company-name-hint" />
-            </div>
-            <label htmlFor="with-sample" className="flex items-start gap-3 rounded-xl border border-gray-200 p-3 text-sm dark:border-slate-700">
+            </Field>
+            <label htmlFor="with-sample" className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-3.5 text-[14px] transition-colors hover:bg-neutral-50 dark:border-[#1F1F1F] dark:hover:bg-[#111]">
                 <input id="with-sample" name="with-sample" type="checkbox" checked={withSample}
-                    onChange={(e) => onWithSample(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#F58220]" />
+                    onChange={(e) => onWithSample(e.target.checked)} className="mt-0.5 h-4 w-4 accent-neutral-950 dark:accent-white" />
                 <span>
-                    <span className="block font-medium text-gray-800 dark:text-slate-200">Add a sample project</span>
-                    <span className="block text-gray-500 dark:text-slate-400">See a full morning brief straight away. Remove it in one click when you’re ready.</span>
+                    <span className="block font-medium">Add a sample project</span>
+                    <span className="block text-neutral-500 dark:text-neutral-400">See every view with real-looking work straight away. Remove it in one click when you’re ready.</span>
                 </span>
             </label>
         </>

@@ -31,7 +31,9 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function InviteDialog({ open, onClose, onCreated, companies, allowedRoles, lockedCompanyId, initial }: Props) {
     const ids = { name: useId(), email: useId(), company: useId() };
-    const blank: InviteDraft = { name: '', email: '', role: 'employee', company_id: lockedCompanyId ?? '' };
+    // One company: no picker, everyone joins it.
+    const only = companies.length === 1 ? companies[0].id : null;
+    const blank: InviteDraft = { name: '', email: '', role: 'employee', company_id: lockedCompanyId ?? only ?? '' };
     const [draft, setDraft] = useState<InviteDraft>(blank);
     const [errors, setErrors] = useState<Partial<Record<keyof InviteDraft, string>>>({});
     const [saving, setSaving] = useState(false);
@@ -41,7 +43,7 @@ export default function InviteDialog({ open, onClose, onCreated, companies, allo
 
     useEffect(() => {
         if (!open) return;
-        setDraft({ ...blank, ...initial, company_id: lockedCompanyId ?? initial?.company_id ?? '' });
+        setDraft({ ...blank, ...initial, company_id: lockedCompanyId ?? initial?.company_id ?? only ?? '' });
         setErrors({}); setSaveError(null); setMade(null); setCopied(null);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
@@ -128,14 +130,14 @@ export default function InviteDialog({ open, onClose, onCreated, companies, allo
                         </div>
                     </div>
 
-                    <div className="space-y-1.5">
+                    {!only && <div className="space-y-1.5">
                         <label htmlFor={ids.company} className="block text-sm font-semibold text-ink dark:text-slate-100">Company</label>
                         <select id={ids.company} value={draft.company_id} disabled={!!lockedCompanyId} onChange={e => set('company_id', e.target.value)} aria-invalid={!!errors.company_id || undefined} aria-describedby={errors.company_id ? `${ids.company}-e` : undefined} className={cn(field, errors.company_id && bad)}>
                             <option value="">Choose a company</option>
                             {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                         {errors.company_id && <p id={`${ids.company}-e`} className="text-[12.5px] font-medium text-blocked dark:text-red-300">{errors.company_id}</p>}
-                    </div>
+                    </div>}
 
                     {/* Role as described choices: what someone can do matters more than the job title. */}
                     <fieldset className="space-y-2">

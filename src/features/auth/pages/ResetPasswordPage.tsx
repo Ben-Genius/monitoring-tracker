@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, KeyRound, LinkIcon } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import AuthCard from '../components/AuthCard';
+import { AuthError, AuthFooterRow, Field, PasswordInput, SubmitButton } from '../components/AuthLayout';
+import { authMuted } from '../components/authStyles';
 
 type LinkState = 'checking' | 'ready' | 'expired';
 
@@ -17,7 +16,6 @@ export default function ResetPasswordPage() {
     const navigate = useNavigate();
     const [link, setLink] = useState<LinkState>('checking');
     const [password, setPassword] = useState('');
-    const [show, setShow] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
 
@@ -56,54 +54,43 @@ export default function ResetPasswordPage() {
     };
 
     if (link === 'checking') {
-        return <AuthCard icon={KeyRound} title="Checking your link…"><span className="sr-only" role="status">Checking your reset link</span></AuthCard>;
-    }
-
-    if (link === 'expired') {
         return (
-            <AuthCard icon={LinkIcon} title="This link has expired" subtitle="Reset links work once and only for a short time.">
-                <p className="text-center text-sm">
-                    <Link to="/forgot-password" className="font-medium text-primary hover:underline">Send a new link</Link>
+            <AuthCard label="Reset password" title="Checking your link…">
+                <p role="status" className={`flex items-center gap-2 text-[14px] ${authMuted}`}>
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden />
+                    This takes a second.
                 </p>
             </AuthCard>
         );
     }
 
+    if (link === 'expired') {
+        return (
+            <AuthCard label="Reset password" title="This link has expired." subtitle="Reset links work once, and only for a short time.">
+                <AuthFooterRow text="Need another?" to="/forgot-password">Send a new link →</AuthFooterRow>
+            </AuthCard>
+        );
+    }
+
     return (
-        <AuthCard icon={KeyRound} title="Choose a new password">
+        <AuthCard label="Reset password" title="Choose a new password.">
             <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                    <label htmlFor="new-password" className="text-sm font-medium text-gray-700 dark:text-slate-300">New password</label>
-                    <p id="new-password-hint" className="text-xs text-gray-500 dark:text-slate-400">At least 8 characters.</p>
-                    <div className="relative">
-                        <Input
-                            id="new-password"
-                            name="new-password"
-                            type={show ? 'text' : 'password'}
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            autoComplete="new-password"
-                            minLength={8}
-                            required
-                            autoFocus
-                            enterKeyHint="done"
-                            aria-describedby="new-password-hint"
-                            className="pr-11 [&:user-invalid]:border-blocked"
-                        />
-                        <button
-                            type="button"
-                            onClick={() => setShow(s => !s)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200"
-                            aria-label={show ? 'Hide password' : 'Show password'}
-                        >
-                            {show ? <EyeOff className="h-4 w-4" aria-hidden /> : <Eye className="h-4 w-4" aria-hidden />}
-                        </button>
-                    </div>
-                </div>
-                {error && <p role="alert" className="text-sm font-medium text-blocked dark:text-red-300">{error}</p>}
-                <Button type="submit" className="w-full" disabled={saving}>
-                    {saving ? 'Saving…' : 'Save new password'}
-                </Button>
+                <Field id="new-password" label="New password" hint="At least 8 characters.">
+                    <PasswordInput
+                        id="new-password"
+                        name="new-password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        autoComplete="new-password"
+                        minLength={8}
+                        required
+                        autoFocus
+                        enterKeyHint="done"
+                        aria-describedby="new-password-hint"
+                    />
+                </Field>
+                {error && <AuthError>{error}</AuthError>}
+                <SubmitButton busy={saving} busyLabel="Saving…">Save new password</SubmitButton>
             </form>
         </AuthCard>
     );

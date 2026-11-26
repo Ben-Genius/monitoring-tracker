@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pricing · Commit</title>
+  <meta name="description" content="Commit is free for your organisation and your whole team, with no per-person fees. Groups that run several businesses pay per extra business, with every one in one view." />
+  <meta property="og:title" content="Pricing · Commit" />
+  <meta property="og:description" content="Commit is free for your organisation and your whole team, with no per-person fees. Groups that run several businesses pay per extra business, with every one in one view." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="/icons/app-512.png" />
+  <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0A0A0A" media="(prefers-color-scheme: dark)" />
+  <link rel="icon" type="image/png" sizes="64x64" href="/brand/commit-64.png" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script>
+    // Motion is on: hide the first screen's text until it animates in. If the
+    // animation code never runs (blocked, offline), show everything after 3s.
+    try {
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        document.documentElement.classList.add('js');
+        setTimeout(function () { if (!window.__commitMotion) document.documentElement.classList.remove('js'); }, 3000);
+      }
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="/src/styles/landing.css" />
+</head>
+<body>
+  <header class="site">
+    <div class="rail">
+      <a class="brand" href="/"><img src="/brand/commit-mark.png" alt="" width="24" height="24" /><b>Commit</b><i>.</i></a>
+      <nav class="links" aria-label="Main">
+        <a class="text hide-sm" href="/features">Features</a>
+        <a class="text hide-sm on" href="/pricing" aria-current="page">Pricing</a>
+        <a class="text" href="/login" data-login>Log in</a>
+        <a class="btn btn-primary" href="/start">Start free</a>
+      </nav>
+    </div>
+    <i class="progress" aria-hidden="true"></i>
+  </header>
+
+  <main class="rail">
+    <section class="sec page-head" aria-labelledby="pricing-h">
+      <div class="pad">
+        <p class="label" data-in>Pricing</p>
+        <h1 id="pricing-h">Free for your whole team. No per-person fees.</h1>
+        <p class="lead" data-in>Most tools charge for every person you add. Commit doesn’t. Your organisation is free, however many people you bring in. Groups that run several businesses pay for each extra business.</p>
+      </div>
+    </section>
+
+    <section class="sec" id="pricing" aria-label="Plans">
+      <div class="plans">
+        <div class="plan">
+          <span class="label">Free</span>
+          <p class="price">0</p>
+          <p class="per">Your organisation and your whole team</p>
+          <ul>
+            <li>Everyone you work with, no seat limits</li>
+            <li>Board, list, calendar, timeline and workload</li>
+            <li>My work, live updates and @mentions</li>
+            <li>Escalations, proof of done and a 7am email</li>
+          </ul>
+          <a class="btn btn-ghost" href="/start">Start free</a>
+        </div>
+        <div class="plan featured">
+          <span class="label">Group</span>
+          <p class="price">Per business</p>
+          <p class="per">For groups that run several businesses</p>
+          <ul>
+            <li>Every business in one view, each kept separate</li>
+            <li>Unlimited field staff, with WhatsApp updates</li>
+            <li>Approvals and analytics across businesses</li>
+            <li>Pay by card or Mobile Money</li>
+          </ul>
+          <a class="btn btn-primary" href="%VITE_PUBLIC_SALES_URL%" data-sales>Talk to us</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" aria-labelledby="faq-h">
+      <div class="pad">
+        <div class="head">
+          <p class="label"><span class="idx">01</span>Questions</p>
+          <h2 id="faq-h">Good to know.</h2>
+        </div>
+      </div>
+      <div class="faq">
+        <details>
+          <summary>Can other organisations on Commit see our work?</summary>
+          <p>No. Each organisation is kept separate in the database itself, not just hidden in the app, and every request is checked against who is signed in.</p>
+        </details>
+        <details>
+          <summary>Will people in the field actually use it?</summary>
+          <p>They don’t need to learn a board. My work shows each person only their own tasks with one button for the next step, and anyone can update by WhatsApp instead. Accepting a task is a single tap.</p>
+        </details>
+        <details>
+          <summary>Does it work on slow connections?</summary>
+          <p>Yes. Pages load only what they need, it installs on a phone’s home screen, and it still opens when the connection drops.</p>
+        </details>
+        <details>
+          <summary>We run several businesses. Can we see them together?</summary>
+          <p>Yes. Start with one, then add the others in Settings. Each business keeps its own projects and people, and dashboards, timelines, workload and analytics can show them all at once or one at a time. If you run one business, you never see any of this.</p>
+        </details>
+        <details>
+          <summary>Can we move our existing work in?</summary>
+          <p>Yes. Import tasks from a spreadsheet, export any view to CSV, and save a finished project as a template for the next one.</p>
+        </details>
+      </div>
+    </section>
+
+    <section class="sec closing" aria-labelledby="close-h">
+      <h2 id="close-h">Start free today.</h2>
+      <p>Your organisation and your whole team, at no cost. Add more businesses whenever you grow.</p>
+      <div class="ctas">
+        <a class="btn btn-primary" href="/start">Start free <span class="arrow" aria-hidden="true">→</span></a>
+        <a class="btn btn-ghost" href="/login" data-login>Log in</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site">
+    <div class="rail">
+      <span>© <span data-year>2026</span> Commit</span>
+      <a href="/features">Features</a>
+      <a href="/pricing">Pricing</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+    </div>
+  </footer>
+
+  <script type="module" src="/src/landing/main.js"></script>
+</body>
+</html>

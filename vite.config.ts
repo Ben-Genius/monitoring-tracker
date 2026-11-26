@@ -9,7 +9,7 @@ import path from 'path'
  * for `vite` and `vite preview`.
  */
 /** Plain HTML pages served at clean URLs (vercel.json does the same). */
-const STATIC_PAGES = new Set(['/privacy', '/terms']);
+const STATIC_PAGES = new Set(['/features', '/pricing', '/privacy', '/terms']);
 
 const appShellRoutes: Connect.NextHandleFunction = (req, _res, next) => {
     const url = req.url ?? '/';
@@ -52,6 +52,8 @@ export default defineConfig({
             input: {
                 index: path.resolve(__dirname, 'index.html'),
                 app: path.resolve(__dirname, 'app.html'),
+                features: path.resolve(__dirname, 'features.html'),
+                pricing: path.resolve(__dirname, 'pricing.html'),
                 privacy: path.resolve(__dirname, 'privacy.html'),
                 terms: path.resolve(__dirname, 'terms.html'),
             },

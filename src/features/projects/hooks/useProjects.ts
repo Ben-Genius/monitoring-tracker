@@ -196,6 +196,16 @@ export function useCompanies() {
     });
 }
 
+/**
+ * The organisation's company when it has exactly one, else null. Most
+ * organisations are one business: the company layer (switcher, pickers,
+ * "all companies" views) only appears once a second company is added.
+ */
+export function useOnlyCompany() {
+    const { data: companies = [] } = useCompanies();
+    return companies.length === 1 ? companies[0] as { id: string; name: string } : null;
+}
+
 // Fetch all leads
 export function useLeads(companyId?: string) {
     return useQuery({

@@ -2,7 +2,6 @@ import { useEffect, useState, useId } from 'react';
 import { toast } from 'react-hot-toast';
 import {
     Bell,
-    Building2,
     Database,
     Moon,
     Sun,
@@ -29,6 +28,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import BriefEmailSetting from '../components/BriefEmailSetting';
 import WhatsAppSetting from '../components/WhatsAppSetting';
+import CompaniesSetting from '../components/CompaniesSetting';
 
 function getInitials(name: string): string {
     return name
@@ -418,55 +418,8 @@ export default function SettingsPage() {
                         </CardContent>
                     </Card>
 
-                    {/* Admin Companies Directory Panel */}
-                    {isAdmin && (
-                        <Card className="rounded-[14px] border border-line bg-surface shadow-sm overflow-hidden dark:border-slate-800 dark:bg-slate-900">
-                            <CardHeader className="border-b border-line dark:border-slate-800 px-6 py-4">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2.5">
-                                        <Building2 className="h-4 w-4 text-slate-500" aria-hidden />
-                                        <CardTitle className="text-base font-bold text-slate-900 dark:text-slate-100">
-                                            Authorized Ventures
-                                        </CardTitle>
-                                    </div>
-                                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 tabular-nums">
-                                        {companies.length} units
-                                    </span>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="p-0">
-                                <ul className="divide-y divide-line dark:divide-slate-800">
-                                    {companies.map((c: { id: string; name: string; description?: string | null }) => {
-                                        const cTheme = getCompanyTheme(c.name);
-                                        return (
-                                            <li key={c.id} className="px-6 py-3 flex items-center justify-between gap-3">
-                                                <div className="min-w-0">
-                                                    <div className="flex items-center gap-2">
-                                                        <span
-                                                            className="h-2.5 w-2.5 rounded-full shrink-0"
-                                                            style={{ backgroundColor: cTheme.primary }}
-                                                            aria-hidden
-                                                        />
-                                                        <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
-                                                            {c.name}
-                                                        </p>
-                                                    </div>
-                                                    {c.description && (
-                                                        <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate pl-4 mt-0.5">
-                                                            {c.description}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                                                    Active
-                                                </span>
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
-                            </CardContent>
-                        </Card>
-                    )}
+                    {/* The organisation's companies; a group adds its other businesses here. */}
+                    {isAdmin && <CompaniesSetting />}
                 </div>
             </div>
         </div>

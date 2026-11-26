@@ -8,7 +8,7 @@
 
 const VERSION = new URL(self.location.href).searchParams.get('v') || 'dev';
 const CACHE = `commit-shell-${VERSION}`;
-const SHELL = ['/app.html', '/manifest.webmanifest', '/icons/app-192.png', '/icons/app-512.png', '/favicon.png'];
+const SHELL = ['/app.html', '/manifest.webmanifest', '/icons/app-192.png', '/icons/app-512.png', '/brand/commit-64.png', '/brand/commit-mark.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));
@@ -34,7 +34,7 @@ self.addEventListener('fetch', (event) => {
   // Page loads: try the network so a deploy shows up at once; offline, serve the
   // app shell. "/" is the public landing page, so it is never stored as the shell.
   if (request.mode === 'navigate') {
-    const isApp = !['/', '/index.html', '/privacy', '/privacy.html', '/terms', '/terms.html'].includes(url.pathname);
+    const isApp = !['/', '/index.html', '/features', '/features.html', '/pricing', '/pricing.html', '/privacy', '/privacy.html', '/terms', '/terms.html'].includes(url.pathname);
     event.respondWith(
       fetch(request)
         .then((response) => {

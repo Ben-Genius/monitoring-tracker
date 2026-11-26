@@ -1,10 +1,8 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { KeyRound, MailCheck } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import AuthCard from '../components/AuthCard';
+import { AuthError, AuthFooterRow, AuthInput, Field, SubmitButton } from '../components/AuthLayout';
+import { authMuted } from '../components/authStyles';
 
 export default function ForgotPasswordPage() {
     const [email, setEmail] = useState('');
@@ -33,42 +31,37 @@ export default function ForgotPasswordPage() {
 
     if (sent) {
         return (
-            <AuthCard icon={MailCheck} title="Check your email"
-                subtitle={<>If <strong>{email.trim()}</strong> has a Commit account, a link to reset the password is on its way. It works once.</>}>
-                <div className="space-y-3 text-center text-sm">
-                    <p className="text-gray-500 dark:text-slate-400">No email after a few minutes? Check spam, or ask your admin to send you a new invite.</p>
-                    <Link to="/login" className="inline-block font-medium text-primary hover:underline">Back to log in</Link>
-                </div>
+            <AuthCard label="Check your email" title="Link on its way."
+                subtitle={<>If <strong className="font-medium text-neutral-950 dark:text-white">{email.trim()}</strong> has a Commit account, a link to reset the password is on its way. It works once.</>}>
+                <p className={`text-[14px] ${authMuted}`}>No email after a few minutes? Check spam, or ask your admin to send you a new invite.</p>
+                <AuthFooterRow text="Remembered it?" to="/login">Back to log in →</AuthFooterRow>
             </AuthCard>
         );
     }
 
     return (
-        <AuthCard icon={KeyRound} title="Reset your password" subtitle="Enter the email you sign in with and we’ll send you a link to choose a new password.">
+        <AuthCard label="Reset password" title="Forgot your password?"
+            subtitle="Enter the email you sign in with and we’ll send you a link to choose a new one.">
             <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                    <label htmlFor="email" className="text-sm font-medium text-gray-700 dark:text-slate-300">Email</label>
-                    <Input
+                <Field id="email" label="Email">
+                    <AuthInput
                         id="email"
                         name="email"
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
+                        placeholder="you@company.com"
                         autoComplete="username"
                         spellCheck={false}
                         enterKeyHint="send"
                         required
                         autoFocus
                     />
-                </div>
-                {error && <p role="alert" className="text-sm font-medium text-blocked dark:text-red-300">{error}</p>}
-                <Button type="submit" className="w-full" disabled={sending}>
-                    {sending ? 'Sending…' : 'Send reset link'}
-                </Button>
-                <p className="text-center text-sm">
-                    <Link to="/login" className="font-medium text-primary hover:underline">Back to log in</Link>
-                </p>
+                </Field>
+                {error && <AuthError>{error}</AuthError>}
+                <SubmitButton busy={sending} busyLabel="Sending…">Send reset link</SubmitButton>
             </form>
+            <AuthFooterRow text="Remembered it?" to="/login">Back to log in →</AuthFooterRow>
         </AuthCard>
     );
 }

@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { AlertCircle } from 'lucide-react';
 import { DialogShell } from '@/components/ui/dialog-shell';
-import { useCreateProject, useCompanies, type CreateProjectInput } from '../hooks/useProjects';
+import { useCreateProject, useCompanies, useOnlyCompany, type CreateProjectInput } from '../hooks/useProjects';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { canAdminister } from '@/lib/permissions';
@@ -38,16 +38,20 @@ export default function CreateProjectModal({ open, onClose }: CreateProjectModal
     const createProject = useCreateProject();
     const canChooseCompany = canAdminister(user);
     const { data: companies } = useCompanies();
+    const only = useOnlyCompany();
     const [saveError, setSaveError] = useState<string | null>(null);
     const { data: templates = [] } = useProjectTemplates();
     const fromTemplate = useCreateFromTemplate();
     const [templateId, setTemplateId] = useState('');
     const template = templates.find(t => t.id === templateId);
 
-    const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<ProjectFormData>({
+    const { register, handleSubmit, setValue, formState: { errors, isSubmitting }, reset } = useForm<ProjectFormData>({
         resolver: zodResolver(projectSchema),
         defaultValues: { company_id: canChooseCompany ? '' : user?.company_id || '', contract_value: 0 },
     });
+
+    // One company: no picker, the project simply goes there.
+    useEffect(() => { if (only && open) setValue('company_id', only.id); }, [only, open, setValue]);
 
     const close = () => { setSaveError(null); onClose(); };
 
@@ -98,12 +102,12 @@ export default function CreateProjectModal({ open, onClose }: CreateProjectModal
                         <textarea id="np-desc" rows={3} {...register('description')} aria-describedby="np-desc-hint" className={cn(fieldCls, 'h-auto py-2.5')} />
                     </Field>
 
-                    <Field id="np-company" label="Company" required error={errors.company_id?.message} hint={canChooseCompany ? undefined : 'Projects are created in your own company.'}>
+                    {!only && <Field id="np-company" label="Company" required error={errors.company_id?.message} hint={canChooseCompany ? undefined : 'Projects are created in your own company.'}>
                         <select id="np-company" {...register('company_id')} disabled={!canChooseCompany} {...aria('np-company', errors.company_id, !canChooseCompany)} className={cn(fieldCls, errors.company_id && errorFieldCls)}>
                             <option value="">Choose a company</option>
                             {companies?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
-                    </Field>
+                    </Field>}
 
                     <Field id="np-value" label="Contract value (GHS)" required error={errors.contract_value?.message} hint="Full amount in cedis, not millions.">
                         <input id="np-value" type="number" inputMode="decimal" min={0} step="0.01" {...register('contract_value', { valueAsNumber: true })} {...aria('np-value', errors.contract_value, true)} className={cn(fieldCls, errors.contract_value && errorFieldCls)} />
