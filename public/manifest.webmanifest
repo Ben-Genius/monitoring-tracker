@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "Pulse360",
-  "short_name": "Pulse360",
-  "description": "Execution and accountability for multi-company groups.",
+  "name": "Commit",
+  "short_name": "Commit",
+  "description": "Projects planned. Work done. Everyone accountable.",
   "start_url": "/login",
   "scope": "/",
   "display": "standalone",

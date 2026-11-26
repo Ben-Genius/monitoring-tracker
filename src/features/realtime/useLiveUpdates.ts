@@ -60,7 +60,7 @@ export function useLiveUpdates() {
             (payload) => {
                 queue('notifications');
                 const n = payload.new as { type?: string; title?: string; body?: string };
-                if (n.type === 'mention' || n.type === 'nudge' || n.type === 'blocking_you') {
+                if (n.type === 'mention' || n.type === 'nudge' || n.type === 'blocking_you' || n.type === 'unblocked') {
                     toast(n.title ?? 'New notification', { icon: n.type === 'mention' ? '@' : '•', duration: 5000 });
                 }
             });

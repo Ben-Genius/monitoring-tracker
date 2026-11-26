@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 import type { Role } from '@/lib/permissions';
 import { track } from '@/lib/analytics';
 
-/** Where a person stands on getting into Pulse360. */
+/** Where a person stands on getting into Commit. */
 export type Access =
     | 'signed_in'   // has a login and used it in the last 14 days
     | 'quiet'       // has a login but has not used it lately
@@ -181,7 +181,7 @@ export async function createInvite(input: { name: string; email: string; role: R
         const msg = error.message ?? '';
         throw new Error(
             /duplicate/i.test(msg) ? 'This email already has an invite waiting. Copy that link from the Invites list instead.'
-                : /fetch|network|failed to/i.test(msg) ? 'Pulse360 could not reach the server, so no invite was made. Check your connection and try again.'
+                : /fetch|network|failed to/i.test(msg) ? 'Commit could not reach the server, so no invite was made. Check your connection and try again.'
                     : /permission|policy|denied/i.test(msg) ? 'Your role cannot invite into this company. Ask an admin.'
                         : 'The invite could not be created. Check the details and try again.'
         );
@@ -199,7 +199,7 @@ export async function setUserAccess(userId: string, active: boolean) {
             /own account/i.test(msg) ? 'You cannot deactivate your own account.'
                 : /one admin/i.test(msg) ? 'At least one admin must keep access, so this admin cannot be deactivated.'
                     : /only an admin/i.test(msg) ? 'Only an admin can change who can sign in.'
-                        : /fetch|network|failed to/i.test(msg) ? 'Pulse360 could not reach the server, so nothing changed. Try again.'
+                        : /fetch|network|failed to/i.test(msg) ? 'Commit could not reach the server, so nothing changed. Try again.'
                             : 'Access could not be changed. Try again.'
         );
     }

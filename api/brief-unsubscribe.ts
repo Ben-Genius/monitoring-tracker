@@ -34,12 +34,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('X-Robots-Tag', 'noindex');
 
     if (!verifyUnsubscribe(u, s)) {
-        return res.status(400).send(page('Link not valid', '<h1>This link isn’t valid</h1><p>Turn the morning email off in Pulse360 under Settings instead.</p>'));
+        return res.status(400).send(page('Link not valid', '<h1>This link isn’t valid</h1><p>Turn the morning email off in Commit under Settings instead.</p>'));
     }
 
     if (req.method === 'GET') {
         return res.status(200).send(page('Stop the morning email',
-            `<h1>Stop the 7am morning email?</h1><p>You can still read the brief in Pulse360 any time, and turn the email back on in Settings.</p>
+            `<h1>Stop the 7am morning email?</h1><p>You can still read the brief in Commit any time, and turn the email back on in Settings.</p>
              <form method="post"><button type="submit">Stop the emails</button></form>`));
     }
     if (req.method !== 'POST') return res.status(405).send(page('Not allowed', '<h1>Not allowed</h1>'));
@@ -49,5 +49,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(500).send(page('Try again', '<h1>That didn’t work</h1><p>Try the link again in a minute, or turn the email off in Settings.</p>'));
     }
     return res.status(200).send(page('Emails stopped',
-        '<h1>You won’t get the morning email</h1><p>Changed your mind? Turn it back on in Pulse360 under Settings.</p><a class="btn" href="/settings">Open Settings</a>'));
+        '<h1>You won’t get the morning email</h1><p>Changed your mind? Turn it back on in Commit under Settings.</p><a class="btn" href="/settings">Open Settings</a>'));
 }

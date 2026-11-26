@@ -35,7 +35,7 @@ export const ACCESS: Record<Access, { label: string; hint: string }> = {
     signed_in: { label: 'Signed in recently', hint: 'Used their login in the last 14 days' },
     quiet: { label: 'Has a login, quiet', hint: 'Has a login but has not signed in for 14+ days' },
     invited: { label: 'Invite waiting', hint: 'An invite link exists but has not been used' },
-    no_login: { label: 'No login yet', hint: 'Added to Pulse360 but cannot sign in until invited' },
+    no_login: { label: 'No login yet', hint: 'Added to Commit but cannot sign in until invited' },
     deactivated: { label: 'Deactivated', hint: 'An admin turned their access off; they cannot sign in' },
     unknown: { label: 'Not checked', hint: 'Sign-in status needs the access check installed' },
 };
@@ -71,7 +71,7 @@ export function expiry(iso: string | null) {
 export function inviteMessage(p: { name: string | null; role: Role; company: string | null }, link: string, expires: string | null) {
     const first = p.name?.trim().split(/\s+/)[0];
     const exp = expires ? ` The link works until ${new Date(expires).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}.` : '';
-    return `Hi${first ? ` ${first}` : ''}, you have been added to Pulse360 as ${ROLES[p.role]?.label ?? p.role}${p.company ? ` for ${p.company}` : ''}. Set up your login here: ${link}${exp}`;
+    return `Hi${first ? ` ${first}` : ''}, you have been added to Commit as ${ROLES[p.role]?.label ?? p.role}${p.company ? ` for ${p.company}` : ''}. Set up your login here: ${link}${exp}`;
 }
 
 /** Workload in plain words, used by the table and the person panel. */

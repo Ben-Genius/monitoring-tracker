@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, AlertTriangle, ArrowRightLeft, UserPlus, Gauge, CheckCircle2, Hand, MessageSquare, StickyNote, AtSign } from 'lucide-react';
+import { Bell, AlertTriangle, ArrowRightLeft, UserPlus, Gauge, CheckCircle2, Hand, MessageSquare, StickyNote, AtSign, PlayCircle, Clock } from 'lucide-react';
 import { cn, formatRelativeTime } from '@/lib/utils';
 import { useNotifications, useMarkNotificationsRead, type AppNotification } from '../hooks/useNotifications';
 
@@ -14,6 +14,8 @@ const ICONS: Record<AppNotification['type'], { icon: typeof Bell; tone: string }
     comment: { icon: MessageSquare, tone: 'text-slate-600 bg-slate-100' },
     nudge: { icon: StickyNote, tone: 'text-slate-700 bg-slate-100' },
     mention: { icon: AtSign, tone: 'text-blue-600 bg-blue-50' },
+    unblocked: { icon: PlayCircle, tone: 'text-slate-700 bg-slate-100' },
+    escalation: { icon: Clock, tone: 'text-slate-700 bg-slate-100' },
 };
 
 export default function NotificationsBell() {

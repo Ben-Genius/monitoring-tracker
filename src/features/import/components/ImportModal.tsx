@@ -231,7 +231,7 @@ export function ImportModal({ open, onClose, onComplete }: ImportModalProps) {
                                                 <ArrowRight className="h-4 w-4 text-slate-300 shrink-0" />
                                                 <div className="flex-1">
                                                     <select
-                                                        aria-label={`Pulse360 field for ${map.csvColumn || `column ${i + 1}`}`}
+                                                        aria-label={`Commit field for ${map.csvColumn || `column ${i + 1}`}`}
                                                         value={map.dbField}
                                                         onChange={e => {
                                                             const updated = [...columnMap];

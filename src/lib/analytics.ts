@@ -2,7 +2,7 @@ import type { PostHog } from 'posthog-js';
 
 /**
  * Product analytics (PostHog, EU region), so we can see which teams are
- * actually using Pulse360 and where new ones drop off.
+ * actually using Commit and where new ones drop off.
  *
  * What is sent, on purpose:
  * - Named events only (see AnalyticsEvent). Autocapture is off, because click

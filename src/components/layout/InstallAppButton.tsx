@@ -55,7 +55,7 @@ export default function InstallAppButton() {
                 deferred.current = null;
                 await promptEvent.prompt();
                 const { outcome } = await promptEvent.userChoice;
-                if (outcome === 'accepted') toast.success('Pulse360 is installed.');
+                if (outcome === 'accepted') toast.success('Commit is installed.');
                 if (!deferred.current) setAvailable(false);
             }
         } catch (err) {

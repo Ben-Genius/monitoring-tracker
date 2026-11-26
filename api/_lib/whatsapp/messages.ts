@@ -49,7 +49,7 @@ export function taskList(firstName: string, tasks: ListedTask[]): string {
 }
 
 export const HELP = [
-    '*Pulse360 on WhatsApp*',
+    '*Commit on WhatsApp*',
     '',
     '• *tasks* — your open tasks, numbered',
     '• *2 50% what moved* — progress (25%, 50% or 75%)',
@@ -60,8 +60,8 @@ export const HELP = [
     'Updates go to your lead and the morning brief straight away.',
 ].join('\n');
 
-export const NOT_LINKED = 'This WhatsApp number isn\'t linked to Pulse360 yet. In Pulse360, open *Settings → WhatsApp* and follow the steps.';
-export const BAD_CODE = 'That code didn\'t work. Codes last 15 minutes: get a fresh one in Pulse360 under *Settings → WhatsApp*.';
+export const NOT_LINKED = 'This WhatsApp number isn\'t linked to Commit yet. In Commit, open *Settings → WhatsApp* and follow the steps.';
+export const BAD_CODE = 'That code didn\'t work. Codes last 15 minutes: get a fresh one in Commit under *Settings → WhatsApp*.';
 export const linked = (first: string) => `You're linked, ${first}. ✅\nSend *tasks* to see your work, or *help* for how updates work.`;
 export const UNKNOWN = 'Sorry, I didn\'t understand that. Send *tasks* for your list or *help* for examples.';
 export const PROOF_SAVE_FAILED = 'I couldn\'t save the photo. Please send it again.';

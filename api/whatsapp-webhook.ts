@@ -131,7 +131,7 @@ async function handle(db: Db, msg: InboundMessage): Promise<string | null> {
     if (error) {
         // Our own checks raise plain-language messages; anything else stays generic.
         const ours = error.code === 'P0001' || (error.code === '23514' && /proof/i.test(error.message));
-        return ours ? error.message : 'Something went wrong saving that. Try again, or update it in the Pulse360 app.';
+        return ours ? error.message : 'Something went wrong saving that. Try again, or update it in the Commit app.';
     }
     return `${result as string}\nSend *tasks* for your list.`;
 }

@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Pulse360 · Projects, tasks and teams in one place</title>
+  <title>Commit · Projects planned. Work done. Everyone accountable.</title>
   <meta name="description" content="Project and task management for groups that run several companies: boards, timelines, calendars, live updates, and field teams that update from their phones or WhatsApp. Priced in cedis. Start free." />
-  <meta property="og:title" content="Pulse360 · Every project, task and team in one place" />
+  <meta property="og:title" content="Commit · Projects planned. Work done. Everyone accountable." />
   <meta property="og:description" content="Boards, timelines and calendars for every company you run. Teams update from their phones or WhatsApp. Priced in cedis." />
   <meta property="og:type" content="website" />
   <meta property="og:image" content="/icons/app-512.png" />
@@ -168,7 +168,7 @@
 <body>
   <header class="site">
     <div class="wrap">
-      <a class="brand" href="/"><img src="/icons/app-192.png" alt="" width="28" height="28" />Pulse360</a>
+      <a class="brand" href="/"><img src="/icons/app-192.png" alt="" width="28" height="28" />Commit</a>
       <nav class="links" aria-label="Main">
         <a class="text hide-sm" href="#how">How it works</a>
         <a class="text hide-sm" href="#pricing">Pricing</a>
@@ -182,7 +182,7 @@
     <section class="hero">
       <div class="wrap">
         <div>
-          <p class="eyebrow">Project and task management</p>
+          <p class="eyebrow">Projects planned. Work done. Everyone accountable.</p>
           <h1>Every project, task and team, in one place.</h1>
           <p class="lead">Plan work on boards, timelines and calendars. Your teams update from their phones or straight from WhatsApp, and everyone sees changes the moment they happen. Built for groups that run several companies, and priced in cedis.</p>
           <div class="ctas">
@@ -309,7 +309,7 @@
         <h2 id="faq-h">Good to know</h2>
         <div class="faq">
           <details>
-            <summary>Can other companies on Pulse360 see our work?</summary>
+            <summary>Can other companies on Commit see our work?</summary>
             <p>No. Each organisation is kept separate in the database itself, not just hidden in the app, and every request is checked against who is signed in.</p>
           </details>
           <details>
@@ -345,7 +345,7 @@
 
   <footer class="site">
     <div class="wrap">
-      <span>© <span data-year>2026</span> Pulse360</span>
+      <span>© <span data-year>2026</span> Commit</span>
       <a href="#pricing">Pricing</a>
       <a href="/start">Start free</a>
       <a href="/login" data-login>Log in</a>
@@ -358,7 +358,7 @@
     // Signed in already (Supabase keeps the session in localStorage)? Offer the app instead of a login.
     try {
       if (Object.keys(localStorage).some(function (k) { return /^sb-.*-auth-token$/.test(k); })) {
-        document.querySelectorAll('[data-login]').forEach(function (a) { a.textContent = 'Open Pulse360'; });
+        document.querySelectorAll('[data-login]').forEach(function (a) { a.textContent = 'Open Commit'; });
       }
     } catch (e) { /* storage blocked: keep "Log in" */ }
     // No sales contact configured: send paid-plan interest to sign-up instead.

@@ -49,11 +49,11 @@ export default function LoginPage() {
                 {/* LEFT COLUMN: Expansive Brand Area with Large Floating Collage & Hero Typography */}
                 <div className="lg:col-span-7 xl:col-span-7 lg:border-r border-slate-200 dark:border-slate-800 relative flex flex-col justify-between p-6 sm:p-10 lg:px-12 xl:px-16 lg:py-10 overflow-hidden min-h-[640px] lg:min-h-[760px] bg-[#FAFBFD] dark:bg-slate-950">
 
-                    {/* Top-Left Brand Logo - Clean, Authentic & Orange Accent */}
+                    {/* Product logo. (It used to show one customer's group logo, which every organisation saw.) */}
                     <div className="relative z-30 flex items-center gap-3.5">
                         <img
-                            src="/logo-clean.png"
-                            alt="Pulse360"
+                            src="/icons/app-192.png"
+                            alt="Commit"
                             className="h-12 w-12 sm:h-14 sm:w-14 object-contain filter drop-shadow-sm"
                             onError={(e) => {
                                 e.currentTarget.src = '/logo.avif';
@@ -61,10 +61,10 @@ export default function LoginPage() {
                         />
                         <div className="flex flex-col">
                             <span className="text-2xl sm:text-3xl font-black tracking-tight text-[#1c1e21] dark:text-white leading-none">
-                                Pulse<span className="text-[#B45309] dark:text-[#F58220]">360</span>
+                                Commit<span className="text-[#B45309] dark:text-[#F58220]">.</span>
                             </span>
                             <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 dark:text-slate-400 tracking-wider uppercase mt-1">
-                                Operations & Milestone Platform
+                                Projects · Productivity · Accountability
                             </span>
                         </div>
                     </div>
@@ -105,7 +105,7 @@ export default function LoginPage() {
                         <div className="absolute top-[12px] right-[16px] sm:right-[32px] lg:right-[48px] z-20 w-[240px] sm:w-[295px] lg:w-[330px] h-[390px] sm:h-[450px] lg:h-[490px] rounded-[12px] overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.22)] border-[2px] border-white dark:border-slate-800 bg-slate-900 group">
                             <img
                                 src="/images/hero-main.webp"
-                                alt="Pulse360 Engineering Team"
+                                alt="A project team at work"
                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                                 onError={(e) => {
                                     e.currentTarget.src = 'https://plus.unsplash.com/premium_photo-1681691912442-68c4179c530c?auto=format&fit=crop&w=800&q=80';
@@ -209,7 +209,7 @@ export default function LoginPage() {
 
                         {/* Form Title */}
                         <h2 className="text-[19px] sm:text-[21px] font-bold text-[#1c1e21] dark:text-white mb-6">
-                            Log into Pulse360
+                            Log in to Commit
                         </h2>
 
                         {/* Login Form */}
@@ -310,7 +310,7 @@ export default function LoginPage() {
                         {/* Bottom Centered Meta-Style Mark */}
                         <div className="pt-10 flex flex-col items-center justify-center gap-1.5 text-[11px] text-slate-400 select-none">
                             <span className="font-bold tracking-tight text-slate-600 dark:text-slate-300">
-                                Pulse360 Platform
+                                Commit Platform
                             </span>
                         </div>
 
@@ -325,14 +325,14 @@ export default function LoginPage() {
                     {/* Navigation Links Row */}
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500">
                         <Link to="/start" className="hover:underline">Start free</Link>
-                        <a href="/" className="hover:underline font-semibold text-slate-800 dark:text-slate-200">About Pulse360</a>
+                        <a href="/" className="hover:underline font-semibold text-slate-800 dark:text-slate-200">About Commit</a>
                         <a href="/privacy" className="hover:underline">Privacy</a>
                         <a href="/terms" className="hover:underline">Terms</a>
                     </div>
 
                     {/* Copyright Note */}
                     <div className="pt-2 text-[12px] text-slate-500 dark:text-slate-400">
-                        Pulse360 © 2026. Execution and accountability for multi-company groups.
+                        Commit © 2026. Projects planned. Work done. Everyone accountable.
                     </div>
 
                 </div>

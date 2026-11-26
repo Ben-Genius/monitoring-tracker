@@ -5,7 +5,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 export interface AppNotification {
     id: string;
     task_id: string | null;
-    type: 'assigned' | 'stage_changed' | 'blocked' | 'blocking_you' | 'progress' | 'accepted' | 'comment' | 'nudge' | 'mention';
+    type: 'assigned' | 'stage_changed' | 'blocked' | 'blocking_you' | 'progress' | 'accepted' | 'comment' | 'nudge' | 'mention' | 'unblocked' | 'escalation';
     title: string;
     body: string | null;
     read_at: string | null;

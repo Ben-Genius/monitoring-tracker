@@ -1,13 +1,13 @@
 import { useEffect, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, CheckSquare, FolderKanban, BarChart3, Settings, Users, LogOut, X, Sunrise, BadgeCheck, ListChecks } from 'lucide-react';
+import { LayoutDashboard, CheckSquare, FolderKanban, BarChart3, Settings, Users, LogOut, X, Sunrise, BadgeCheck, ListChecks, Users2 } from 'lucide-react';
 import InstallAppButton from './InstallAppButton';
 import { cn, getCompanyTheme, DEFAULT_BRAND_COLOR } from '@/lib/utils';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useCompanyStore } from '@/hooks/useCompanyStore';
 import { useCompanies } from '@/features/projects/hooks/useProjects';
 import ThemeToggle from '@/components/ThemeToggle';
-import { canReadBrief, canApprove, canAdminister, canReportWork } from '@/lib/permissions';
+import { canReadBrief, canApprove, canAdminister, canReportWork, canSeeWorkload } from '@/lib/permissions';
 import { roleLabel } from '@/lib/roles';
 import { prefetchRoute } from '@/lib/routeChunks';
 
@@ -19,6 +19,7 @@ const NAV = [
     { name: 'Projects', href: '/projects', icon: FolderKanban },
     { name: 'My work', href: '/my-work', icon: ListChecks, show: canReportWork },
     { name: 'Tasks', href: '/tasks', icon: CheckSquare },
+    { name: 'Workload', href: '/workload', icon: Users2, show: canSeeWorkload },
     { name: 'Analytics', href: '/analytics', icon: BarChart3 },
     { name: 'Approvals', href: '/approvals', icon: BadgeCheck, show: canApprove },
     { name: 'People', href: '/users', icon: Users, show: canAdminister },
@@ -52,9 +53,9 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
         <div className="flex h-full flex-col bg-ink text-white">
             <div className="flex h-14 items-center gap-2.5 px-4">
                 <div className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-white p-1 shadow-sm shrink-0 overflow-hidden ring-1 ring-white/10">
-                    <img src="/logo.avif" alt="Pulse360" className="h-full w-full object-contain" />
+                    <img src="/logo.avif" alt="Commit" className="h-full w-full object-contain" />
                 </div>
-                <span className="text-[15px] font-semibold tracking-tight">Pulse360</span>
+                <span className="text-[15px] font-semibold tracking-tight">Commit</span>
                 {onNavigate && (
                     <button onClick={onNavigate} className="ml-auto flex h-9 w-9 items-center justify-center rounded-[8px] text-white/70 hover:bg-white/10" aria-label="Close menu">
                         <X className="h-5 w-5" />

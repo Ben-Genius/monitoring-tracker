@@ -64,7 +64,7 @@ export default function StartPage() {
     }
 
     return (
-        <AuthCard icon={Rocket} title="Start with Pulse360"
+        <AuthCard icon={Rocket} title="Start with Commit"
             subtitle="Set up your organisation in a minute. Your first morning brief is ready straight away.">
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
@@ -103,10 +103,10 @@ export default function StartPage() {
                     confirm you’ve read the <a href="/privacy" className="font-medium text-ink underline underline-offset-2 dark:text-slate-200">Privacy notice</a>.
                 </p>
                 <p className="text-center text-sm text-gray-500 dark:text-slate-400">
-                    Already on Pulse360? <Link to="/login" className="font-medium text-primary hover:underline">Log in</Link>
+                    Already on Commit? <Link to="/login" className="font-medium text-primary hover:underline">Log in</Link>
                 </p>
                 <p className="text-center text-xs text-gray-500 dark:text-slate-400">
-                    Joining a team that already uses Pulse360? Ask your admin for an invite instead.
+                    Joining a team that already uses Commit? Ask your admin for an invite instead.
                 </p>
             </form>
         </AuthCard>

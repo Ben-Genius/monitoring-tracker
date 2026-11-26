@@ -34,7 +34,7 @@ export default function ForgotPasswordPage() {
     if (sent) {
         return (
             <AuthCard icon={MailCheck} title="Check your email"
-                subtitle={<>If <strong>{email.trim()}</strong> has a Pulse360 account, a link to reset the password is on its way. It works once.</>}>
+                subtitle={<>If <strong>{email.trim()}</strong> has a Commit account, a link to reset the password is on its way. It works once.</>}>
                 <div className="space-y-3 text-center text-sm">
                     <p className="text-gray-500 dark:text-slate-400">No email after a few minutes? Check spam, or ask your admin to send you a new invite.</p>
                     <Link to="/login" className="inline-block font-medium text-primary hover:underline">Back to log in</Link>

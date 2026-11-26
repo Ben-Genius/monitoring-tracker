@@ -147,7 +147,7 @@ export function renderMorningBrief(recipient: BriefRecipient, tasks: EmailTask[]
         if (s[k].length > SHOWN_PER_SECTION) textParts.push(`  and ${s[k].length - SHOWN_PER_SECTION} more`);
         textParts.push('');
     }
-    textParts.push(`Open the full brief: ${briefUrl}`, '', `You get this because you oversee ${recipient.org_name} on Pulse360. Stop these emails: ${opts.unsubscribeUrl}`, `Privacy notice: ${opts.appUrl}/privacy`);
+    textParts.push(`Open the full brief: ${briefUrl}`, '', `You get this because you oversee ${recipient.org_name} on Commit. Stop these emails: ${opts.unsubscribeUrl}`, `Privacy notice: ${opts.appUrl}/privacy`);
     const text = textParts.join('\n');
 
     // ── HTML (tables and inline styles: what email clients render reliably) ──
@@ -195,7 +195,7 @@ export function renderMorningBrief(recipient: BriefRecipient, tasks: EmailTask[]
     </td></tr>
   </table>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px"><tr><td style="padding:16px 24px;font-size:12px;line-height:1.6;color:${MUTED};${font}">
-    You get this at 7am because you oversee ${esc(recipient.org_name)} on Pulse360.
+    You get this at 7am because you oversee ${esc(recipient.org_name)} on Commit.
     <a href="${esc(opts.unsubscribeUrl)}" style="color:${MUTED}">Stop these emails</a> or change it in <a href="${esc(opts.appUrl)}/settings" style="color:${MUTED}">Settings</a>.
     <a href="${esc(opts.appUrl)}/privacy" style="color:${MUTED}">Privacy notice</a>.
   </td></tr></table>

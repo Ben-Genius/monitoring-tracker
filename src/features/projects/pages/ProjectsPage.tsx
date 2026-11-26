@@ -195,7 +195,7 @@ export default function ProjectsPage() {
                     </button>
                     <button type="button" className={secondaryBtn} disabled={!filters.filtered.length}
                         title="Download the projects shown, with your filters, as a spreadsheet"
-                        onClick={() => void downloadCsv('pulse360-projects', filters.filtered.map(p => ({
+                        onClick={() => void downloadCsv('commit-projects', filters.filtered.map(p => ({
                             Project: p.name, Company: p.company_name, Status: p.status,
                             'Contract value (GHS)': Number(p.contract_value) || 0, 'Actual cost (GHS)': Number(p.actual_cost) || 0,
                             'Margin %': p.margin == null ? '' : Math.round(p.margin),

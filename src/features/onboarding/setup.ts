@@ -39,7 +39,7 @@ export async function finishSetup(setup: PendingSetup): Promise<void> {
 
 function friendlySetupError(message: string): string {
     if (/already belongs to a team/i.test(message)) {
-        return 'This email already belongs to a team on Pulse360. Ask your admin to invite you, or sign up with a different email.';
+        return 'This email already belongs to a team on Commit. Ask your admin to invite you, or sign up with a different email.';
     }
     if (/required|120 characters/i.test(message)) return message.charAt(0).toUpperCase() + message.slice(1) + '.';
     return `We couldn’t set up your organisation: ${message}`;

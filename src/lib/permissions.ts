@@ -38,6 +38,11 @@ export function canReportWork(user: Actor): boolean {
     return !!user && user.role !== 'executive';
 }
 
+/** Sees everyone's workload (leads, PAs, admins, executives; not staff). */
+export function canSeeWorkload(user: Actor): boolean {
+    return !!user && user.role !== 'employee';
+}
+
 /** Reads the morning brief. */
 export function canReadBrief(user: Actor): boolean {
     return !!user && GLOBAL_VIEW.includes(user.role);

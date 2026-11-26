@@ -22,6 +22,7 @@ const WelcomePage = lazy(() => import('./features/onboarding/pages/WelcomePage')
 const DashboardPage = lazy(routeChunks['/dashboard']);
 const TaskBoardPage = lazy(routeChunks['/tasks']);
 const MyWorkPage = lazy(routeChunks['/my-work']);
+const WorkloadPage = lazy(routeChunks['/workload']);
 const ProjectsPage = lazy(routeChunks['/projects']);
 const ProjectDetailPage = lazy(() => import('./features/projects/pages/ProjectDetailPage'));
 const AnalyticsPage = lazy(routeChunks['/analytics']);
@@ -114,6 +115,7 @@ function App() {
                                 <Route path="/dashboard" element={<DashboardPage />} />
                                 <Route path="/my-work" element={<MyWorkPage />} />
                                 <Route path="/tasks" element={<TaskBoardPage />} />
+                                <Route path="/workload" element={<WorkloadPage />} />
                                 <Route path="/projects" element={<ProjectsPage />} />
                                 <Route path="/projects/:id" element={<ProjectDetailPage />} />
                                 <Route path="/analytics" element={<AnalyticsPage />} />

@@ -11,6 +11,7 @@ export const routeChunks = {
     '/dashboard': () => import('@/features/dashboard/pages/DashboardPage'),
     '/my-work': () => import('@/features/tasks/pages/MyWorkPage'),
     '/tasks': () => import('@/features/tasks/pages/TaskBoardPage'),
+    '/workload': () => import('@/features/workload/pages/WorkloadPage'),
     '/projects': () => import('@/features/projects/pages/ProjectsPage'),
     '/analytics': () => import('@/features/analytics/pages/AnalyticsPage'),
     '/brief': () => import('@/features/brief/pages/BriefPage'),

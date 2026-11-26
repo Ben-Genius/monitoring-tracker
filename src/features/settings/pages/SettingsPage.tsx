@@ -272,7 +272,7 @@ export default function SettingsPage() {
                             </CardHeader>
                             <CardContent className="p-6 space-y-3 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
                                 <p>
-                                    Pulse360 data is persisted in Supabase PostgreSQL with real-time replication and continuous transaction logging.
+                                    Commit data is persisted in Supabase PostgreSQL with real-time replication and continuous transaction logging.
                                 </p>
                                 <div className="rounded-xl border border-line bg-paper/50 dark:border-slate-800 dark:bg-slate-800/40 p-3.5 flex items-start gap-2.5">
                                     <Shield className="h-4 w-4 text-brand mt-0.5 shrink-0" />
@@ -384,7 +384,7 @@ export default function SettingsPage() {
                         </CardHeader>
                         <CardContent className="p-6 space-y-4">
                             <p className="text-xs text-slate-500 dark:text-slate-400">
-                                You receive real-time notifications in Pulse360 whenever:
+                                You receive real-time notifications in Commit whenever:
                             </p>
 
                             <ul className="space-y-2.5 text-xs text-slate-700 dark:text-slate-200">

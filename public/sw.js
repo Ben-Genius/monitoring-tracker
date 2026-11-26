@@ -1,4 +1,4 @@
-// Pulse360 service worker: makes the app installable and lets it open with
+// Commit service worker: makes the app installable and lets it open with
 // no connection. It caches the app itself (HTML shell, scripts, styles,
 // icons), never data: Supabase and /api requests always go to the network,
 // so nothing from one person's session is left on a shared device.
@@ -7,7 +7,7 @@
 // worker with its own cache, and old caches are deleted on activation.
 
 const VERSION = new URL(self.location.href).searchParams.get('v') || 'dev';
-const CACHE = `pulse360-shell-${VERSION}`;
+const CACHE = `commit-shell-${VERSION}`;
 const SHELL = ['/app.html', '/manifest.webmanifest', '/icons/app-192.png', '/icons/app-512.png', '/favicon.png'];
 
 self.addEventListener('install', (event) => {
@@ -18,7 +18,8 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k.startsWith('pulse360-shell-') && k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(// Also clears caches saved under the product's earlier name (Commit).
+      keys.filter((k) => (k.startsWith('commit-shell-') || k.startsWith('pulse360-shell-')) && k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });

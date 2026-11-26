@@ -12,7 +12,7 @@ import { createClient } from '@supabase/supabase-js';
  * The recipient, role and link all come from that row, never from the request,
  * so this cannot be used to mail arbitrary text or addresses.
  *
- * Env: RESEND_API_KEY, INVITE_FROM_EMAIL (e.g. "Pulse360 <no-reply@yourdomain>"),
+ * Env: RESEND_API_KEY, INVITE_FROM_EMAIL (e.g. "Commit <no-reply@yourdomain>"),
  * optional APP_URL (defaults to the request host).
  */
 
@@ -62,13 +62,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const company = (invite.company as unknown as { name: string } | null)?.name;
     const until = new Date(invite.expires_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
 
-    const text = `Hi ${first}, you have been added to Pulse360 as ${role}${company ? ` for ${company}` : ''}. Set up your login here: ${link} The link works until ${until}. How Pulse360 handles your data: ${origin}/privacy`;
-    const html = `<p>Hi ${esc(first)},</p><p>You have been added to Pulse360 as <strong>${esc(role)}</strong>${company ? ` for ${esc(company)}` : ''}.</p><p><a href="${esc(link)}">Set up your login</a></p><p>The link works until ${esc(until)}.</p><p style="color:#5B6673;font-size:12px">How Pulse360 handles your data: <a href="${esc(origin)}/privacy">privacy notice</a>.</p>`;
+    const text = `Hi ${first}, you have been added to Commit as ${role}${company ? ` for ${company}` : ''}. Set up your login here: ${link} The link works until ${until}. How Commit handles your data: ${origin}/privacy`;
+    const html = `<p>Hi ${esc(first)},</p><p>You have been added to Commit as <strong>${esc(role)}</strong>${company ? ` for ${esc(company)}` : ''}.</p><p><a href="${esc(link)}">Set up your login</a></p><p>The link works until ${esc(until)}.</p><p style="color:#5B6673;font-size:12px">How Commit handles your data: <a href="${esc(origin)}/privacy">privacy notice</a>.</p>`;
 
     const sent = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from, to: [invite.email], subject: 'You have been invited to Pulse360', text, html }),
+        body: JSON.stringify({ from, to: [invite.email], subject: 'You’ve been invited to Commit', text, html }),
     });
     if (!sent.ok) return res.status(502).json({ error: 'The email service refused the message.' });
     return res.status(200).json({ sent: true });
