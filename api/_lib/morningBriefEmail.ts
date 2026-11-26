@@ -1,4 +1,5 @@
 import { AT_RISK, BRIEF_SORTERS, classifyBriefTask, DAY_MS, type BriefSection } from '../../shared/briefRules.js';
+import { button, emailShell, esc, FAINT, INK, label, LINE, MONO, MUTED, RED, SANS, TINT } from './emailStyle.js';
 
 /**
  * Builds and renders the 7am morning brief email. Pure: no network, no
@@ -59,12 +60,6 @@ const STAGE_LABELS: Record<string, string> = {
     talking_stage: 'Talking stage', yet_to_start: 'Yet to start', in_progress: 'In progress', blockers: 'Blocked', completed: 'Done',
 };
 
-// The two states that cannot wait get the one colour in the email.
-const RED = '#B83A24';
-const INK = '#17202B';
-const MUTED = '#5B6673';
-const LINE = '#E3E7EC';
-const PAPER = '#F4F6F8';
 
 const HONORIFICS = /^(mr|mrs|ms|miss|dr|prof|rev|hon|sir|madam)\.?$/i;
 /** "Mr Blay" and "Mr Kwame Blay" are "Mr Blay"; "Ama Owusu" becomes "Ama". Same as the app. */
@@ -72,8 +67,6 @@ export function addressAs(name: string): string {
     const parts = name.trim().split(/\s+/);
     return parts.length > 1 && HONORIFICS.test(parts[0]) ? `${parts[0]} ${parts[parts.length - 1]}` : parts[0];
 }
-
-const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 
 function shortDate(iso: string): string {
     return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
@@ -150,57 +143,65 @@ export function renderMorningBrief(recipient: BriefRecipient, tasks: EmailTask[]
     textParts.push(`Open the full brief: ${briefUrl}`, '', `You get this because you oversee ${recipient.org_name} on Commit. Stop these emails: ${opts.unsubscribeUrl}`, `Privacy notice: ${opts.appUrl}/privacy`);
     const text = textParts.join('\n');
 
-    // ── HTML (tables and inline styles: what email clients render reliably) ──
-    const font = `font-family:'Public Sans',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif`;
-    const sectionHtml = shownSections.filter(k => s[k].length).map(k => {
-        const red = k === 'urgent' || k === 'blocked';
-        const rows = s[k].slice(0, SHOWN_PER_SECTION).map(t => `
-            <tr><td style="padding:12px 0;border-top:1px solid ${LINE};${font}">
-              <div style="font-size:15px;font-weight:600;color:${INK};line-height:1.4">${esc(t.title)}</div>
-              <div style="font-size:13px;color:${MUTED};line-height:1.5">${esc([t.project?.name, t.owner?.name].filter(Boolean).join(' · ') || 'Unassigned')}</div>
-              <div style="font-size:13px;color:${red ? RED : INK};line-height:1.5;margin-top:2px">${esc(reason(t, k, now))}</div>
-            </td></tr>`).join('');
-        const more = s[k].length > SHOWN_PER_SECTION
-            ? `<tr><td style="padding:8px 0 0;border-top:1px solid ${LINE};font-size:13px;color:${MUTED};${font}">and ${s[k].length - SHOWN_PER_SECTION} more in the app</td></tr>` : '';
-        return `
-          <tr><td style="padding:24px 0 4px;${font}">
-            <span style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${red ? RED : MUTED}">${SECTION_TITLES[k]}</span>
-            <span style="font-size:12px;font-weight:700;color:${MUTED}">&nbsp;${s[k].length}</span>
-          </td></tr>${rows}${more}`;
+    // ── HTML: the shared Commit email look (emailStyle.ts). Red is kept for
+    // the two states that can't wait: urgent and blocked.
+    const isRed = (k: BriefSection) => k === 'urgent' || k === 'blocked';
+
+    // Four counts across the top, so the shape of the day reads at a glance.
+    const strip = AT_RISK.map((k, i) => {
+        const n = s[k].length;
+        const color = n && isRed(k) ? RED : n ? INK : FAINT;
+        return `<td class="sc" width="25%" style="padding:14px 16px;${i ? `border-left:1px solid ${LINE};` : ''}vertical-align:top">
+              <div style="${SANS};font-size:22px;line-height:1;font-weight:600;letter-spacing:-.02em;color:${color}">${n}</div>
+              <div style="margin-top:6px">${label(SECTION_TITLES[k], FAINT)}</div>
+            </td>`;
     }).join('');
 
-    const html = `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="color-scheme" content="light only"><title>${esc(subject)}</title></head>
-<body style="margin:0;padding:0;background:${PAPER}">
-<div style="display:none;max-height:0;overflow:hidden">${esc(attention ? `${attention} ${heroLine}` : heroLine)}</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${PAPER}"><tr><td align="center" style="padding:24px 12px">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid ${LINE};border-radius:14px">
-    <tr><td style="padding:28px 24px 8px;${font}">
-      <div style="font-size:13px;color:${MUTED}">${esc(opts.dateLabel)} · ${esc(recipient.org_name)}</div>
-      <h1 style="margin:6px 0 0;font-size:22px;line-height:1.3;color:${INK};font-weight:700">${esc(hello)}</h1>
-    </td></tr>
-    <tr><td style="padding:16px 24px 4px;${font}">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${PAPER};border-radius:10px"><tr><td style="padding:18px 20px;${font}">
-        ${attention ? `<div style="font-size:44px;line-height:1;font-weight:800;color:${severe ? RED : INK}">${attention}</div>` : ''}
-        <div style="font-size:15px;line-height:1.5;color:${INK};margin-top:${attention ? 6 : 0}px;font-weight:600">${esc(heroLine)}</div>
-        <div style="font-size:13px;line-height:1.5;color:${MUTED};margin-top:4px">${esc(scope)}</div>
-      </td></tr></table>
-    </td></tr>
-    <tr><td style="padding:0 24px;${font}">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${sectionHtml}</table>
-    </td></tr>
-    <tr><td style="padding:28px 24px 28px;${font}">
-      <a href="${esc(briefUrl)}" style="display:inline-block;background:${INK};color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:12px 20px;border-radius:8px">Open the full brief</a>
-    </td></tr>
-  </table>
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px"><tr><td style="padding:16px 24px;font-size:12px;line-height:1.6;color:${MUTED};${font}">
-    You get this at 7am because you oversee ${esc(recipient.org_name)} on Commit.
-    <a href="${esc(opts.unsubscribeUrl)}" style="color:${MUTED}">Stop these emails</a> or change it in <a href="${esc(opts.appUrl)}/settings" style="color:${MUTED}">Settings</a>.
-    <a href="${esc(opts.appUrl)}/privacy" style="color:${MUTED}">Privacy notice</a>.
-  </td></tr></table>
-</td></tr></table>
-</body></html>`;
+    const sectionHtml = shownSections.filter(k => s[k].length).map(k => {
+        const rows = s[k].slice(0, SHOWN_PER_SECTION).map(t => `
+            <tr><td style="padding:14px 0;border-top:1px solid ${LINE}">
+              <a href="${esc(`${opts.appUrl}/tasks?task=${encodeURIComponent(t.id)}`)}" style="${SANS};font-size:15px;font-weight:500;line-height:1.4;color:${INK};text-decoration:none">${esc(t.title)}</a>
+              <div style="${MONO};font-size:12px;line-height:1.6;color:${FAINT};margin-top:2px">${esc([t.project?.name, t.owner?.name].filter(Boolean).join(' · ') || 'Unassigned')}</div>
+              <div style="${SANS};font-size:13px;line-height:1.5;color:${isRed(k) ? RED : MUTED};margin-top:2px">${esc(reason(t, k, now))}</div>
+            </td></tr>`).join('');
+        const more = s[k].length > SHOWN_PER_SECTION
+            ? `<tr><td style="padding:10px 0 0;border-top:1px solid ${LINE};${SANS};font-size:13px;color:${MUTED}">and ${s[k].length - SHOWN_PER_SECTION} more in the app</td></tr>` : '';
+        return `
+          <tr><td style="padding:28px 0 8px">${label(SECTION_TITLES[k], isRed(k) ? RED : MUTED)}&nbsp;&nbsp;${label(String(s[k].length), FAINT)}</td></tr>${rows}${more}`;
+    }).join('');
+
+    const body = `
+      <tr><td class="px" style="padding:40px 40px 0">
+        <p style="margin:0">${label(`${esc(opts.dateLabel)} &middot; ${esc(recipient.org_name)}`)}</p>
+        <h1 class="h1" style="margin:14px 0 0;${SANS};font-size:30px;line-height:1.12;font-weight:600;letter-spacing:-.03em;color:${INK}">${esc(hello)}</h1>
+      </td></tr>
+      <tr><td class="px" style="padding:24px 40px 0">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${LINE};border-radius:10px;background:${TINT}">
+          <tr><td style="padding:22px 20px 20px">
+            ${attention ? `<div class="hero" style="${SANS};font-size:56px;line-height:1;font-weight:600;letter-spacing:-.04em;color:${severe ? RED : INK}">${attention}</div>` : ''}
+            <div style="${SANS};font-size:16px;line-height:1.5;font-weight:500;color:${INK};margin-top:${attention ? 10 : 0}px">${esc(heroLine)}</div>
+            <div style="${SANS};font-size:13px;line-height:1.6;color:${MUTED};margin-top:4px">${esc(scope)}</div>
+          </td></tr>
+          <tr><td style="border-top:1px solid ${LINE};padding:0">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${strip}</tr></table>
+          </td></tr>
+        </table>
+      </td></tr>
+      <tr><td class="px" style="padding:0 40px">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${sectionHtml}</table>
+      </td></tr>
+      <tr><td class="px" style="padding:32px 40px 40px">${button(briefUrl, 'Open the full brief')}</td></tr>`;
+
+    const html = emailShell({
+        title: subject,
+        preheader: attention ? `${attention} ${heroLine}` : heroLine,
+        label: 'Morning brief',
+        origin: opts.appUrl,
+        body,
+        footer: `You get this at 7am because you oversee ${esc(recipient.org_name)} on Commit.
+        <a href="${esc(opts.unsubscribeUrl)}" style="color:${MUTED};text-decoration:underline">Stop these emails</a> or change it in <a href="${esc(opts.appUrl)}/settings" style="color:${MUTED};text-decoration:underline">Settings</a>.
+        <a href="${esc(opts.appUrl)}/privacy" style="color:${MUTED};text-decoration:underline">Privacy notice</a>.`,
+    });
 
     return { subject, text, html, empty: openCount === 0 && s.done.length === 0 };
 }

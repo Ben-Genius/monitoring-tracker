@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
+import { renderInviteEmail } from './_lib/inviteEmail.js';
 
 /**
  * Emails an invite link that was already created in pending_invites.
@@ -15,12 +16,6 @@ import { createClient } from '@supabase/supabase-js';
  * Env: RESEND_API_KEY, INVITE_FROM_EMAIL (e.g. "Commit <no-reply@yourdomain>"),
  * optional APP_URL (defaults to the request host).
  */
-
-const ROLE_LABELS: Record<string, string> = {
-    admin: 'Admin', executive: 'Executive', pa: 'Executive PA', lead: 'Project lead', employee: 'Staff',
-};
-
-const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -47,7 +42,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { data: invite, error } = await db
         .from('pending_invites')
-        .select('email, name, role, token, used, expires_at, company:companies(name)')
+        .select('email, name, role, token, used, expires_at, invited_by, company:companies(name)')
         .eq('id', invite_id)
         .maybeSingle();
     if (error) return res.status(500).json({ error: 'Could not read the invite.' });
@@ -58,17 +53,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const origin = process.env.APP_URL?.replace(/\/$/, '') ?? `https://${req.headers.host}`;
     const link = `${origin}/signup?token=${invite.token}`;
     const first = String(invite.name).trim().split(/\s+/)[0];
-    const role = ROLE_LABELS[invite.role] ?? invite.role;
-    const company = (invite.company as unknown as { name: string } | null)?.name;
+    const company = (invite.company as unknown as { name: string } | null)?.name ?? null;
     const until = new Date(invite.expires_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
 
-    const text = `Hi ${first}, you have been added to Commit as ${role}${company ? ` for ${company}` : ''}. Set up your login here: ${link} The link works until ${until}. How Commit handles your data: ${origin}/privacy`;
-    const html = `<p>Hi ${esc(first)},</p><p>You have been added to Commit as <strong>${esc(role)}</strong>${company ? ` for ${esc(company)}` : ''}.</p><p><a href="${esc(link)}">Set up your login</a></p><p>The link works until ${esc(until)}.</p><p style="color:#5B6673;font-size:12px">How Commit handles your data: <a href="${esc(origin)}/privacy">privacy notice</a>.</p>`;
+    // Who sent it, for "Ama has invited you". Read with the caller's token, so
+    // it only resolves within their own organisation; left out if unknown.
+    let inviter: string | null = null;
+    if (invite.invited_by) {
+        const { data: u } = await db.from('users').select('name').eq('id', invite.invited_by).maybeSingle();
+        inviter = typeof u?.name === 'string' && u.name.trim() ? u.name.trim() : null;
+    }
+
+    const { subject, text, html } = renderInviteEmail({
+        first, email: invite.email, role: invite.role, company, inviter, link, until, origin,
+    });
 
     const sent = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from, to: [invite.email], subject: 'You’ve been invited to Commit', text, html }),
+        body: JSON.stringify({ from, to: [invite.email], subject, text, html }),
     });
     if (!sent.ok) return res.status(502).json({ error: 'The email service refused the message.' });
     return res.status(200).json({ sent: true });
